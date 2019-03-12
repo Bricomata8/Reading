@@ -9,13 +9,13 @@
 	"priority": 100,
 	"inRepository": false,
 	"configOptions": {
-		"hash": "f1b44b5de0acf5ae47033b29e1df8fba-b1e2a3e5bec71c2b1e42bf0b3b2af4e2"
+		"hash": "f1b44b5de0acf5ae47033b29e1df8fba-22275d2cab247e185bcded0a07620491"
 	},
 	"displayOptions": {
 		"keepUpdated": false
 	},
 	"browserSupport": "gcsv",
-	"lastUpdated": "2019-02-21 00:04:51"
+	"lastUpdated": "2019-03-12 10:05:50"
 }
 
 var Translator = {
@@ -9672,7 +9672,7 @@ function writeNode(state, level, object, block, compact, iskey) {
         }
       }
     } else if (type === '[object Array]') {
-      var arrayLevel = (state.noArrayIndent) ? level - 1 : level;
+      var arrayLevel = (state.noArrayIndent && (level > 0)) ? level - 1 : level;
       if (block && (state.dump.length !== 0)) {
         writeBlockSequence(state, arrayLevel, state.dump, compact);
         if (duplicate) {
