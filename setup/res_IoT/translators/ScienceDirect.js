@@ -9,7 +9,7 @@
 	"priority": 100,
 	"inRepository": true,
 	"browserSupport": "gcsibv",
-	"lastUpdated": "2018-09-08 17:00:00"
+	"lastUpdated": "2019-03-24 22:05:00"
 }
 
 // attr()/text() v2
@@ -377,7 +377,8 @@ function processRIS(doc, text) {
 				item.attachments.push({
 					title: 'ScienceDirect Full Text PDF',
 					url: pdfURL,
-					mimeType: 'application/pdf'
+					mimeType: 'application/pdf',
+					proxy: false
 				});
 			}
 			item.complete();
