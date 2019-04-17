@@ -9,13 +9,13 @@
 	"priority": 100,
 	"inRepository": false,
 	"configOptions": {
-		"hash": "780779d1e39047e03dd8fea4f831d750-24fc0b86f280daeb9bf3dd889471d524"
+		"hash": "780779d1e39047e03dd8fea4f831d750-01c2f6bf1f72a427bc22bfd6560287c1"
 	},
 	"displayOptions": {
 		"keepUpdated": false
 	},
 	"browserSupport": "gcsv",
-	"lastUpdated": "2019-04-08 13:24:04"
+	"lastUpdated": "2019-04-15 18:26:41"
 }
 
 var Translator = {
@@ -15194,7 +15194,6 @@ exports.CSLExporter = new class {
                         csl[name] = value;
                 }
             }
-            [csl.shortTitle, csl['title-short']] = [csl['title-short'], csl.shortTitle]; // ; here for disambiguation
             [csl.journalAbbreviation, csl['container-title-short']] = [csl['container-title-short'], csl.journalAbbreviation];
             /* ham-fisted workaround for #365 */
             if ((csl.type === 'motion_picture' || csl.type === 'broadcast') && csl.author && !csl.director)
@@ -15210,7 +15209,13 @@ exports.CSLExporter = new class {
             delete csl.system_id;
             if (csl.type === 'broadcast' && csl.genre === 'television broadcast')
                 delete csl.genre;
-            const cache = this.postscript(csl, item);
+            let cache;
+            try {
+                cache = this.postscript(csl, item);
+            }
+            catch (err) {
+                cache = false;
+            }
             csl = this.serialize(csl);
             if (typeof cache !== 'boolean' || cache)
                 Zotero.BetterBibTeX.cacheStore(item.itemID, Translator.options, Translator.preferences, csl);
