@@ -11,7 +11,7 @@
 	"configOptions": {
 		"async": true,
 		"getCollections": true,
-		"hash": "cffca401194c9d7f1899e4bcd1b01d09-23105f863702694c82717309e7592322"
+		"hash": "cffca401194c9d7f1899e4bcd1b01d09-fa4775b7be7887bf40f78c3a22c2b891"
 	},
 	"displayOptions": {
 		"exportNotes": false,
@@ -20,7 +20,7 @@
 		"keepUpdated": false
 	},
 	"browserSupport": "gcsv",
-	"lastUpdated": "2019-04-08 13:24:04"
+	"lastUpdated": "2019-04-17 16:17:14"
 }
 
 var Translator = {
@@ -290,6 +290,48 @@ exports.arXiv = new class {
       Zotero.logError($wrap_loader_message_content_arXiv_ts)
     } else {
       Zotero.debug($wrap_loader_message_content_arXiv_ts)
+    }
+   };
+
+/***/ }),
+
+/***/ "../content/escape.ts":
+/*!****************************!*\
+  !*** ../content/escape.ts ***!
+  \****************************/
+/*! no static exports found */
+/*! all exports used */
+/***/ (function(module, exports) {
+
+
+    Zotero.debug('zotero-better-bibtex: loading content/escape.ts')
+  ; try { "use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+function html(str) {
+    const entity = {
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+    };
+    // return str.replace(/[\u00A0-\u9999<>\&]/gim, c => entity[c] || `&#${c.charCodeAt(0)};`)
+    return str.replace(/[<>\&"']/g, c => entity[c] || `&#${c.charCodeAt(0)};`);
+}
+exports.html = html;
+function rtf(str) {
+    return str
+        .replace(/([{}\\])/g, '\\$1')
+        .replace(/\n/g, '\\par ');
+}
+exports.rtf = rtf;
+; 
+    Zotero.debug('zotero-better-bibtex: loaded content/escape.ts')
+  ; } catch ($wrap_loader_catcher_content_escape_ts) { 
+    var $wrap_loader_message_content_escape_ts = 'Error: zotero-better-bibtex: load of content/escape.ts failed:' + $wrap_loader_catcher_content_escape_ts + '::' + $wrap_loader_catcher_content_escape_ts.stack;
+    if (typeof Zotero.logError === 'function') {
+      Zotero.logError($wrap_loader_message_content_escape_ts)
+    } else {
+      Zotero.debug($wrap_loader_message_content_escape_ts)
     }
    };
 
@@ -10346,7 +10388,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const reference_1 = __webpack_require__(/*! ./bibtex/reference */ "./bibtex/reference.ts");
 const exporter_1 = __webpack_require__(/*! ./lib/exporter */ "./lib/exporter.ts");
 const debug_1 = __webpack_require__(/*! ./lib/debug */ "./lib/debug.ts");
-const html_escape_1 = __webpack_require__(/*! ./lib/html-escape */ "./lib/html-escape.ts");
+const escape = __webpack_require__(/*! ../content/escape */ "../content/escape.ts");
 const JSON5 = __webpack_require__(/*! json5 */ "../node_modules/json5/dist/index.js");
 const biblatex = __webpack_require__(/*! biblatex-csl-converter/src/import/biblatex */ "../node_modules/biblatex-csl-converter/src/import/biblatex.js");
 const itemfields_1 = __webpack_require__(/*! ../gen/itemfields */ "../gen/itemfields.ts");
@@ -11447,24 +11489,24 @@ Translator.doImport = async () => {
         for (const err of errors) {
             switch (err.type) {
                 case 'cut_off_citation':
-                    item.note += `<li>line ${err.line}: ${html_escape_1.htmlEscape(`incomplete reference @${err.entry}`)}</li>`;
+                    item.note += `<li>line ${err.line}: ${escape.html(`incomplete reference @${err.entry}`)}</li>`;
                     break;
                 case 'token_mismatch':
-                    item.note += `<li>line ${err.line}: found ${html_escape_1.htmlEscape(JSON.stringify(err.found))}, expected ${html_escape_1.htmlEscape(JSON.stringify(err.expected))}</li>`;
+                    item.note += `<li>line ${err.line}: found ${escape.html(JSON.stringify(err.found))}, expected ${escape.html(JSON.stringify(err.expected))}</li>`;
                     break;
                 case 'undefined_variable':
-                    item.note += `<li>line ${err.line}: undefined variable '${html_escape_1.htmlEscape(err.variable)}'</li>`;
+                    item.note += `<li>line ${err.line}: undefined variable '${escape.html(err.variable)}'</li>`;
                     break;
                 case 'unknown_type':
-                    item.note += `<li>line ${err.line}: unknown reference type '${html_escape_1.htmlEscape(err.type_name)}'</li>`;
+                    item.note += `<li>line ${err.line}: unknown reference type '${escape.html(err.type_name)}'</li>`;
                     break;
                 case 'bbt_error':
-                    item.note += `<li>Unhandled Better BibTeX error: '${html_escape_1.htmlEscape(err.error.toString())}'</li>`;
+                    item.note += `<li>Unhandled Better BibTeX error: '${escape.html(err.error.toString())}'</li>`;
                     break;
                 default:
                     if (Translator.preferences.testing)
                         throw new Error('unhandled import error: ' + JSON.stringify(err));
-                    item.note += `<li>line ${err.line}: found ${html_escape_1.htmlEscape(err.type)}`;
+                    item.note += `<li>line ${err.line}: found ${escape.html(err.type)}`;
                     break;
             }
         }
@@ -13215,33 +13257,6 @@ exports.Exporter = new class {
       Zotero.logError($wrap_loader_message_translators_lib_exporter_ts)
     } else {
       Zotero.debug($wrap_loader_message_translators_lib_exporter_ts)
-    }
-   };
-
-/***/ }),
-
-/***/ "./lib/html-escape.ts":
-/*!****************************!*\
-  !*** ./lib/html-escape.ts ***!
-  \****************************/
-/*! no static exports found */
-/*! all exports used */
-/***/ (function(module, exports) {
-
-
-    Zotero.debug('zotero-better-bibtex: loading translators/lib/html-escape.ts')
-  ; try { "use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-function htmlEscape(str) { return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;'); }
-exports.htmlEscape = htmlEscape;
-; 
-    Zotero.debug('zotero-better-bibtex: loaded translators/lib/html-escape.ts')
-  ; } catch ($wrap_loader_catcher_translators_lib_html_escape_ts) { 
-    var $wrap_loader_message_translators_lib_html_escape_ts = 'Error: zotero-better-bibtex: load of translators/lib/html-escape.ts failed:' + $wrap_loader_catcher_translators_lib_html_escape_ts + '::' + $wrap_loader_catcher_translators_lib_html_escape_ts.stack;
-    if (typeof Zotero.logError === 'function') {
-      Zotero.logError($wrap_loader_message_translators_lib_html_escape_ts)
-    } else {
-      Zotero.debug($wrap_loader_message_translators_lib_html_escape_ts)
     }
    };
 

@@ -10,10 +10,10 @@
 	"inRepository": false,
 	"configOptions": {
 		"getCollections": true,
-		"hash": "e2122a27eaae983bfa6c181f24350d0c-22a5da3372cf062a1639990ea707cbc9"
+		"hash": "e2122a27eaae983bfa6c181f24350d0c-0ceb75b7b7d3da751443454decb4c208"
 	},
 	"browserSupport": "gcsv",
-	"lastUpdated": "2019-04-08 13:24:04"
+	"lastUpdated": "2019-04-17 16:17:14"
 }
 
 var Translator = {
@@ -230,6 +230,48 @@ function doExport() {
 /************************************************************************/
 /******/ ({
 
+/***/ "../content/escape.ts":
+/*!****************************!*\
+  !*** ../content/escape.ts ***!
+  \****************************/
+/*! no static exports found */
+/*! all exports used */
+/***/ (function(module, exports) {
+
+
+    Zotero.debug('zotero-better-bibtex: loading content/escape.ts')
+  ; try { "use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+function html(str) {
+    const entity = {
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+    };
+    // return str.replace(/[\u00A0-\u9999<>\&]/gim, c => entity[c] || `&#${c.charCodeAt(0)};`)
+    return str.replace(/[<>\&"']/g, c => entity[c] || `&#${c.charCodeAt(0)};`);
+}
+exports.html = html;
+function rtf(str) {
+    return str
+        .replace(/([{}\\])/g, '\\$1')
+        .replace(/\n/g, '\\par ');
+}
+exports.rtf = rtf;
+; 
+    Zotero.debug('zotero-better-bibtex: loaded content/escape.ts')
+  ; } catch ($wrap_loader_catcher_content_escape_ts) { 
+    var $wrap_loader_message_content_escape_ts = 'Error: zotero-better-bibtex: load of content/escape.ts failed:' + $wrap_loader_catcher_content_escape_ts + '::' + $wrap_loader_catcher_content_escape_ts.stack;
+    if (typeof Zotero.logError === 'function') {
+      Zotero.logError($wrap_loader_message_content_escape_ts)
+    } else {
+      Zotero.debug($wrap_loader_message_content_escape_ts)
+    }
+   };
+
+/***/ }),
+
 /***/ "./Collected notes.ts":
 /*!****************************!*\
   !*** ./Collected notes.ts ***!
@@ -242,7 +284,7 @@ function doExport() {
     Zotero.debug('zotero-better-bibtex: loading translators/Collected notes.ts')
   ; try { "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-const html_escape_1 = __webpack_require__(/*! ./lib/html-escape */ "./lib/html-escape.ts");
+const escape = __webpack_require__(/*! ../content/escape */ "../content/escape.ts");
 const html = {
     levels: 0,
     body: '',
@@ -250,7 +292,7 @@ const html = {
 function _collection(collection, level = 1) {
     if (level > html.levels)
         html.levels = level;
-    html.body += `<h${level}>${html_escape_1.htmlEscape(collection.name)}</h${level}>\n`;
+    html.body += `<h${level}>${escape.html(collection.name)}</h${level}>\n`;
     for (const item of collection.items) {
         _item(item);
     }
@@ -289,7 +331,7 @@ function _note(note, type) {
         case 'extra':
             if (!note)
                 return;
-            html.body += `<blockquote><pre>${html_escape_1.htmlEscape(note)}</pre></blockquote>\n`;
+            html.body += `<blockquote><pre>${escape.html(note)}</pre></blockquote>\n`;
             break;
         case 'attachment':
             if (!note.note)
@@ -313,7 +355,7 @@ function _reference(item) {
         if (item.note)
             notes = [{ note: item.note }];
         if (item.title)
-            title = `<samp>${html_escape_1.htmlEscape(item.title)}</samp>`;
+            title = `<samp>${escape.html(item.title)}</samp>`;
     }
     else {
         notes = item.notes.filter(note => note.note);
@@ -327,9 +369,9 @@ function _reference(item) {
         }
         const author = [creators, date].filter(v => v).join(', ');
         if (item.title)
-            title += `<i>${html_escape_1.htmlEscape(item.title)}</i>`;
+            title += `<i>${escape.html(item.title)}</i>`;
         if (author)
-            title += `(${html_escape_1.htmlEscape(author)})`;
+            title += `(${escape.html(author)})`;
         title = title.trim();
     }
     html.body += `<div>${title}</div>\n`;
@@ -405,33 +447,6 @@ Translator.doExport = () => {
       Zotero.logError($wrap_loader_message_translators_Collected_notes_ts)
     } else {
       Zotero.debug($wrap_loader_message_translators_Collected_notes_ts)
-    }
-   };
-
-/***/ }),
-
-/***/ "./lib/html-escape.ts":
-/*!****************************!*\
-  !*** ./lib/html-escape.ts ***!
-  \****************************/
-/*! no static exports found */
-/*! all exports used */
-/***/ (function(module, exports) {
-
-
-    Zotero.debug('zotero-better-bibtex: loading translators/lib/html-escape.ts')
-  ; try { "use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-function htmlEscape(str) { return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;'); }
-exports.htmlEscape = htmlEscape;
-; 
-    Zotero.debug('zotero-better-bibtex: loaded translators/lib/html-escape.ts')
-  ; } catch ($wrap_loader_catcher_translators_lib_html_escape_ts) { 
-    var $wrap_loader_message_translators_lib_html_escape_ts = 'Error: zotero-better-bibtex: load of translators/lib/html-escape.ts failed:' + $wrap_loader_catcher_translators_lib_html_escape_ts + '::' + $wrap_loader_catcher_translators_lib_html_escape_ts.stack;
-    if (typeof Zotero.logError === 'function') {
-      Zotero.logError($wrap_loader_message_translators_lib_html_escape_ts)
-    } else {
-      Zotero.debug($wrap_loader_message_translators_lib_html_escape_ts)
     }
    };
 
