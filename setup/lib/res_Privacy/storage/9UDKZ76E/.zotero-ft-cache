@@ -1,0 +1,1551 @@
+Gossip-Based Reputation Management for Unstructured Peer-to-Peer Networks*
+Runfang Zhou, Student Member IEEE, Kai Hwang, Fellow IEEE, and Min Cai, Member IEEE
+Abstract: To build an efficient reputation system for peer-to-peer (P2P) networks, we need
+fast mechanisms to aggregate peer evaluations and to disseminate updated scores to a large number of peer nodes. Unfortunately, unstructured P2P networks are short of secure hashing and fast lookup mechanisms as in structured P2P systems like the DHT-based Chord. In light of this shortcoming, we propose a gossiping mechanism to support unstructured P2P communications. This paper reports the design principles and performance results of a GossipTrust system. Gossip-based communications are shown effective to support fast peer scoring and distribution. Gossiping enables light-weight aggregation of local scores and spreading of updated scores to all nodes in O(log2 n) time, where n is the P2P network size.
+The GossipTrust works as follows: Each peer gossips with a few randomly selected other nodes to share reputation data, periodically. Gossip-based protocols do not require error recovery and thus enjoy the simplicity with a moderate processing overhead. Bloom filters are specially tailored for storing and retrieving global reputation rankings on each node. We apply identity-based cryptography to secure gossiped reputation data. We report simulation results on distributed file-sharing and parameter-sweeping applications on GossipTrust. These results prove the claimed advantages in low aggregation overhead, storage efficiency, and scoring accuracy in unstructured P2P networks. With minor modifications, the system is also applicable to structured P2P systems with projected even better performance, which is beyond the scope of this paper.
+Index Terms: Peer-to-peer networks, gossip protocol, reputation system, information
+aggregation, identity-based cryptography, Bloom filter, distributed file sharing, parameter sweeping applications, and system performance evaluation.
+* Manuscript submitted to IEEE-Transactions on Knowledge and Data Engineering., Jan. 3, 2007. This work was supported by NSF Grant ITR-0325409 at the University of Southern California. The initial concept and some preliminary results will be presented in IEEE IPDPS-2007 in March 2007. This journal version is significantly extended in both theories and experimental results, with more than 70% new material compared with the conference version. Corresponding author is Kai Hwang at kaihwang@usc.edu, Tel: 213 740 4470, and Fax: 213 740 4418.
+1
+
+1. Introduction
+The growth of peer-to-peer (P2P) traffic is largely attributed to the applications in P2P filesharing [23], digital content delivery [20], and P2P Grid services [12]. Peer anonymity and dynamic joining/departure make P2P networks quite vulnerable to attacks by selfish and malicious peers [7][33][9]. Most P2P file-sharing networks like Gnutella, KaZaA and BitTorrent are built with autonomous peers with different or even conflicting self-interests [13]. Selfish peers tend to take advantage of other peers without contributing their own resources. Malicious peers attack the network by spreading viruses or corrupted software, pirated music, or pornographic video files [18]. Reputation systems are designed to cope with these difficulties and help legitimate clients choose reliable peers in P2P transactions [1].
+In the past, several reputation systems like EigenTrust [16], PeerTrust [32], and PowerTrust [36] were proposed to evaluate peer behavior in structured P2P networks like Chord or CAN. Reputation management in P2P networks support resource sharing among legitimate peers and combate selfish or malicious ones. A good on-line reputation system enables peers to assess each other to establish trusted interactions. Without reputation management, peers may hesitate to interact with unknown peers due to the concern of receiving poisoned files or being compromised by malwares. Furthermore, identifying trustworthy peers is required in P2P auctions, trusted content delivery, pay-per-transaction, and P2P service discovery [15].
+For example, after a peer completes downloading a music file, the peer rates the provider based on his or her experience in the transaction. The reputation system [24] computes the global reputation score of a peer by aggregating the local rates (i.e. feedbacks) from those who had interacted with that peer, previously. By making the global reputation scores public, peers are able to make informed decision about which peers to perform the transactions with. So reputation systems help peers avoid unreliable or malicious peers.
+Any reputation system for unstructured P2P networks has to meet the following requirements in aggregation overhead, storage efficiency, and reputation accuracy. First, the overheads in computation and communication for global reputation aggregation have to be considerably low. Second, the amount of space for each node to store previously collected reputation data has to be reduced as small as possible, preferably a constant number of bytes allocated. Third, the calculation of global reputation scores must be sufficiently accurate. Our
+2
+
+goal is to achieve an error probability within a small window [(1-ε)v, (1+ε)v], where v is the actual reputation score and ε is the small error fraction. The high accuracy is achieved with significant increase in aggregation time and storage overhead. The tradeoffs among these three requirements are explored through proper choice of various design parameters.
+To meet these requirements, we propose a scalable, robust and secure reputation management system called GossipTrust, specifically designed for unstructured P2P networks. This system leverages a gossip-based protocol to aggregate global reputation scores. In GossipTrust, each peer randomly contacts others and exchanges reputation data periodically. Gossip-based protocols do not require any error recovery mechanism, and thus enjoy the simplicity with moderate overhead, compared with optimal deterministic protocols [17].
+GossipTrust is built around a fast reputation aggregation module with enhanced security support. We aim to strengthen the robustness of the gossip protocol under disturbances by malicious peers. The system has a novel data management scheme to answer reputation queries and to store reputation data with small overhead. We apply identity-based cryptography to ensure the confidentiality, integrity and authenticity of the exchanged reputation data, without using certified public keys or pre-shared secret.
+The remaining parts of this paper are organized as follows: Section 2 reviews related work on reputation systems for both structured and unstructured P2P networks. In Section 3, we introduce the GossipTrust system architecture. We present basic GossipTrust algorithms in Section 4. Then we analyze the performance of GossipTrust in Section 5. We propose a Bloom filter-based storage scheme for storing and retrieving reputation data in Section 6. The security enhancement mechanisms are presented in Section 7 to combat malicious peers. We report simulation results of GossipTrust and P2P benchmark results in Section 8. Finally, we conclude with a summary of contributions and make suggestions for further research at the end.
+2. Related Work and Our Approach
+In an open and decentralized P2P system, there is no centralized authority to maintain and distribute reputation data. A P2P reputation system calculates global peer scores by aggregating peer feedbacks in a distributed fashion [6], [16], [19], [25], [30], [32], [36]. Two important tasks are performed in this process, i.e. reputation score aggregation and reputation data dissemination.
+3
+
+These two tasks involve the scoring, collection, storage, and distribution of peer reputation scores, that are dynamically changing. Most existing reputation systems apply distributed hash table (DHT) [16], [32], [36] to support trust management tasks.
+How to perform efficient reputation aggregation and distribution thus becomes a major challenge in unstructured P2P networks. Several reputation systems have been proposed to discourage malicious peers and to promote the trustworthiness and cooperation among legitimate peers. Xiong and Liu [32] presented PeerTrust, which computes the peer reputation based on five contributing factors. Srivatsa [27] took a further step to improve the robustness of PeerTrust. They proposed methods to especially counter vulnerabilities in reputation management. The EigenTrust algorithm [16] aggregates trust information by having peers perform a distributed calculation of the eigenvector of the trust matrix.
+We have proposed PowerTrust [36] for DHT-based networks, which leverages the power law distribution of peer feedbacks. Trust management in unstructured P2P networks was pioneered by Aberer and Despotovic [1] in 2001. Their approach is based on a decentralized storage method (P-Grid). The trust information provided by P-Grid is used to assess the probability that an agent will cheat in the future. This approach suffers from the fact that trust is evaluated by referrals, not by global trust aggregation.
+Another approach uses Bayesian learning [6], by which the first-hand information is exchanged frequently and second-hand information is merged with current reputation ratings. TrustMe [25] uses a random assignment of reputation-holding peers and employs smart public key mechanisms to prevent the loss of anonymity. This method imposes a lot of messages in the network. When network size becomes very large, it will experience long overhead to disseminate the peer reports and to obtain a peer’s global reputation. In [19], peer reputation scores are aggregated by limited local peers.
+The idea of gossiping in cyberspace communication is very similar to gossiping to reach consensus in the human society. Gossip protocols were proposed for randomized communication [2] and for aggregation of large amounts of distributed information [17]. These protocols do not rely on specific network topologies. They support the computation of aggregate functions like weighted sum, average value and maximum over large collection of distributed numeric values.
+4
+
+They have been widely used in various network applications as membership management, information dissemination and resource discovery [22].
+We have first presented the gossiping idea and preliminary results on GossipTrust in an IPDPS-2007 paper [37]. The idea of using Bloom filtering for trust information management was inspired by the work reported in [3], [5]. This paper is significantly extended from the conference presentation. We report the gossiping principles for P2P reputation aggregation and dissemination, the GossipTrust architecture, Bloom filters for building the reputation database, and performance results through simulated P2P experiments. To benefit our readers, we summarize in Table 1 the notations, basic definitions and indexing conventions used. All time indices represent discrete time instants. They will be defined further in subsequent sections.
+
+Table 1 Notations and Conventions used in this Paper
+
+Notation n sij
+V(t) ={vi(t)} k≤g t≤d xi (k) βi (k) m E
+
+Definition P2P network size ( n peer nodes) Local trust score of peer j by peer i Global trust vector over n peers Gossiping step and upper bound Aggregation cycle and upper bound Weighted score by peer i at step k Gossiped score at peer i at step k Bloom filter array size (bit count) RMS global aggregation error
+
+Notation α θ ε δ
+( xi (k)
+p bi c
+
+Definition Greedy factor of peer random walking Peer selection threshold Gossiping error threshold Aggregation error threshold Percentage of malicious peers in system Consensus factor by peer i at step k Number of power nodes in system Category boundary at Bloom filter Number of score ranking categories
+
+3. GossipTrust System Architecture
+In this section, we formulate the reputation aggregation problem in P2P systems. We define recursive computations on global reputation vectors in successive aggregation cycles. Then we introduce the GossipTrust system architecture and illustrate the functional modules of GossipTrust on each node. This architectural model paves the way to specify the gossip protocols for reputation aggregation in Section 4.
+3.1 The Reputation Aggregation Problem In a P2P network of n nodes, each node evaluates the trustworthiness of other nodes with
+local trust scores after conducting a P2P transaction, such as a file download. Consider a trust matrix R=(rij), 1≤ i, j ≤ n, where rij is the local score issued by node i for node j. If there is no
+
+5
+
+feedback from node i to j, rij is set to 0. For global reputation aggregation, each node must
+
+normalize all local scores issued by itself. The normalized local score sij is defined as follows:
+
+sij = rij / ∑j rij
+
+(1)
+
+Then we have a normalized trust matrix S = (sij). Note that 0 ≤ sij ≤ 1 and each row sum ∑nj=1 sij = 1 for all rows i = 1, 2, …, n. In other words, the normalized trust matrix S is a stochastic
+
+matrix, in which all entries are fractions and all row entries add up to be 1.
+
+Let vi(t) be the global reputation score of node i at aggregation cycle t, where i = 1, 2, …, n and t = 0, 1, 2, …, d for d cycles. The global scores of all nodes form a normalized reputation vector with n components V(t) = {vi(t)}T, where ∑i vi(t)= 1. The iterative method specified below calculates the V(t) at cycle t. Let V(0) be the initial reputation vector value. For all iterative
+
+cycles t =1, 2,…, d, we generate successive reputation vectors, recursively, by performing the
+
+following matrix-vector computations:
+
+V(t+1) = ST × V(t)
+
+(2)
+
+Initially, all nodes are equally trusted, i.e. vi(0) = 1/n, where i = 1,2,…,n. The iterative computation in Eq.(2) continues until the average relative error between V(d) and V(d+1) is lower than δ for a given aggregation error threshold δ at the last cycle d. We have proved in [36] that d ≤ ⎡logb δ⎤ with b = λ2/ λ1, where λ1 and λ2 are the largest and second largest eigenvalues of the trust matrix S. The convergence threshold δ is often predefined by system
+
+designers. In other words, after d cycles, the global reputation vector converges to the
+
+eigenvector of trust matrix S.
+
+This recursive process is motivated by Markov random walk among nodes, which is widely
+
+used in ranking web pages. Consider a random surfer hopping from nodes to nodes to search for
+
+a reputable node. At each surfing step, the surfer selects a neighbor according to the current
+
+distribution of local trust scores. The stationary distribution of the Markov chain is the converged
+
+global reputation vector.
+
+Both EigenTrust and PowerTrust have developed scalable algorithms to calculate the global
+
+reputation vector V(t) for DHT-based P2P networks. In this paper, we propose a GossipTrust
+
+system for global reputation aggregation in unstructured P2P networks. The new scheme is fully
+
+6
+
+distributed without using any topological structure among the nodes. It is also proven fast in convergence rate and secure in dynamic peer participations.
+3.2 The GossipTrust Architecture We have developed a simulated GossipTrust reputation system at USC Internet and Grid
+Computing Laboratory. Figure 1 shows the architecture of the GossipTrust system running on a typical node Ni, where i=1,2,…,n. In this system, each node keeps a row vector of trust matrix S based on its outbound local trust scores. In addition, each node also maintains a global reputation vector V(t) at aggregation cycle t. Internally, this vector is represented by a collection of <node_id, score> pairs. At the first aggregation cycle, V(0) is initialized with equal global reputation scores, i.e. vi(0)=1/n, i=1,2,…,n.
+To compute the successive reputation vectors, GossipTrust uses a gossip-based protocol to perform the matrix-vector computation specified in Eq.(2). Gossiping supports light-weight communications among nodes during the aggregation process. In GossipTrust, each aggregation cycle consists of several gossip steps as shown in Fig.1(b). In a gossip step, each node receives reputation vectors from others, selectively integrates the vectors with its current reputation vector, and then sends the updated one to a random node in the network.
+
+(a) GossipTrust system architecture
+
+(b) Global reputation aggregation | through iterative gossip steps
+
+Figure 1. The GossipTrust architecture and global reputation aggregation process
+
+This gossiping process continues until the gossiped scores converge in g steps, where g is determined by a set gossiping error threshold ε. After the convergence of gossip steps,
+
+7
+
+GossipTrust continues the next aggregation cycle until the global reputation vectors converge in d cycles, where d is determined by the aggregation error threshold δ. Figure 1(b) illustrates the process of reputation aggregation in GossipTrust.
+To reduce the storage complexity on each node, GossipTrust uses a novel Bloom filter based scheme for the storage and retrieval of global reputation scores. A Bloom filter is a spaceefficient randomized data structure for representing a set to support membership queries [3]. This storage scheme discretizes all global reputation scores into categories and summarizes the set of nodes in each category with Bloom filters. The converged global reputation vector is updated and properly stored in the Bloom filters with a small storage overhead. So each node can easily identify the power nodes, which have the highest reputation scores in the system.
+Section 7.2 shows how power nodes are used in GossipTrust to combat peer collusions. The applications of GossipTrust can also query the local storage to retrieve the reputation score of a given node. In addition, all communications among GossipTrust nodes are encrypted with identity based cryptography (IBC) [4], [28] for better security and reliability of exchanged reputation data. By using publicly identifiable information (e.g. node id) as the public key, the IBC scheme does not require any centralized CA to verify the binding between a node and its public key, which is well suited for decentralized P2P networks.
+4. Gossip Protocol for Reputation Aggregation
+In this section, we present the gossip protocol for global reputation aggregation. We first illustrate the Gossiping process to update the global score by an example. Then we introduce two gossip-based procedures for computing the global score of any single node in Algorithm 1 and for aggregating the global reputation scores for all nodes in Algorithm 2, concurrently. 4.1 Gossip-based Aggregation Protocol
+Gossiping is done iteratively in a small number steps. We reserve the index k to indicate the gossip step. According to Kempe, et al [17], k is upper by a final step g = O(log2n). We use index t to refer to discrete times for aggregation cycles. The upper bound for t is d iterations specified in section 3.1. Associated with each peer node i is a gossip pair {xi (k), wi(k)} at each gossip step k.
+At time t, we have the weighted score xi (t) = sij×vi(t) as the local score sij weighted by the global score vi(t) of node i. The wi(k) is called the consensus factor of node i at step k. During
+8
+
+each gossip step, every node i executes two computing threads: One thread sends the halved
+
+gossip pair {½ xi (k), ½ wi (k)} to itself (node i) and to a randomly selected node in the network.
+
+Another thread receives the halved pairs from other nodes and computes the updated xi(k+1) and
+
+wi(k+1) as follows, where r refers the index of remote nodes that have sent the halved gossip
+
+pairs in step k:
+
+xi(k+1) = Σr ½ xr (k)
+
+(3)
+
+wi(k +1) = Σr ½ wr (k)
+
+(4)
+
+This process continues until the consensus values βi(k) = xi(k)/wi(k) agree on all nodes i = 1,
+
+2,…, n. The global score vj(t+1) is thus generated as follows on all n nodes at the final step g.
+
+vi(t+1) = xi(g)/wi(g) = βi(g)
+
+(5)
+
+The above gossiping process is best illustrated by a small example in Fig.2. Consider a P2P
+
+network with three nodes. At time t, the global scores are given: v1(t) = 1/2, v2(t) = 1/3, and
+
+v3(t)=1/6. Given also normalized local score s12 = 0.2, s12 = 0, and s32 = 0.6. By Eq.(2), the
+
+updated global score of node N2 is calculated as:
+
+v2(t+1) = v1(t)×0.2 + v2(t)×0 + v3(t)×0.6 = (1/2) ×0.2 + (1/6) ×0.6 = 0.2
+
+(6)
+
+(a) First gossip step (k = 1)
+
+(b)Second gossip step (k = 2)
+
+Figure 2. Halved score sharing among 3 nodes in two gossiping steps to aggregate the global scores on all nodes, concurrently
+
+We use Table 2 to illustrate the gossiping procedure in Fig.2. The end purpose is to generate the global score v2(t+1) = 0.2 at all 3 nodes in 2 steps. In general, gossip protocols are used to calculate any aggregate function such as sum, maximum, or average of the numeric values distributed over many nodes [17]. Here, we concentrate on the gossiped calculation of the global score of node N2. Initially at step 0, we thus assume w2(0) = 1 and w1(0) = w3(0) =0. The initial weighted scores x1(0) = (1/2)×0.2 = 0.1, x2(0) = (1/3)×0 = 0, and x3(0) = (1/6)×0.6 = 0.1.
+
+9
+
+Table 2 Gossiped Scores Aggregated Concurrently on All Nodes in Fig.2
+
+Gossip Step, k
+1 2
+
+x1(k)
+0.1 0.05
+
+Node N1
+
+w1(k)
+
+β1 (k) = x1(k)/w1(k)
+
+0.5
+
+0.2
+
+0.25
+
+0.2
+
+x2(k)
+0 0.1
+
+Node N2
+
+w2(k)
+0.5
+
+β2 (k) = x2(k) /w2(k)
+0
+
+0.5
+
+0.2
+
+x3(k)
+0.1 0.05
+
+Node N3
+
+w3(k)
+0
+
+β3 (k) = x3(k) /w3(k)
+∞
+
+0.25
+
+0.2
+
+At the first gossip step, as shown in Fig.2(a), N1 sends the pair (½x1(0), ½w1(0)) = (0.05, 0) to N1 and to a randomly chosen node N3 The node N2 sends the pair (0, 0.5) to N2 and a random node N1. Node N3 sends the pair (0.05, 0) to N3 and a random node N1. Then N1 updates x1(1) = 0+0.05+0.05=0.1 and updates w1(1) = 0+0.5+0 =0.5. After first gossip step, N1 has the pair {x1(1), w1(1)}= (0.1, 0.5). The gossiped score x1/w1 = 0.2 on N1. Similarly, nodes N2 and N3 go through the same gossiping process to produce x2/w2 =0 and x3/w3 = ∞.
+Figure 2(b) illustrates the halved score sharing by the same gossiping process in step 2. After step 2, we have reached the consensus that x1/w1 = x2/w2 = x3/w3 = 0.2. Thus, we accept the updated global score for node N2 as v2(t+1) = x1/w1 = x2/w2 = x3/w3 = 0.2, which agree with the dot product calculation in Eq.(6). Thus, gossiped scores are equalized in all 3 nodes at the end of gossiping process. Suppose we extend the gossiping process to another step, we will see no more changes in the consensus values of x1/w1 = x2/w2 = x3/w3 = 0.2. Lacking centralized control in the system, the consensus must be determined on distributed nodes locally. This additional step is thus performed to determine the consensus in a distributed manner.
+
+4.2 Distributed Reputation Aggregation Algorithm
+
+The iterative method in Eq.(2) specifies global reputation aggregation in each cycle.
+
+Mathematically, we need to compute the weighted sum of all local scores sij for each peer j= 1,
+
+2, …,n in Algorithm 1, where the normalized global scores {vi(t-1)} are the weights applied. The
+
+numerical computation in Eq.(6) for the 3-node network example in Fig.2 is generalized for a
+
+general P2P network having n nodes indexed by j = 1,2,…, n .
+
+∑ vj(t) =
+
+v n
+i =1 i
+
+(t
+
+− 1)
+
+×
+
+sij
+
+(7)
+
+The gossip protocol exemplified in Section 4.1 is now generalized by the following Algorithm 1 for an n-node P2P network. The procedure shows how to perform the gossiping
+
+10
+
+operation in g steps, when the gossiped scores agree on all nodes. Algorithm 1 is executed on all n nodes, concurrently, even we specify the protocol only one node below .
+
+Algorithm 1: Gossip Protocol to Compute Any Single Peer Score
+
+1: INPUT: local score sij, global score vi(t-1) at time t-1, where i = 1,2,…,n
+
+and gossip threshold ε
+
+2: OUTPUT: global reputation score vj(t) of node j at time t 3: forall i = 1, 2, ….n do { simultaneously }
+
+4:
+
+xi ← sij×vi(t-1)
+
+{ initialize weighted score xi }
+
+5: if (i == j), set wi ← 1, else wi = 0 { initialize consensus factor wi }
+
+6
+
+k←0
+
+{ initialize gossip step k}
+
+7: repeat
+
+8:
+
+u ← xi/wi
+
+{ save previous score before convergence }
+
+9:
+
+let {(xr, wr)} be all gossip pairs sent to i in previous step
+
+10:
+
+xi ← ∑r xr, wi ← ∑r wr
+
+{ update xi and wi }
+
+11:
+
+choose a random node q
+
+12:
+
+send the pair (½ xi, ½ wi) to node q and node i itself
+
+13:
+
+k ← k+1
+
+{ increase gossip step by 1}
+
+14: until |xi/wi – u| ≤ ε { ε is a preset error tolerance or the gossip threshold}
+
+15: endfor
+
+16: output vj(t) ← xi/wi
+
+The gossip protocol converges to the consent global score. In GossipTrust, every node has a unique identifier and keeps a global reputation vector. The global-scale gossip-based reputation aggregation is specified in Algorithm 2. During each aggregation cycle t, each vector element is internally represented by a triplet (xid, id, wid), where id is a node identifier, xid is the weighted score defined in Eq.(3) and wid is the consensus factor defined in Eq.(4). We aggregate all triplets in the reputation vector, concurrently. During each gossip step, every node i sends its reputation vector to a randomly chosen node, which can be a neighbor node or any node in the reputation vector. Upon receiving the global reputation vectors from others, node i updates xid and wid for every triplet in the reputation vector.
+At the end of every aggregation cycle t, the gossip process converges to an equalized gossiped score xid/wid on all nodes. Node i checks the difference between the current global reputation vector and the one from aggregation cycle t-1. If the difference is larger than a predefined aggregation error threshold δ, node i will enter the next aggregation cycle t+1.
+
+11
+
+Otherwise, the global reputation vector has converged, node i will replace the triplet <xj, j, wj > with the pair <vj, j>, where vj = βj = xj /wj is the converged global score of node j.
+
+Algorithm 2: Aggregation to Update All Peer Scores Concurrently
+
+1: INPUT: local trust matrix S=(sij) and tolerable aggregation error δ 2: OUTPUT: Converged global reputation vector V(t)
+
+3: forall i = 1, 2, ….n do { Concurrently on n nodes }
+
+t←0
+
+{initialize the aggregation cycle}
+
+4: Repeat
+
+5:
+
+forall local score sij do
+
+6:
+
+{ initialize weighted score and consensus factor }
+
+7:
+
+if (t == 0) then xj ← sij / n
+
+8:
+
+else xj ← sij ×vi(t-1) where vi(t-1) is node i's reputation at time instance t-1
+
+9:
+
+if ( j == i ) then wj ← 1 else wj ← 0
+
+10:
+
+add the triplet <xj, j, wj > to global reputation vector V(t)
+
+11:
+
+endfor
+
+12:
+
+repeat
+
+13:
+
+let { Vr } be all received vectors from previous gossip step
+
+14:
+
+forall j in Vr do
+
+15:
+
+xj ← ∑r xj , wj ← ∑r wj ,
+
+16:
+
+update the triplet <xj, j, wj > in V(t)
+
+17:
+
+endforall
+
+18:
+
+choose another node q randomly
+
+19:
+
+send ½ V (t) to node q and to node i itself
+
+20:
+
+until all n gossiped scores { $i = xj / wj} are equalized and converged to vi(t).
+
+21:
+
+forall j=1, 2, …, n do
+
+22:
+
+vj ← xj / wj and replace every triplet <xj, j, wj > with the updated pair <vj, j>
+
+23:
+
+endfor
+
+24:
+
+t ← t +1
+
+{increase time instance by 1}
+
+25: until |V(t) – V(t-1)| < δ {Test with tolerable convergence threshold}
+
+26: endfor
+
+27: output The updated global scores V(t) = {v1(t), v2(t), …, vn(t)}
+
+5. Analysis of Gossip Algorithms
+The errors incurred with gossip communication are accumulative over the entire reputation aggregation process. In Section 5.1, we prove that the gossiped error is upper bounded by a very small value. We prove the convergence of the GossipTrust algorithm in Section 5.2. We then discuss how to handle the churn problem of dynamic peer joining and leave in a P2P network.
+5.1 Error Analysis of Gossiped Global Scores Let V(t) = +v1(t), v2(t), …, vn(t) ,T, be the reputation vector of all global scores, computed by
+Eq.(2) at the t-th aggregation cycle. Let U(t) = +u1(t), u2(t), …, un(t),T be the gossiped reputation vector through the process specified in Algorithm 2. In other words, vi(t) and ui(t) are the actual
+
+12
+
+and estimated global scores of node i at aggregation cycle t , respectively. Let εi(d) = (ui(d)vi(d)) /vi(d) be the gossiped aggregation error of node i score after d cycles, where d is final cycle of the reputation aggregation process.
+
+Theorem1:
+
+The gossiped aggregation error εi(d) on the global score vi(d) is upper bounded by:
+
+εi(d) = [ui(d) - vi(d)] /vi(d) ≤ dε + O(ε2)
+
+(8)
+
+where ε is the preset gossiping error threshold and d denotes the final convergence cycle.
+
+Proof: After the first gossip step, we have
+
+⎡v1(1) ⎤
+
+⎡ s11
+
+V
+
+(1)
+
+=
+
+⎢⎢v2
+
+(1)
+
+⎥ ⎥
+
+⎢M⎥
+
+=
+
+STV
+
+0
+
+=
+
+⎢ ⎢
+
+s12
+
+⎢M
+
+⎢⎥
+
+⎢
+
+s21 s22 M
+
+... ... M
+
+sn1 sn2
+
+⎤ ⎥ ⎥
+
+⎡⎢v1 ⎢v2
+
+(0)⎤ (0)⎥⎥
+
+M
+
+⎥⎢ ⎥⎢
+
+M
+
+⎥ ⎥
+
+⎣vn (1)⎦
+
+⎣s1n s2n ... snn ⎦ ⎢⎣vn (0)⎥⎦
+
+⎡ v1(1) ± ε1(1)v1(1) ⎤
+
+U
+
+(1)
+
+=
+
+⎢ ⎢ ⎢
+
+v2
+
+(1)
+
+±
+
+ε2 M
+
+(1)v2
+
+(1)
+
+⎥ ⎥ ⎥
+
+⎢ ⎣vn
+
+(1)
+
+±
+
+ε
+
+n
+
+(1)vn
+
+(1)⎦⎥
+
+As every εi(1) ≤ ε, we have (1− ε )vi (1) ≤ ui (1) ≤ (1+ ε )vi (1) .
+
+After convergence cycle 2, we obtain
+
+⎡s11 s21 ... sn1 ⎤ ⎡ v1(1) ±ε1(1)v1(1) ⎤
+
+STU(1)
+
+=
+
+⎢⎢s12 ⎢M
+
+⎢
+
+⎣s1n
+
+s22 M s2n
+
+... M ...
+
+sn2
+
+⎥ ⎥
+
+⎢⎢v2
+
+(1)
+
+±
+
+ε2
+
+(1)v2
+
+(1)⎥⎥
+
+s1iv1(1) + s2iv2(1) +...+ snivn(1) = vi (2)
+
+M ⎥⎢
+
+M
+
+⎥
+
+snn
+
+⎥ ⎦
+
+⎢ ⎣vn
+
+(1)
+
+±
+
+εn
+
+(1)vn
+
+(1)⎥⎦
+
+−εvi (2) ≤ s1iε1(1)v1(1) + s2iε2(1)v2(1) +...+ sniεn(1)vn(1) ≤ εvi (2)
+
+(1−ε)2vi (2) = (vi (2) −εvi (2)) −ε(vi (2) −εvi (2)) ≤ ui (2) ≤ (vi (2) +εvi (2)) +ε(vi (2) +εvi(2)) = (1+ε)2vi(2)
+
+(1−ε)2vi (2) ≤ ui (2) ≤ (1+ε)2vi (2)
+
+Hence, after d aggregation cycles, we have (1− ε )d vi (d ) ≤ ui (d ) ≤ (1+ ε )d vi (d ) . Since the
+
+gossiping error threshold ε is set very small, e.g. ε < 10-4, the relative gossip aggregation error is
+
+bounded by εi(d) = [ui(d)-vi(d)] /vi(d) ≤ (1+ε)d-1 = dε + O(ε2).
+
+Q.E.D.
+
+5.2 Convergence of Global Reputation Aggregation To prove the convergence of global reputation aggregation after d cycles, we have to
+compare the between the gossiped reputation vector U(d+1) at d+1 cycle with U(d) at cycle d based on Eq.(2), This trigger us to define an average convergence error δ of the gossiped reputation vector U(d) = +u1(d), u2(d), …, un(d), at the d-th cycle as follows:
+
+13
+
+δ
+
+=
+
+∑n i =1
+
+(
+
+ui
+
+(d
+
++ 1)
+
+−
+
+ui (d )
+
+/ ui
+
+(d ))
+
+/
+
+n
+
+.
+
+(9)
+
+We find the following error bound on this average aggregation error, which is averaged over the relative errors in n elements of the gossiped vector U(d+1) compared with those in vector U(d).
+
+Theorem 2:
+
+The global reputation aggregation process specified by in Algorithm 2 converges in d
+
+cycles within the following average aggregation error:
+
+δ < δ +3dε
+
+(10)
+
+where δ and ε are the aggregation and gossiping error thresholds preset at algorithm design time.
+
+Proof: At the d+1 cycle, according to Eq. (2), we can calculate to determine the following
+
+bound:
+
+∑n i =1
+
+(
+
+vi
+
+(d
+
++ 1)
+
+−
+
+vi (d )
+
+/
+
+vi (d ))
+
+/
+
+n
+
+<δ.
+
+By
+
+Theorem
+
+1,
+
+we
+
+obtain
+
+two
+
+inequities:
+
+(1- dε)vi(d) ≤ ui(d) ≤ (1+ dε)vi(d) and
+
+[1- (d+1)ε] vi(d+1) ≤ ui(d+1) ≤ (1+ (d+1)ε)vi(d+1).
+
+So
+
+we
+
+have
+
+δ
+
+=
+
+∑n i =1
+
+(
+
+ui
+
+(d
+
++1) − ui (d )
+
+/ ui (d )) / n
+
+∑ < δ +
+
+n i =1
+
+(((d
+
++
+
+1)ε
+
+vi
+
+(d
+
++ 1)
+
+−
+
+(−dε
+
+)vi
+
+(d
+
+))
+
+/
+
+vi
+
+(d
+
+))
+
+/
+
+n
+
+< δ +2dε +2dεδ < δ +3dε.
+
+Therefore, Algorithm 2 converges in d cycles with an average error δ <δ + 3dε. Q.E.D.
+
+Since both δ and ε are very small fractions, the above result proves that the gossiped aggregation process is guaranteed to converge with tolerable error. In reality, the peer nodes continuously join and leave a P2P network. This is commonly called a churn problem. Kempe, et al [17] have proved that gossip communication is robust against message loss and link or peer failure. This implies that GossipTrust can leverage this property. This also implies that our gossip algorithm can survive from the churn problem.
+
+6. Reputation Storage and Retrieval with Bloom Filters
+To store global scores requires 4n bytes, when n is the peer count and 4 bytes is assumed to store one score. Bloom filters [3] have been suggested in many network applications including
+
+14
+
+P2P/overlay networks [5]. We suggest storing ranked peer membership in various categories of Bloom filters. In practice, peers with higher reputation scores are preferred by clients. Using Bloom filters, we store relative peer reputation ranks instead of their numerical scores. We explore the space-efficiency of Bloom filters [3] to store and retrieve the ranks of peers on each node. Our goal is to use limited memory to cope with scalable growth of reputation database at each node. The architecture and performance of using Bloom filters are given in this section.
+6.1 Bloom Filters for Reputation Retrieval Consider in Fig.3 a P2P network with n = 6 nodes, labeled as {0, 1, ..., 5}. Their current
+global scores are given: v0 = 0.05, v1 =0.2, v2=0.3, v3 = 0.1, v4 =0.3, v5=0.05. Figure 3 illustrates how to use several Bloom filters to store the global scores. Each Bloom filter requires m bits to hold several hashed peer encodings into the same category. In this example, we divide six peers into c = 2 categories: those nodes (0, 1, 3, and 5) with scores below 0.25 forming Category 1 and those above 0.25 (nodes 2 and 4) forming Category 2. The score boundaries are marked by b0 =0, b1 = 0.25, and b2 = 1. To hold 6 peer identifiers, we choose m = 8 bits per filter array. We define two hash functions: h1(x) = x Mod (8) and h2(x) = x+2 to encode the peer identifiers into bit strings in the Bloom filters.
+
+(a) Category 1 encoded by two bloom filters
+
+(b) Category 2 encoded by one bloom filter
+
+Figure 3 Bloom Filter based storage scheme for a 6-node P2P network
+
+Initially, every category has one bloom filter, and all bits in the filter array are set to 0. For example, to put node 3 to category 1, two hash functions are applied, h1(3) = 3 and h2(3) = 5, to set 1 in bit 3 and bit 5 in the top filter in Fig.3(a). All other peer identifiers are encoded similarly. It is fine to have two peers (1 and 3) mapping into the same bit position (bit 3). Each Bloom filter can accommodate at most n/g (6/2=3) nodes (0, 1, 3). Thus we add another Bloom filter to encode node 5 in Category 1. In total, Category 1 requires 2 Bloom filters in Fig.3 (a). Similarly,
+
+15
+
+nodes 2 and 4 are encoded into one Bloom filter in Category 2 in Fig. 3(b). Consider a user downloads files from two available peer nodes 0 and 4. The user applies the
+hash functions h1(0) = 0 and h2(0) = 2 and finds both bits 0 and 2 are 1, so node 0 belongs to Category 1. Since h1(4) = 4 and h2(4) = 6, in the first bloom filter in Category 1, bit 6 is 0 and bit 4 is 1, so node 4 is not in this filter. The user then checks the second Bloom filter and finds bit 4 and bit 6 are all 0. It implies both Bloom filters do not have node 4. Then the user checks Category 2 using the same method and find 1 in bits 4 and 6, indicating the membership of node 4 in Category 2. Finally, the user downloads from node 4 that has higher reputation. In this example, three Bloom filters require 3×8 = 24 bits, while 6×4×8 = 192 bits are required in using conventional memory to classify and encode peer identifiers into categorical ranks. Therefore, the storage requirement is reduced by 8 times in this example.
+Figure 4 presents the reputation database architecture for a general P2P network of n nodes. There are c reputation categories with at most ⎡⎢nic / n⎤⎥ Bloom filters per category, where ni is the number of nodes in category i. The categories are separated by score boundaries {bi}, where 0 ≤ i ≤ c and 0 = b0 < b1 <….< bc = 1. Category i comprises encoded peer identifiers whose reputation scores falling in the range (bi-1, bi). A Bloom filer is in active state, if it is not encoded with n/c nodes. When a filter is in full state, additional Bloom filters are needed to accommodate more peer identifiers in the same category.
+Figure 4 Bloom filter based storage scheme for efficient storage and retrieval of peer reputation ranking information
+The time needed to save a node to a proper category is O(φ+c), where φ is the number of hash functions applied and c is number of categories. To locate the category for a node j, the
+16
+
+system first checks whether all hashed bit positions hi(idj) (1 ≤ i ≤ φ) are set to 1 in all Bloom filters in each category. Then the system returns the category number when there is a match. The time and space requirements of a Bloom-filter based storage system are given in Table 2, compared with those required in a conventional storage scheme for peer membership in various categories. The notation fi refers the number of Bloom filters in each category. In total, there are F = f1 + f2 + …+ fc Bloom filters used.
+
+6.2 Performance of Bloom Filter Storage
+To estimate the performance of the storage scheme, we measure space reduction factor, false positive rate, and time complexity under different storage configurations. We consider the network size n ranging from 1,000 to 1 million. Table 3 summarizes the design parameters used in our simulation experiments on using Bloom filters. In practice, the category number c should be maintained small, less than 10 up to 1000 nodes and around 20 for a million nodes. The number of hash functions applied is less than 10. Each Boom filter has m = 1K to 0.4M bits.
+The space reduction is defined by the ratio of memory bits to store all global scores in conventional memory array to that needed in a Bloom-filter storage scheme. The time complexity is the time to read a peer ranking. We have to check all mapped bit positions are set to 1 by application of all hash functions hi(idj) (1 ≤ i ≤ φ) in each category. The time to save (write) a peer identifier into a category is O(φ+c).
+
+Network Size, n
+103 103 103 106 106 106
+
+Table 3 : Performance of Various Configurations of the Global Reputation Score Storage Unit based on Bloom Filtering
+
+Category Number, c
+5 10 5 20 20 30
+
+No. of Hash Functions, φ
+7 7 6 9 7 9
+
+Bloom Filter Size, m
+2 K bits 1 K bits 1.5 K bits 0.6 M bits 0.5 M bits 0.4 M bits
+
+False-Positive Rate
+4% 7% 13% 6% 15% 8%
+
+Space Reduction
+3.2 3.2 4.3 2.7 3.2 2.7
+
+Time Complexity
+35 70 30 180 140 270
+
+The false positive rate is the probability to return a wrong category index to a reputation query. This rate should be made as small as possible. Theorem 3 reports the results on estimation of false-positive rate in a general n-node P2P system.
+
+17
+
+Theorem 3:
+
+The probability that a category i returns a false positive is approximated by:
+
+Probfp = 1 − (1 − (1 − e−ϕn /cm )ϕ )⎡⎢nic / n⎤⎥ (1 − (1 − e−ϕ (ni −⎡⎢nic / n⎤⎥n/ c) )ϕ )
+
+(11)
+
+where ni is the number of nodes in category i and c is the number of categories.
+
+Proof: The false positive probability of the first ⎡⎢nic / n⎤⎥ Bloom filters in category i is (1− e−ϕn/ gm )ϕ , and of the last Bloom filter is (1− e ) −ϕ(ni −⎡⎢nic/n⎤⎥n/c) ϕ . Then for all the Bloom filters in
+
+category i, the probability of not all the bits indexed by φ hash functions being set to 1 is
+
+(1− (1− e−ϕn/cm )ϕ )⎡⎢nic/ n⎤⎥ (1− (1− e−ϕ(ni −⎡⎢nic/ n⎤⎥n/ g) )ϕ ) . Thus, the probability of all bits being set to 1 is
+
+estimated by 1 − (1− (1− e−ϕn/cm )ϕ )⎡⎢nic / n⎤⎥ (1 − (1 − e ) −ϕ (ni −⎡⎢nic / n⎤⎥n/c) ϕ ) .
+
+Q.E.D.
+
+Plugging in practical values into Theorem 3, we find that the false-positive rate is indeed very small, ranging 4% to 15% in Table 3. The memory bit count is decreased 3.2 times with 4% false positive rate. A maximum of 35 hashing operations are applied to query the node category for one million of nodes. Increasing the category number c to 10 will incur smaller m but higher time complexity. Decreasing m to 1500 will lead to higher false positive rate. The optimal configuration for a 106-node P2P network is set at c=20, φ = 9 and m= 0.6 M bit. These results suggest that Bloom filters can reduce the memory space by 2-4 times compared to using conventional RAM memory arrays.
+7. Security Enforcement in GossipTrust We extend the basic GossipTrust algorithms with IBC-based secure communication and
+some selective peer aggregations. By leveraging power nodes, we extend the operations in GossipTrust to combat the problem of peer collusions. 7.1 Identity-based Signature for Secure Peer Communication
+In this section, we present a security enhancement mechanism to guarantee security and integrity of the reputation data obtained through global gossiping. Current implementations rely heavily on traditional PKI as a way of supporting security services [32]. Xiong and Li assumed that all nodes have obtained their certificates from a trusted CA and additionally assume prior knowledge of the certificates of other nodes. This requirement adds considerable cost and
+
+18
+
+complexity, especially when the system membership is highly dynamic with nodes constantly joining and leaving, as many of the certificates can quickly become invalidated. Figure 5 illustrates how to use identity-based cryptography (IBC) to secure peer communications.
+We use IBC-based [4][28] scheme to increase the security and reliability of the exchanged reputation data. In IBC, the public key can be generated from publicly identifiable information, such as a peer id. The corresponding private key is generated and maintained by a Private Key Generator (PKG). The potential of IBC to provide more immediate flexibility to entities in a security infrastructure may well match the qualities demanded by P2P computing. The central PKG is not a performance bottleneck because it does not participate in the P2P protocol and it can even be offline. In particular, IBC allows generation of key information on the fly, which reduces the overhead and complexity significantly.
+
+sknodei, pkPKG
+
+PKG
+
+ID nodej
+
+ID nodei
+
+sknodej
+
+Crpt(V) || σ
+
+pkPKG
+
+V
+
+Sender
+
+R eceiver
+
+Incorporate
+
+Nodei
+
+Nodej
+
+or D iscard
+
+Figure 5 Use of identity-based cryptograph to secure peer communication
+
+Suppose node i, through an IBC-based cryptosystem, wants to send an encrypted message to node j. Node i encrypts the message V by using the identifier of node j and PKG public key pkPKG. Node i signs the encrypt message Crpt(V) with the signature σ using its private key sknodei. Upon receiving the message, node j verifies signature σ using the identifier of node i and pkPKG. After the authentication verification, node j decides to accept or discard the message. Node j can decrypt the message using its private key sknodej and pkPKG. Figure 5 shows that node i neither needs node j public key certificate nor verifies its identity as the authentication task is always performed in traditional PKI. The use of IBC to generate public keys requires no certificate lookup or verification. This offers the flexibility to match with node dynamics.
+Malicious node may not follow the gossip protocol to evaluate other nodes. They behave in
+
+19
+
+essentially three ways. First, it can communicate more frequently than prescribed by the protocol, pumping unwanted information into the system. Second, it can communicate less frequently than prescribed. Third, a malicious node can send incorrect information to other nodes [17]. We introduce a selection threshold for each node to decide whether to accept or discard the received reputation vectors. Nodes will only incorporate the reputation data originating from those whose global reputation scores are higher than the peer selection threshold θ.
+Figure 6: Peer selection threshold to optimize the reputation aggregation process
+7.2 Combating Peer Collusions with Power Nodes In out PowerTrust paper [36], we revealed that peer feedbacks in eBay are power-law
+distributed. The fundamental cause of this phenomenon is that new users keep joining the reputation system and they are willing to interact with more reputable nodes. So power-law feedback distribution is applied to P2P reputation systems, which was also observed by Yang et al in the Maze reputation system [34]. In Algorithm 3, we enhance the aggregation process of global reputations by leveraging the power nodes to play a major role in combating peer collusions through weighted gossipping.
+Power-law feedback distribution implies the existence of some reputable peers called power nodes [10]. The new clients are encouraged to deal primarily with the power nodes to guarantee fast convergence speed [21] and to handle the problem of peer collusions. If node j is a power node, the probability pj in Algorithm 3 is set to 1/p. Otherwise, pj is set to 0. Algorithm 3 specifies how a peer acting as a random-knowledge surfer to search for reputable nodes in the P2P network. With a probability α, the surfer attaches itself to a power node. In GossipTrust, the power nodes are re-elected periodically based on the updated global scores after each round of reputation aggregations.
+20
+
+Algorithm 3: Global Reputation Aggregation with Security Enhancement
+
+1: INPUT: local trust matrix S=(sij), aggregation convergence threshold δ, and selection threshold θ 2: OUTPUT: converged global reputation vector Vg 3: forall i = 1, 2, …, n do
+
+4: Repeat
+
+5:
+
+forall local trust score sij
+
+6:
+
+if (t == 0) then xj ← ((1-α )sij + αּpj) / n
+
+7:
+
+else xj ← ((1-α)sij + αּpj) × vi(t-1)
+
+8:
+
+if ( j == i ) wj ← 1 else wj ← 0
+
+9:
+
+add the triple <sj, j, wj > to global reputation vector V(t)
+
+10:
+
+endforall
+
+11:
+
+send V(t) to node j itself
+
+12:
+
+Repeat
+
+13:
+
+let { Vj } be all vectors sent to i in previous gossip iteration
+
+14:
+
+forall Vj in { Vj }
+
+15:
+
+verify Vj signature by using the identifier of node j
+
+16:
+
+decrypt Vj with the private key of node i
+
+17:
+
+if ( vj> θ ) then accept Vj else discard Vj
+
+18:
+
+endforall
+
+19:
+
+forall node k in { Vj }
+
+20:
+
+update xk and wj
+
+21:
+
+update the triplet <xk, k, wk > in global reputation vector V(t)
+
+22:
+
+endforall
+
+23:
+
+send ½ V (t) to node i
+
+24:
+
+choose a random node k
+
+25:
+
+encrypt ½ V(t) with idk and sign it with private key of node i
+
+26:
+
+send the encrypted vector ½ V(t) to node k
+
+27:
+
+Until every xk / wk in V(t) converge
+
+28:
+
+forall k = 1, 2, …, n
+
+29:
+
+vk ← xk / wk and replace every triplet <xk, k, wk > with the pair < vk, k>
+
+30:
+
+endforall
+
+31: Until |V(t) – V(t-1)| < δ
+
+32: endforall
+
+8. Simulation Experiments and Performance Results We evaluate the performance of GossipTrust through extensive simulation experiments. We
+designed an event-driven simulator of GossipTrust system of various sizes. In our experiments, we construct a Gnutella-like flat unstructured network initially consisting of 1,000 nodes. The simulation experiments run on a dual-processor Dell server with Linux kernel 2.6.9. Each data point reported represents the average of at least 10 simulation runs.
+The base setting and default values used in experiments are summarized in Table 4. As proven in our earlier paper [37], the number of peer feedback is power law distributed. Initially the maximum feedback amount dmax is 200 and the average feedback amount davg is 20. We choose a greedy factor α = 0.15 as a default value. The system selects 1% of nodes as the power
+
+21
+
+nodes. The parameter θ represents the selection threshold defined in Section 7.1 and its default value is set at 3×10-4. We measure the reputation aggregation time and gossip aggregation error under variable system parameters and threat models. We present simulated experiments to explore the performance gains of GossipTrust in representative P2P applications.
+
+Table 4 Parameters and Their Default Values used in Simulation Experiments
+
+Parameter
+n α dmax davg
+( p δ ε c θ 8
+M
+
+Meaning
+Number of initial peer nodes in a P2P system Greedy factor of a peer to choose power nodes Maximum peer feedback amount Average peer feedback amount Percentage of malicious peers in a P2P system Maximum No. of power nodes in a P2P systems Threshold for controlling global aggregation error Threshold for controlling gossiping error Number of categories every node keeps Peer selection threshold Query popularity rate in Power law distribution Number of parallel jobs in PSA workload
+
+Default Value
+1000 0.15 200 20 10%
+1% 10-3 10-4
+5 3×10-4
+1.2 40,000
+
+On the average, we assume 5 Bloom filters used in each score-ranking category. We study three malicious peer behaviors. First, malicious peers cheat in transactions and issue dishonest feedbacks to others, independently. Second, with collusions among peers, they may collaborate with each other to boost up their own ratings. They may rate the peers in their collusion group very high and rate outsiders very low. The third kind of malicious behavior is caused by peers to act purposely not to reach consensus in gossip communication. In P2P file-sharing experiments, we assume the Power-law query distribution in Section 8.3. We execute the PSA (parameter sweeping application) benchmark workload in the large-scale P2P grid experiments reported in Section 8.4.
+
+8.1 Convergence Rate and Aggregation Errors The objective of this set of experiments is to evaluate computational efficiency and
+scalability of GossipTrust. As indicated in Section 4.2, there are two convergence processes in GossipTrust: one is the convergence of the reputation computation round and another is during every aggregation cycle, the convergence of gossip protocol to aggregate the weighted sum. We measure both the number of reputation convergence cycles and the number of gossip aggregation iterations. Our studies prove that GossipTrust only runs a small number of aggregation cycles
+
+22
+
+before the reputation scores converge, given an arbitrary trust matrix and a fixed greedy factor α > 0.1. The larger the number of gossip steps, the higher is the convergence overhead.
+Figure 7 shows the effects of various gossiping error threshold ε and network size n on the number of gossip steps. The convergence overhead increases with the decrease of gossiping error threshold and growth of network size. When the gossiping error threshold ε is very small, as ε <10-4, the gossiping error threshold dominates the convergence overhead, regardless of the network size. While when ε is large, as ε >10-2, the network size dominates the convergence overhead. With a fixed small ε, the convergence overhead remains closes for different network sizes, which means that GossipTrust is able to scale well when reputation system grows.
+
+40
+
+n= Num ber of nodes
+
+35
+
+n = 102 n = 103
+
+n = 104 30
+
+Gossip step counts (g)
+
+25
+
+20
+
+15
+
+10
+
+5
+
+0 0 .0 1
+
+1E -3
+
+1E -4
+
+G o s s ip e rro r th re s h o ld (ε)
+
+1E -5
+
+Figure 7. Gossip step count of three GossipTrust configurations under various gossip error thresholds
+
+Figure 8(a) shows the convergence overhead under different percentage of message loss and ε, in a network of 1000 nodes. We observed that when the percentage of message loss is less than 15%, the gossip step count (d) grows slowly for decreasing ε. As the percentage of message loss increases, the convergence overhead becomes very sensitive. Under the condition of the fixed gossiping error threshold (ε = 10-4), shown in Fig.8(b), we observed the slow convergence when the percentage of message loss is more than 15% for different network size n. As we have expected, GossipTrust can tolerate moderate percentage of message loss (up to 15%) caused by the dynamism or unreliability of peers and links in the network.
+The relative error incurred by gossip protocols in every aggregation cycle is propagated during the aggregation process. Table 5 reports both propagation error and computation error under different aggregation error threshold δ and gossiping error threshold ε. We access the
+
+23
+
+propagation error by measuring the relative error of the global reputation scores caused by gossip protocols. The computation error is measured as the distance between actual and estimated global reputation vectors.
+
+Gossip step counts (g) Gossip step counts (g)
+
+85
+
+ε = Gossip error threshold
+
+80
+
+ε = 10-2
+
+75
+
+ε = 10-3
+
+70
+
+ε = 10-4
+
+65
+
+ε = 10-5
+
+60
+
+55
+
+50
+
+45
+
+40
+
+35
+
+30
+
+25
+
+20
+
+0
+
+5
+
+10
+
+15
+
+20
+
+25
+
+30
+
+Percentage of message loss (%)
+
+(a) Network n= 1,000 nodes
+
+70
+
+n= Number of nodes
+
+65
+
+n = 102
+
+n = 103
+
+60
+
+n = 104
+
+55
+
+50
+
+45
+
+40
+
+35
+
+30
+
+25
+
+0
+
+5
+
+10
+
+15
+
+20
+
+25
+
+30
+
+Percentage of message loss (%)
+
+(b) Fixed threshold ε = 10-4
+
+Figure 8 Gossip step counts of GossipTrust under various allowable gossip errors
+
+Table 5 shows the convergence overhead and aggregation error for different network size, under three combinations of gossiping error threshold and aggregation error threshold respectively. If the gossiping error ε is set small enough, i.e., as small as less than 10-4, the propagation error is very low for different network size. This indicates small relative error caused by gossip protocols will not affect the accuracy of the reputation aggregation scheme.
+
+Table 5: Gossip and Aggregation Errors under Different Convergence Conditions in Three GossipTrust Configurations
+
+Threshold Values ε = 10-5 ,
+δ = 10-4
+ε = 10-4 , δ = 10-3
+ε = 10-3 , δ = 10-2
+
+Network Size
+100 1000 10000 100 1000 10000 100 1000 10000
+
+Aggregation Cycles
+33 35 35 27 28 30 20 22 29
+
+Gossip Steps
+23 19 21 14 15 12 7 5 6
+
+Gossip
+Error
+2 × 10-6 1 × 10-6 1.4 × 10-6 1.1 × 10-5 7 × 10-6 9.1 × 10-6 1.7 × 10-4 1.6 × 10-4 2.3 × 10-4
+
+Aggregation
+Error
+4.2 × 10-5 1.6 × 10-4 3.7 × 10-4 3.4 × 10-4 7.3 × 10-4 8.9 × 10-4 3.7 × 10-3 3.8 × 10-3 4.3 × 10-3
+
+24
+
+Tradeoffs exist between computational efficiency and accuracy: the smaller are the aggregation error threshold δ and gossiping error ε, the less the propagation of computation error, but the larger the number of gossip steps and reputation aggregation cycles. Based on the result in Table 5, for a network of 1000 nodes, we choose ε = 10-4 and δ = 10-3 to balance the tradeoff between the convergence overhead and computational accuracy. 8. 2 Performance under Different Threat Models
+We evaluate the robustness of GossipTrust against malicious peer behaviors. The experiments were performed to compare non-collusive and collusive peer operations. In a noncollusive setting, malicious peers report dishonest trust scores independently. In a collusive setting, abusers collaborate with each other to boost up their own ratings. They rate the peers in their collusion group very high and rate outsiders very low. The probability of a node behaving maliciously is inversely proportional to its global reputation, because a node providing corrupted services is highly likely to issue dishonest local trust scores.
+We compute below the root-mean-square (RMS) error E in aggregated global scores under different percentage of malicious peers in a P2P network. Lower RMS error implies the system is more robust to attacks by malicious peers. The RMS error is defined by:
+
+∑ RMS aggregation error E =
+
+((vi − ui ) / vi )2
+
+(12)
+
+n
+
+where vi and ui are the calculated and gossiped global reputation scores of peer i, respectively. The greedy factor α indicates the eagerness for a peer to work with selected power nodes
+
+[37]. We plot in Fig.9(a) the RMS errors under different values of α and various percentages of
+
+independent malicious peers. By leveraging power nodes, we set the the greedy factor α = 0.15.
+
+This gives 20% less aggregation error than treating all peers equally with α = 0. However,
+
+increasing the greedy factor α to 0.3 does not lead to higher performance. This is because relying
+
+too much on the power nodes will miss the global view of the reputation data provided by
+
+majority nodes in the system. Therefore, setting α = 0.15 is indeed a very good choice.
+
+Figure 9(b) reports the RMS aggregation error under collusive peers working collectively to
+
+abuse the system. The plot represents the effects of various collusion group sizes, defined by the
+
+number of malicious peers in a group. In all cases (5% and 10% collusive peers), leveraging the
+
+25
+
+power nodes with a greedy factor α = 0.15 makes the system more robust against peer collusions. With 5% collusive peers, using power nodes has resulted in 30% less errors when collusion group size is greater than 6. The message being conveyed is proper use of power nodes are indeed effective to cope with peer collusions.
+
+RMS aggregation error (E) RMS aggregation error (E)
+
+0.9
+
+α = Peer greedy factor
+
+0.8
+
+α=0
+
+α = 0.15
+
+0.7
+
+α = 0.30
+
+0.6
+
+0.5
+
+0.4
+
+0.3
+
+0.2
+
+0.1
+
+0.0 0
+
+2 4 6 8 10 12 14 16 18 20 22 24 26 28
+Percentage of malicious peers γ (%)
+a) Independent malicious peers
+
+1.4 1.3 1.2 1.1 1.0 0.9 0.8 0.7 0.6 0.5 0.4 0.3 0.2 0.1
+2
+
+α = 0 with 5% malicious peers α = 0.15 with 5% malicious peers α = 0 with 10% malicious peers α = 0.15 with 10% malicious peers
+
+3
+
+4
+
+5
+
+6
+
+7
+
+8
+
+9
+
+Collusion group size
+
+(b) Collusive malicious peers
+
+10
+
+11
+
+Figure 9: Effects on global aggregation errors by fake trust scores from different percentages of malicious peers in a 1,000-node P2P network
+
+Besides reporting unreliable peer scores, malicious peers may deviate from the gossip protocol as indicated in Section 7.1. In Algorithm 3, we have used a peer selection threshold 2 to filter out malicious peers. The effects of different choices of 2 are shown in Fig.10 under independent peer behaviors. The possibility of a peer behaving maliciously increases inversely with respect to its global reputation score. Figure 10 plots the RMS aggregation error with respect to different percentage of malicious peers in a 1000-node P2P network.
+When the selection threshold θ is 0, it implies that all nodes will accept the reported scores from other nodes without suspicion. The RMS aggregation error grows rapidly from 0 to 0.915 with the increase of malicious nodes. The RMS error increases slower when θ is set very low 0.0001 under the condition of 10% malicious peers. In summary, the RMS error increases rather slowly as θ increases beyond 0.0003. The plot shows a 60% less RMS error, compared with the case of θ= 0, when malicious peers are higher than 5% of the total population.
+The message is that if the peers only accept the scores from the reputable nodes whose global scores are higher than 0.0003, the system will be able to handle malicious peers
+
+26
+
+effectively during gossip communication. We test the case by setting θ = 0.0005. Figure 10 shows that the RMS error increases to 30%, even when the malicious peers are just a few, say less than 5%. Therefore, a good choice of the peer selection threshold is θ = 3×10-4 under the experimental setting. The conclusion from Fig.9 and Fig.10 is that proper choices of α and θ will make a sharp difference in error control in global reputation aggregation process.
+
+1 .0 θ = P e e r se le ctio n th re sh o ld
+
+θ=0
+
+θ = 0.0003
+
+θ = 0.0005
+
+0 .8
+
+θ = 0.0001
+
+0 .6
+
+RMS aggregation error (E)
+
+0 .4
+
+0 .2
+
+0 .0
+
+0
+
+5
+
+10
+
+15
+
+P e rc e n ta g e o f m a licio u s p e e rs γ (% )
+
+Figure 10. Effects on RMS aggregation errors from fake scores reported by malicious peers in a 1000-node P2P network
+
+8.3 P2P File Sharing Supported by GossipTrust System We conducted extensive simulation experiments to measure the performance of using
+GossipTrust in P2P file-sharing applications. We choose the same file sharing model used by Stanford researchers [19]. There are over 100,000 files simulated in these experiments. The number of copies of each file is determined by a Power-law distribution with a popularity rate 8 = 1.2. Each peer is assigned with a number of files based on the Sarioiu distribution [19]. At each time step, a query is randomly generated at a peer and completely executed before the next query step. The query popularity reflects which file the query prefer to request.
+We rank the queries according to their popularity. We use a power law distribution with a 8 = 0.63 for queries ranked 1 to 250 and 8 = 1.24 for lower-ranking queries. This distribution models the query popularity distribution in Gnutella. After a query for a file is issued and flooded over the entire P2P network, a list of nodes having this file is generated and the one with
+
+27
+
+the highest global score is selected to download the file. The system updates global reputation scores at all sites after 1,000 queries.
+The query success rate is measured by the percentage of successful queries over the total number of queries issued. Every node has a rate to respond a query with inauthentic files. For simplicity, this rate is modeled inversely proportional to node’s global reputation. We also consider the case of a NoTrust system, which randomly selects a node to download the desired file without considering node reputation. We plot the result of using GossipTrust and NoTrust in simulated P2P file sharing experiments in Fig.11
+
+100
+
+G ossipTrust
+
+N o T ru st
+
+80
+
+Query success rate (%)
+
+60
+
+40
+
+20
+
+0 0
+
+5
+
+10
+
+15
+
+20
+
+25
+
+Percentage of m alicious peers γ (% )
+
+Figure 11 Query success rate of a 1000-node GossipTrust system, compared with an identical system without any reputation support
+
+In this experiment, the malicious peers issue unreliable scores and provide corrupted files. The performance of GossipTrust drops only slightly with the increase of the number of malicious peers, while performance of NoTrust drops sharply with more malicious peers. With the help of GossipTrust, even when the system has 20% malicious peers, it can still maintain around 80% query success rate. This experiment proves the effectiveness of using reputation-based selection scheme in unstructured P2P file sharing applications
+
+8.4 P2P Grid PSA Benchmark Results Unstructured P2P Grid computing supports distributed execution of parallel jobs in the PSA
+benchmark on a P2P computational grid [12], [37], [38]. Denote the total number of parallel jobs as M. We use two performance metrics to evaluate the GossipTrust performance in P2P
+
+28
+
+Grid job execution over the PSA workload [26]. The average job turnaround time is defined by averaging all job completion time 3i {ci}/n, where ci is the completion time of the i-th job for i =
+1 ,2,…M. The average job success rate is defined by the ratio Frate = (1-Mfail) /M, where Mfail
+accounts the number of failed jobs. Figure 12 shows the performance results of our GossipTrust reputation system over the PSA workload, compared with a system with the no-trust support.
+We apply a realistic PSA workload of 20,000 to 100,000 jobs in Fig.12(a) over a P2P Grid, consisting of 4,000 resource sites. We assumed an average job execution time 5 sec/job and an average 2 jobs/sec arrival rate. The PSA benchmark runs independent jobs. The execution model essentially involves parallel execution of M independent jobs on N, where M >> N. Per each job, 10% of the peer sites will respond to the job assignment. The peer sites having the shortest expected time-to-completion (ETC) are selected for actually executing the job.
+GossipTrust computes the ETC = real_etc/(1- fail_rate), where the real_etc is the actual ETC of a peer site and the fail_rate is the failing rate experienced with the Grid site, which is determined by the site’s global reputation. After each job execution, the Grid site will update the local trust scores of other sites according to job execution result. GossipTrust updates the global reputation scores for all sites every hour. A job will be executed if it was not rejected for more than 3 times. The NoTrust in white bars corresponds to the worst case that the peer site reputations are not used in job scheduling. The grey bars correspond to job scheduling using the reputation scores aggregated by GossipTrust.
+Figure 12(a) reports the average job turnaround time (average completion time) of the PSA workload executed under both GossipTrust and NoTrust. The turnaround time increases linearly with respect to the increase of the job number. GossipTrust significantly outperforms NoTrust by saving more than 50% job completion time. We plot in Fig.12(b) the average job success rate against different percentage of malicious peers under the default value of M = 40,000 jobs. We experimented 10 peers in a collusion group.
+In the PSA experiments, the malicious peers fail the job execution at any time. Without trust information, the job success rate is quite low (around 48%). GossipTrust has more than 40% performance gains over the case of NoTrust support, when there is less than 10% malicious peers. Even when the malicious peers increase to 25%, the GossipTrust is able to maintain a 75%
+29
+
+average job success rate. These results prove the effectiveness of using global reputation to establish trust among the participating peers in a large-scale P2P grid computing grid.
+
+Average job turnaround time (sec) Average job success rate (%)
+
+160
+
+100
+
+NoTrust
+
+140
+
+GossipTrust
+
+80 120
+
+GossipTrust NoTrust
+
+100
+
+60
+
+80
+
+60
+
+40
+
+40 20
+20
+
+0 20000
+
+40000
+
+60000
+
+80000
+
+Numbe of jobs (M)
+
+(a) Effect of job number
+
+100000
+
+0 0
+
+5
+
+10
+
+15
+
+20
+
+25
+
+Percentage of malicious nodes γ (%)
+
+(b) Effect of malicious peer density
+
+Figure 12. PSA benchmark results on a simulated P2P Grid configuration under various PSA workload and malicious peer distributions
+
+9. Conclusions and Further Work In any unstructured P2P network, global reputation aggregation is quite expensive when the
+network grows very large to reach millions of nodes. To our best knowledge, GossipTrust offers the very first attempt to extend the gossip protocol for reputation aggregation in P2P networks without any structured overlay support. GossipTrust is shown very fast in aggregating local trust scores into global reputation scores. The major innovations in GossipTrust development are summarized in three aspects: fast gossip-based aggregation algorithms, efficient reputation storage with Bloom filters, and secure communication with identity-based cryptography.
+GossipTrust enables peers to compute global reputation scores in a fully distributed, secure, scalable and robust fashion. The simulation results show that the system scales well with the increase of network size. The system can also tolerates link failures and peer collusions. The benchmark experiments on P2P file-sharing applications and P2P Grid PSA workloads demonstrate significant performance gains in using GossipTrust system, compared with an unstructured P2P networks without any reputation services. The performance gains lie in reduced number of aggregation cycles, faster convergence rate, lower RMS aggregation errors, and
+
+30
+
+higher query success rate in distributed file sharing, and much improved job success rate and turnaround time in PSA applications.
+We have to point out that the GossipTrust system is not restricted to apply only in unstructured P2P systems exclusively. With minor modifications, the system can perform even better in a structured P2P system. The gossip steps and reputation aggregation process reported here can be further accelerated by the fast hashing and search mechanisms built in DHT-based overlay networks. A peer providing corrupted services is highly likely to issue dishonest reputation scores. To probe further, we suggest to keep two kinds of reputation scores on each peer node: one to measure the quality-of-service (QoS) such as those performance measures reported here and another for quality-of-feedback (QoF) by participating peers.
+We suggest integrating these two scores together and address the tradeoffs between them in future research challenges. With file replication, P2P systems are vulnerable to content pollution and attacks using replicated decoys or index poisoning [18]. Further research is also encouraged to apply reputations systems to enforce copyright protection in P2P systems. With the help of object reputation [31], a client can validate the authenticity of an object before initiating parallel file download from multiple peers. This opens up a meaningful direction to extend gossip-based systems for managing object reputations.
+Acknowledgements: This work was fully supported by NSF ITR Grant ACI-0325409 at the Internet and Grid Research Laboratory, University of Southern California.
+Reference:
+[1] K. Aberer and Z. Despotovic, “Managing Trust in a Peer-2-Peer Information System”, Tenth Int’l Conf. on Information and Knowledge Management, New York, 2001.
+[2] S. Boyd, A. Ghosh, B. Prabhakar, D. Shah, “Randomized Gossip Algorithms”, IEEE Trans. on Information Theory, June 2006, 52(6):2508-2530.
+[3] B. H. Bloom, “Space/Time Trade-offs in Hash coding with Allowable Errors”, Comm. of the ACM, vol.13, no.7, pp. 422-426, 1970.
+[4] D. Boneh and M. Franklin, “Identity-Based Encryption from the Weil Paring”, Proceedings of 21st Advances in Cryptology, 2001.
+[5] A. Broder and M. Mitzenmacher, “Network Applications of Bloom Filters: A survey”, 40th Conf. on Communication, Control, and Computing, 2002.
+31
+
+[6] S. Buchegger and J. Y. Boudec, “A Robust Reputation System for P2P and Mobile Ad-hoc Networks”, Second Workshop on Economics of P2P Systems, Boston, June 2004.
+[7] N. Christin, A.S.Weigend, and J. Chuang, “Content Availability, Pollution and Poisoning in File Sharing Peer-to-Peer Networks”, ACM Conf. on E-Commerce, Vancouver, June 2005.
+[8] E. Damiani, S. Vimercati, S. Paraboschi, P. Samarati, “Managing and Sharing Servants' Reputations in P2P system”, IEEE Trans. on Knowledge and Data Engineering, Vol. 15, Issue 4, July 2003.
+[9] D. Dumitiu, E. Knightly, A. Kuzmanovic, I. Stoica, and W. Zwaenepoel, “Denial-of-Service Resilience in P2P File Sharing Systems”, Sigmetrics’05, Alberta, June 2005
+[10] C. Gkantsidis, M. Mihail, and A. Saberi, “Conductance and Congestion in Power Law Graphs”, ACM/IEEE SIGMETRICS, San Diego, June. 2003.
+[11] K.Gummadi, R.Dunn, R. Dunn, “Measurement, Modeling and Analysis of a Peer-to-Peer FileSharing Workload”, Proceedings of the 19th ACM Symposium on Operating Systems Principles, Bolton Landing, NY, 2003.
+[12] J. Hu, R. Klefstad, “Decentralized Load Balancing on Unstructured Peer-2-Peer Computing Grids”, Fifth IEEE Int’l Symp. on Network Computing and Applications (NCA’06), Boston, July, 2006
+[13] D. Hughes, G. Coulson, and J. Walkerdine, “Free Riding on Gnutella Revisited: The Bell Tolls”, IEEE Distributed Systems Online, Volume 6, June 2005.
+[14] M. Jelasity, A. Montresor and O.Babaoglu, “Gossip-Based Aggregation in Large Dynamic Networks”, ACM Trans. on Computer Systems, Vol.23, No.3, August 2005.
+[15] V. Kalogeraki, A. Delis and D. Gunopulos, “Peer-to-Peer Architectures for Scalable, Efficient and Reliable Media Services”, Int’l Parallel &Distributed Processing Symposium, France, April 2003.
+[16] S. Kamvar, M. Schlosser, and H. Garcia-Molina, “The Eigentrust Algorithm for Reputation Management in P2P Networks”, ACM WWW’03, Budapest, Hungary, May 2003.
+[17] D. Kempe, A. Dobra and J. Gehrke, “Gossip-based Computation of Aggregate Information”, Proc. of IEEE Symposium on Foundations of Computer Science, Cambridge, MA, Oct.2003.
+[18] X. Lou and K. Hwang, “Adaptive Content Poisoning To Prevent Illegal File Distribution in P2P Networks”, IEEE Trans. Computers, submitted August 2006.
+[19] S. Marti and H. Garcia-Molina, “Limited Reputation Sharing in P2P Systems”, Proc. of the 5th ACM conference on Electronic Commerce, New York, May 2004.
+[20] J. Meserve, “P2P Traffic Still Dominates the 'Net”, Network World, 2005. [21] R. L. Page, S.Brin and T. Winograd, “the Pagerank Citation Ranking: Bringing Order to the Web”,
+Technical report, Stanford Digital Library Technologies Project, 1998. [22] S. Nandy, L. Carter and J. Ferrante, “GUARD: Gossip Used for Autonomous Resource Detection”,
+19th Int’l Parallel &Distributed Processing Symposium, Colorado, Apr. 2005. [23] D. Qiu and R.Srikant, “Modeling and Performance Analysis of BitTorrent-Like Peer-to-Peer
+32
+
+Networks”, Sigcomm 2004, Portland, USA, Aug-Sep, 2004. [24] P. Resnick, R. Zeckhauser, E. Friedman, and K.Kuwabra, “Reputation Systems”, Communications
+of the ACM, 43(12), pp.45-48, 2000. [25] A. Singh and L. Liu, “TrustMe: Anonymous Management of Trust Relationships in Decentralized
+P2P Systems”, IEEE Intl. Conf. on Peer-to-Peer Computing, Sep. 2003. [26] S. Song, K. Hwang, and Y.K. Kwok, “Risk-Resilient Heuristics and Genetic Algorithms for
+Security-Assured Grid Job Scheduling”, IEEE Trans. on Computers, August 2006. [27] M. Srivatsa, L. Xiong, and L. Liu, “Trustguard: Countering Vulnerabilities in Reputation
+Management for Decentralized Overlay networks”, Proc. of the 14th International World Wide Web Conference, pages 422–431, 2005. [28] T. Stading, “Secure Communication in a Distributed System Using Identity Based Encryption”, Proceedings of 3rd IEEE Int’l Symp. on Cluster Computing and the Grid (CCGrid), May 2003. [29] E. Sit and R. Morris, “Security Considerations for P2P Distributed Hash Tables”, Proc. IPTPS 2002, Cambridge, MA, March 2003. [30] S. Song, K. Hwang, R Zhou, and Y. K. Kwok, “Trusted P2P Transactions with Fuzzy Reputation Aggregation”, IEEE Internet Computing, Nov/Dec. 2005, pp.18-28 [31] K. Walsh and E. Sirer, “Experience with an Object Reputation System for Peer-to-Peer Filesharing”, NSDI’ Symp.on Networked Systems Design & Implementation, San Jose, May 8-10, 2006 [32] L. Xiong and L. Liu, “PeerTrust: Supporting Reputation-based Trust for Peer-to-Peer Electronic Communities”, IEEE Trans. Knowledge and Data Engineering, Vol.16, No.7, 2004, pp. 843-857. [33] B. Yang, T.Condie, S. Kamvar and H. Garcia-Molina, “Non-Cooperation in Competitive P2P Networks”, Proceedings of the 25th IEEE Int’l Conference on Distributed Computing Systems (ICDCS’05), Columbus, Ohio, 2005 [34] M. Yang, Z. Zhang, X. Li and Y. Dai, “An Empirical Study of Free-Riding Behavior in the Maze P2P File-Sharing System”, Proceedings of IPTPS, Ithaca, NY. Feb, 2005 [35] H. Zhang, A. Goel and R. Govindan, “Making Eigenvector-based Reputation Systems Robust to Collusion”, Third Workshop on Economic Issues in P2P Systems, Berkeley, June 2003. [36] R. Zhou and K. Hwang, “PowerTrust: A Robust and Scalable Reputation System for Trusted P2P Computing”, IEEE Trans. on Parallel and Distributed Systems, accepted, March 2006. (in press) [37] R. Zhou and K. Hwang, “Gossip-based Reputation Aggregation in Unstructured P2P Networks”, IEEE Int’l Parallel and Distributed Processing Symposium (IPDPS-2007), accepted to be presented in March 2007. [38] H. Zhuge, X. Sun, J. Liu, E. Yao and X.Chen, “A Scalable P2P Platform for the Knowledge Grid”, IEEE Trans. Knowledge and Data Engineering, Dec. 2005, pp. 1721- 1736.
+33
+
+Biographical Sketches:
+Runfang Zhou received the B.S. and M.S. in computer science from
+Southeast University, China. She is currently pursuing Ph.D. in Computer Science at the University of Southern California. She is expected to complete all Ph.D. degree requirements by Spring 2007. Her research activities cover peer-to-peer reputation systems, overlay network design, web services performance improvement, and trust and secure collaboration in Grid computing. She can be reached at: rzhou@usc.edu.
+Kai Hwang is a Professor of Electrical Engineering and Computer
+Science and Director of Internet and Grid Research Laboratory at USC. He received the Ph.D. degree from the University of California, Berkeley in 1972. An IEEE Fellow, he specializes in computer architecture, parallel processing, Internet and wireless security, P2P, Grid, and distributed computing systems. He has published over 200 original scientific papers and 4 popular textbooks in these areas.
+Dr. Hwang is the founding Editor-in-Chief of the Journal of Parallel and Distributed Computing published by Elsevier. He is also on the editorial boards of IEEE Transactions on Parallel and Distributed Systems. His latest two books, Scalable Parallel Computing and Advanced Computer Architecture are being adopted worldwide and translated into 4 languages. His research group at USC have developed security-binding techniques, P2P reputation systems, distributed intrusion detection systems against network worms and DDoS attacks in trusted Grid, P2P, and Internet computing applications. Contact him at kaihwang@usc.edu or visit web site: http://GridSec.usc.edu/Hwang.html.
+Min Cai received his BS and MS degrees in Computer Science from
+Southeast University, China, in 1998 and 2001, respectively. In December 2006, he received the Ph.D. degree in Computer Science at the University of Southern California. His research interests include P2P and grid computing, network security, semantic web, and web services technologies. His current email address is mincai@usc.edu.
+34
+
