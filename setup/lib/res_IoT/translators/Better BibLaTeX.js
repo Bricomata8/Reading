@@ -10,7 +10,7 @@
 	"inRepository": false,
 	"configOptions": {
 		"getCollections": true,
-		"hash": "fb64e2eac4aec255d9aa88e13f127c2e-6f140157e9a2b4c68976c9a07ae1f25c"
+		"hash": "fb64e2eac4aec255d9aa88e13f127c2e-57c4a68f3807509d2874c50aa2e0b576"
 	},
 	"displayOptions": {
 		"exportNotes": false,
@@ -18,7 +18,7 @@
 		"useJournalAbbreviation": false,
 		"keepUpdated": false
 	},
-	"lastUpdated": "2019-04-17 16:17:14"
+	"lastUpdated": "2019-04-24 06:08:33"
 }
 
 var Translator = {
@@ -2612,8 +2612,10 @@ Translator.doExport = () => {
         // ref.add({ name: 'rights', value: item.rights })
         ref.add({ name: 'isbn', value: item.ISBN });
         ref.add({ name: 'issn', value: item.ISSN });
-        ref.add({ name: 'url', value: item.url });
-        ref.add({ name: 'doi', value: item.DOI });
+        if (Translator.preferences.DOIandURL === 'both' || Translator.preferences.DOIandURL === 'url' || !item.DOI)
+            ref.add({ name: 'url', value: item.url });
+        if (Translator.preferences.DOIandURL === 'both' || Translator.preferences.DOIandURL === 'doi' || !item.url)
+            ref.add({ name: 'doi', value: item.DOI });
         ref.add({ name: 'shorttitle', value: item.shortTitle });
         ref.add({ name: 'abstract', value: item.abstractNote });
         ref.add({ name: 'volumes', value: item.numberOfVolumes });
@@ -4505,19 +4507,6 @@ class Reference {
         this.add(Object.assign({}, field, { name, replace: (typeof field.replace !== 'boolean' && typeof field.fallback !== 'boolean') || field.replace }));
     }
     complete() {
-        if (Translator.preferences.DOIandURL !== 'both') {
-            if (this.has.doi && this.has.url) {
-                debug_1.debug('removing', Translator.preferences.DOIandURL === 'doi' ? 'url' : 'doi');
-                switch (Translator.preferences.DOIandURL) {
-                    case 'doi':
-                        this.remove('url');
-                        break;
-                    case 'url':
-                        this.remove('doi');
-                        break;
-                }
-            }
-        }
         if ((this.item.collections || []).length && Translator.preferences.jabrefFormat === 4) { // tslint:disable-line:no-magic-numbers
             let groups = this.item.collections.filter(key => Translator.collections[key]).map(key => Translator.collections[key].name);
             groups = groups.sort().filter((item, pos, ary) => !pos || (item !== ary[pos - 1]));
