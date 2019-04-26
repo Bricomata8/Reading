@@ -11,7 +11,7 @@
 	"configOptions": {
 		"async": true,
 		"getCollections": true,
-		"hash": "cffca401194c9d7f1899e4bcd1b01d09-3ceaa0e654dcbbcc0643f9c61ddcb7c8"
+		"hash": "cffca401194c9d7f1899e4bcd1b01d09-fa4775b7be7887bf40f78c3a22c2b891"
 	},
 	"displayOptions": {
 		"exportNotes": false,
@@ -20,7 +20,7 @@
 		"keepUpdated": false
 	},
 	"browserSupport": "gcsv",
-	"lastUpdated": "2019-04-24 06:08:33"
+	"lastUpdated": "2019-04-17 16:17:14"
 }
 
 var Translator = {
@@ -10554,6 +10554,7 @@ Translator.doExport = () => {
         ref.add({ name: 'issn', value: item.ISSN });
         ref.add({ name: 'lccn', value: item.callNumber });
         ref.add({ name: 'shorttitle', value: item.shortTitle });
+        ref.add({ name: 'doi', value: item.DOI });
         ref.add({ name: 'abstract', value: item.abstractNote });
         ref.add({ name: 'nationality', value: item.country });
         ref.add({ name: 'language', value: item.language });
@@ -10583,20 +10584,16 @@ Translator.doExport = () => {
                 ref.add({ name: 'publisher', value: item.publisher });
                 break;
         }
-        if (Translator.preferences.DOIandURL === 'both' || Translator.preferences.DOIandURL === 'doi' || !item.url)
-            ref.add({ name: 'doi', value: item.DOI });
-        if (Translator.preferences.DOIandURL === 'both' || Translator.preferences.DOIandURL === 'url' || !item.DOI) {
-            switch (Translator.preferences.bibtexURL) {
-                case 'url':
-                    ref.add({ name: 'url', value: item.url });
-                    break;
-                case 'note':
-                    ref.add({ name: (['misc', 'booklet'].includes(ref.referencetype) && !ref.has.howpublished ? 'howpublished' : 'note'), value: item.url, enc: 'url' });
-                    break;
-                default:
-                    if (['webpage', 'post', 'post-weblog'].includes(item.referenceType))
-                        ref.add({ name: 'howpublished', value: item.url });
-            }
+        switch (Translator.preferences.bibtexURL) {
+            case 'url':
+                ref.add({ name: 'url', value: item.url });
+                break;
+            case 'note':
+                ref.add({ name: (['misc', 'booklet'].includes(ref.referencetype) && !ref.has.howpublished ? 'howpublished' : 'note'), value: item.url, enc: 'url' });
+                break;
+            default:
+                if (['webpage', 'post', 'post-weblog'].includes(item.referenceType))
+                    ref.add({ name: 'howpublished', value: item.url });
         }
         if (item.referenceType === 'thesis' && ['mastersthesis', 'phdthesis'].includes(item.type)) {
             ref.referencetype = item.type;
@@ -12151,6 +12148,19 @@ class Reference {
         this.add(Object.assign({}, field, { name, replace: (typeof field.replace !== 'boolean' && typeof field.fallback !== 'boolean') || field.replace }));
     }
     complete() {
+        if (Translator.preferences.DOIandURL !== 'both') {
+            if (this.has.doi && this.has.url) {
+                debug_1.debug('removing', Translator.preferences.DOIandURL === 'doi' ? 'url' : 'doi');
+                switch (Translator.preferences.DOIandURL) {
+                    case 'doi':
+                        this.remove('url');
+                        break;
+                    case 'url':
+                        this.remove('doi');
+                        break;
+                }
+            }
+        }
         if ((this.item.collections || []).length && Translator.preferences.jabrefFormat === 4) { // tslint:disable-line:no-magic-numbers
             let groups = this.item.collections.filter(key => Translator.collections[key]).map(key => Translator.collections[key].name);
             groups = groups.sort().filter((item, pos, ary) => !pos || (item !== ary[pos - 1]));

@@ -9,13 +9,13 @@
 	"priority": 100,
 	"inRepository": false,
 	"configOptions": {
-		"hash": "780779d1e39047e03dd8fea4f831d750-c60cf06859f43bc0d3ef8da6e128f363"
+		"hash": "780779d1e39047e03dd8fea4f831d750-01c2f6bf1f72a427bc22bfd6560287c1"
 	},
 	"displayOptions": {
 		"keepUpdated": false
 	},
 	"browserSupport": "gcsv",
-	"lastUpdated": "2019-04-24 06:08:33"
+	"lastUpdated": "2019-04-17 16:17:14"
 }
 
 var Translator = {
@@ -15033,7 +15033,7 @@ csl_1.CSLExporter.serialize = csl => {
         if (typeof v === 'string' && v.indexOf('<') >= 0)
             csl[k] = htmlConverter.convert(v);
     }
-    return YAML.safeDump([csl], { skipInvalid: true, sortKeys: Translator.preferences.testing });
+    return YAML.safeDump([csl], { skipInvalid: true });
 };
 csl_1.CSLExporter.flush = items => `---\nreferences:\n${items.join('\n')}...\n`;
 Translator.initialize = () => csl_1.CSLExporter.initialize();
