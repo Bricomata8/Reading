@@ -11,7 +11,7 @@
 	"configOptions": {
 		"async": true,
 		"getCollections": true,
-		"hash": "cffca401194c9d7f1899e4bcd1b01d09-3ceaa0e654dcbbcc0643f9c61ddcb7c8"
+		"hash": "7e39d911af20dfae90080912df81e2e2-c56c927bb4b10aef60cd264f4c08cf7a"
 	},
 	"displayOptions": {
 		"exportNotes": false,
@@ -20,7 +20,7 @@
 		"keepUpdated": false
 	},
 	"browserSupport": "gcsv",
-	"lastUpdated": "2019-04-24 06:08:33"
+	"lastUpdated": "2019-04-27 09:43:38"
 }
 
 var Translator = {
@@ -30,7 +30,7 @@ var Translator = {
   BetterCSL: false,
   header: ZOTERO_TRANSLATOR_INFO,
   // header: < %- JSON.stringify(header) % >,
-  preferences: {"DOIandURL":"both","ascii":"","asciiBibLaTeX":false,"asciiBibTeX":true,"autoAbbrev":false,"autoAbbrevStyle":"","autoExport":"immediate","autoExportDelay":1,"autoExportIdleWait":10,"autoExportPrimeExportCacheBatch":10,"autoExportPrimeExportCacheThreshold":0,"autoExportTooLong":10,"autoPin":false,"auxImport":false,"biblatexExtendedDateFormat":true,"biblatexExtendedNameFormat":false,"bibtexParticleNoOp":false,"bibtexURL":"off","cacheFlushInterval":5,"citeCommand":"cite","citekeyFold":true,"citekeyFormat":"​[auth:lower][shorttitle3_3][year]","citeprocNoteCitekey":false,"csquotes":"","debug":false,"debugLog":"","git":"config","itemObserverDelay":100,"jabrefFormat":0,"keyConflictPolicy":"keep","keyScope":"library","kuroshiro":false,"lockedInit":false,"parseParticles":true,"postscript":"","preserveBibTeXVariables":false,"qualityReport":false,"quickCopyMode":"latex","quickCopyPandocBrackets":false,"rawLaTag":"#LaTeX","relativeFilePaths":false,"scrubDatabase":false,"skipFields":"","skipWords":"a,ab,aboard,about,above,across,after,against,al,along,amid,among,an,and,anti,around,as,at,before,behind,below,beneath,beside,besides,between,beyond,but,by,d,da,das,de,del,dell,dello,dei,degli,della,dell,delle,dem,den,der,des,despite,die,do,down,du,during,ein,eine,einem,einen,einer,eines,el,en,et,except,for,from,gli,i,il,in,inside,into,is,l,la,las,le,les,like,lo,los,near,nor,of,off,on,onto,or,over,past,per,plus,round,save,since,so,some,sur,than,the,through,to,toward,towards,un,una,unas,under,underneath,une,unlike,uno,unos,until,up,upon,versus,via,von,while,with,within,without,yet,zu,zum","sorted":false,"strings":"","suppressBraceProtection":false,"suppressTitleCase":false,"testing":false,"warnBulkModify":10},
+  preferences: {"DOIandURL":"both","ascii":"","asciiBibLaTeX":false,"asciiBibTeX":true,"autoAbbrev":false,"autoAbbrevStyle":"","autoExport":"immediate","autoExportDelay":1,"autoExportIdleWait":10,"autoExportPrimeExportCacheBatch":10,"autoExportPrimeExportCacheThreshold":0,"autoExportTooLong":10,"autoPin":false,"auxImport":false,"biblatexExtendedDateFormat":true,"biblatexExtendedNameFormat":false,"bibtexParticleNoOp":false,"bibtexURL":"off","cacheFlushInterval":5,"citeCommand":"cite","citekeyFold":true,"citekeyFormat":"​[auth:lower][shorttitle3_3][year]","citeprocNoteCitekey":false,"csquotes":"","debug":false,"debugLog":"","exportBibTeXStrings":"off","git":"config","importBibTeXStrings":true,"itemObserverDelay":100,"jabrefFormat":0,"keyConflictPolicy":"keep","keyScope":"library","kuroshiro":false,"lockedInit":false,"parseParticles":true,"postscript":"","qualityReport":false,"quickCopyMode":"latex","quickCopyPandocBrackets":false,"rawLaTag":"#LaTeX","relativeFilePaths":false,"scrubDatabase":false,"skipFields":"","skipWords":"a,ab,aboard,about,above,across,after,against,al,along,amid,among,an,and,anti,around,as,at,before,behind,below,beneath,beside,besides,between,beyond,but,by,d,da,das,de,del,dell,dello,dei,degli,della,dell,delle,dem,den,der,des,despite,die,do,down,du,during,ein,eine,einem,einen,einer,eines,el,en,et,except,for,from,gli,i,il,in,inside,into,is,l,la,las,le,les,like,lo,los,near,nor,of,off,on,onto,or,over,past,per,plus,round,save,since,so,some,sur,than,the,through,to,toward,towards,un,una,unas,under,underneath,une,unlike,uno,unos,until,up,upon,versus,via,von,while,with,within,without,yet,zu,zum","sorted":false,"strings":"","suppressBraceProtection":false,"suppressTitleCase":false,"testing":false,"warnBulkModify":10},
   options: {"exportFileData":false,"exportNotes":false,"keepUpdated":false,"useJournalAbbreviation":false},
 
   stringCompare: (new Intl.Collator('en')).compare,
@@ -3369,7 +3369,7 @@ class BibLatexParser {
         bibDB: Object;
         errors: Array<ErrorObject>;
         warnings: Array<ErrorObject>;
-        variables: {
+        months: {
             JAN: string,
             FEB: string,
             MAR: string,
@@ -3383,6 +3383,7 @@ class BibLatexParser {
             NOV: string,
             DEC: string
         };
+        strings: Object;
         comments: Array<string>;
         groupParser: GroupParser;
         groups: Array<GroupObject> | false;
@@ -3406,8 +3407,9 @@ class BibLatexParser {
         this.errors = []
         this.warnings = []
         this.comments = []
+        this.strings = {}
         // These variables are expected to be defined by some bibtex sources.
-        this.variables = {
+        this.months = {
             JAN: "01",
             FEB: "02",
             MAR: "03",
@@ -3548,8 +3550,10 @@ class BibLatexParser {
             return this.valueQuotes()
         } else {
             let k = this.key()
-            if (this.variables[k.toUpperCase()]) {
-                return this.variables[k.toUpperCase()]
+            if (this.strings[k.toUpperCase()]) {
+                return this.strings[k.toUpperCase()]
+            } else if (this.months[k.toUpperCase()]) {
+                return this.months[k.toUpperCase()]
             } else if (k.match("^[0-9]+$")) {
                 return k
             } else {
@@ -3695,8 +3699,8 @@ class BibLatexParser {
             date = rawFields.date
         } else if (rawFields.year && rawFields.month) {
             month = rawFields.month
-            if (isNaN(parseInt(month)) && this.variables[month.toUpperCase()]) {
-                month = this.variables[month.toUpperCase()]
+            if (isNaN(parseInt(month)) && this.months[month.toUpperCase()]) {
+                month = this.months[month.toUpperCase()]
             } else if (
                 typeof month.split('~').find(monthPart => isNaN(parseInt(monthPart))) === 'undefined'
             ) {
@@ -4064,7 +4068,7 @@ class BibLatexParser {
     string() {
         const kv = this.keyEqualsValue(true)
         if (kv) {
-            this.variables[kv[0].toUpperCase()] = kv[1]
+            this.strings[kv[0].toUpperCase()] = kv[1]
         }
     }
 
@@ -4199,6 +4203,7 @@ class BibLatexParser {
             errors: this.errors,
             warnings: this.warnings,
             comments: this.comments,
+            strings: this.strings,
             jabref: {
               groups: this.groups,
               meta: this.jabrefMeta,
@@ -10537,6 +10542,7 @@ reference_1.Reference.prototype.typeMap = {
 };
 const months = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
 Translator.doExport = () => {
+    exporter_1.Exporter.prepare_strings();
     // Zotero.write(`\n% ${Translator.header.label}\n`)
     Zotero.write('\n');
     let item;
@@ -10546,7 +10552,7 @@ Translator.doExport = () => {
         ref.add({ name: 'chapter', value: item.section });
         ref.add({ name: 'edition', value: item.edition });
         ref.add({ name: 'type', value: item.type });
-        ref.add({ name: 'series', value: item.series });
+        ref.add({ name: 'series', value: item.series, bibtexStrings: true });
         ref.add({ name: 'title', value: item.title });
         ref.add({ name: 'volume', value: item.volume });
         ref.add({ name: 'copyright', value: item.rights });
@@ -10561,26 +10567,26 @@ Translator.doExport = () => {
         ref.add({ name: 'number', value: item.number || item.issue || item.seriesNumber });
         ref.add({ name: 'urldate', value: item.accessDate && item.accessDate.replace(/\s*T?\d+:\d+:\d+.*/, '') });
         if (['bookSection', 'conferencePaper', 'chapter'].includes(item.referenceType)) {
-            ref.add({ name: 'booktitle', value: item.publicationTitle || item.conferenceName, preserveBibTeXVariables: true });
+            ref.add({ name: 'booktitle', value: item.publicationTitle || item.conferenceName, bibtexStrings: true });
         }
-        else if (ref.isBibVar(item.publicationTitle)) {
-            ref.add({ name: 'journal', value: item.publicationTitle, preserveBibTeXVariables: true });
+        else if (ref.isBibString(item.publicationTitle)) {
+            ref.add({ name: 'journal', value: item.publicationTitle, bibtexStrings: true });
         }
         else {
-            ref.add({ name: 'journal', value: (Translator.options.useJournalAbbreviation && item.journalAbbreviation) || item.publicationTitle, preserveBibTeXVariables: true });
+            ref.add({ name: 'journal', value: (Translator.options.useJournalAbbreviation && item.journalAbbreviation) || item.publicationTitle, bibtexStrings: true });
         }
         switch (item.referenceType) {
             case 'thesis':
-                ref.add({ name: 'school', value: item.publisher });
+                ref.add({ name: 'school', value: item.publisher, bibtexStrings: true });
                 break;
             case 'report':
-                ref.add({ name: 'institution', value: item.publisher });
+                ref.add({ name: 'institution', value: item.publisher, bibtexStrings: true });
                 break;
             case 'computerProgram':
-                ref.add({ name: 'howpublished', value: item.publisher });
+                ref.add({ name: 'howpublished', value: item.publisher, bibtexStrings: true });
                 break;
             default:
-                ref.add({ name: 'publisher', value: item.publisher });
+                ref.add({ name: 'publisher', value: item.publisher, bibtexStrings: true });
                 break;
         }
         if (Translator.preferences.DOIandURL === 'both' || Translator.preferences.DOIandURL === 'doi' || !item.url)
@@ -11447,7 +11453,7 @@ Translator.doImport = async () => {
     while ((read = Zotero.read(0x100000)) !== false) { // tslint:disable-line:no-magic-numbers
         input += read;
     }
-    if (Translator.preferences.strings)
+    if (Translator.preferences.strings && Translator.preferences.importBibTeXStrings)
         input = `${Translator.preferences.strings}\n${input}`;
     const bib = await biblatex.parse(input, {
         processUnexpected: true,
@@ -11939,7 +11945,7 @@ class Reference {
         this.inPostscript = false;
         this._enc_creators_initials_marker = '\u0097'; // end of guarded area
         this._enc_creators_relax_marker = '\u200C'; // zero-width non-joiner
-        this.isBibVarRE = /^[a-z][a-z0-9_]*$/i;
+        this.isBibStringRE = /^[a-z][-a-z0-9_]*$/i;
         this.metadata = { DeclarePrefChars: '', noopsort: false };
         this.item = item;
         this.raw = (Translator.preferences.rawLaTag === '*') || (this.item.tags.includes(Translator.preferences.rawLaTag));
@@ -12095,7 +12101,7 @@ class Reference {
             this.remove(field.name);
         }
         if (!field.bibtex) {
-            if ((typeof field.value === 'number') || (field.preserveBibTeXVariables && this.isBibVar(field.value))) {
+            if ((typeof field.value === 'number') || (field.bibtexStrings && this.isBibString(field.value))) {
                 field.bibtex = `${field.value}`;
             }
             else {
@@ -12129,8 +12135,19 @@ class Reference {
         delete this.has[name];
         return removed;
     }
-    isBibVar(value) {
-        return Translator.preferences.preserveBibTeXVariables && value && (typeof value === 'string') && this.isBibVarRE.test(value);
+    isBibString(value) {
+        if (!value || typeof value !== 'string')
+            return false;
+        switch (Translator.preferences.exportBibTeXStrings) {
+            case 'off':
+                return false;
+            case 'detect':
+                return this.isBibStringRE.test(value);
+            case 'match':
+                return !!exporter_1.Exporter.strings[value.toUpperCase()]; // the importer uppercases string declarations
+            default:
+                return false;
+        }
     }
     hasCreator(type) { return (this.item.creators || []).some(creator => creator.creatorType === type); }
     override(field) {
@@ -12277,8 +12294,8 @@ class Reference {
                 this.referencetype = field.value;
                 continue;
             }
-            debug_1.debug('extraFields: bibtex');
-            this.override(field);
+            debug_1.debug('extraFields: bibtex', field);
+            this.override(Object.assign({}, field, { bibtexStrings: Translator.preferences.exportBibTeXStrings === 'match' }));
         }
         for (const [name, field] of Object.entries(this.item.extraFields.kv)) {
             debug_1.debug('extraFields: kv', name, field);
@@ -13169,11 +13186,29 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const jabref_1 = __webpack_require__(/*! ../bibtex/jabref */ "./bibtex/jabref.ts"); // not so nice... BibTeX-specific code
 const debug_1 = __webpack_require__(/*! ../lib/debug */ "./lib/debug.ts");
 const itemfields = __webpack_require__(/*! ../../gen/itemfields */ "../gen/itemfields.ts");
+const biblatex = __webpack_require__(/*! biblatex-csl-converter/src/import/biblatex */ "../node_modules/biblatex-csl-converter/src/import/biblatex.js");
 // export singleton: https://k94n.com/es6-modules-single-instance-pattern
 exports.Exporter = new class {
     constructor() {
         this.preamble = { DeclarePrefChars: '' };
         this.jabref = new jabref_1.JabRef();
+        this.strings = {};
+    }
+    prepare_strings() {
+        if (!Translator.BetterTeX || !Translator.preferences.strings)
+            return;
+        if (Translator.preferences.exportBibTeXStrings === 'match') {
+            this.strings = biblatex.parse(Translator.preferences.strings, {
+                processUnexpected: true,
+                processUnknown: { comment: 'f_verbatim' },
+                processInvalidURIs: true,
+            }).strings;
+        }
+        /*
+        if (Translator.preferences.exportBibTeXStrings !== 'off') {
+          Zotero.write(`${Translator.preferences.strings}\n\n`)
+        }
+        */
     }
     unique_chars(str) {
         let uniq = '';
