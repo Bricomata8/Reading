@@ -9,13 +9,13 @@
 	"priority": 100,
 	"inRepository": false,
 	"configOptions": {
-		"hash": "1080bb4b6ed72fa636332d93164937d3-c60cf06859f43bc0d3ef8da6e128f363"
+		"hash": "1080bb4b6ed72fa636332d93164937d3-035a6c94f58c8a4abcbca32fb48a9cf8"
 	},
 	"displayOptions": {
 		"keepUpdated": false
 	},
 	"browserSupport": "gcsv",
-	"lastUpdated": "2019-04-29 19:26:46"
+	"lastUpdated": "2019-05-07 21:30:09"
 }
 
 var Translator = {
@@ -15102,6 +15102,23 @@ const validCSLTypes = [
     'report',
     'thesis',
 ];
+function keySort(a, b) {
+    if (a === 'id' && b !== 'id')
+        return -1;
+    if (a !== 'id' && b === 'id')
+        return -1;
+    return a.localeCompare(b, undefined, { sensitivity: 'base' });
+}
+function sortObject(obj) {
+    if (!Array.isArray(obj) && obj && typeof obj === 'object') {
+        for (const field of Object.keys(obj).sort(keySort)) {
+            const value = obj[field];
+            delete obj[field];
+            obj[field] = sortObject(value);
+        }
+    }
+    return obj;
+}
 // export singleton: https://k94n.com/es6-modules-single-instance-pattern
 exports.CSLExporter = new class {
     initialize() {
@@ -15118,11 +15135,13 @@ exports.CSLExporter = new class {
     }
     postscript(reference, item) { } // tslint:disable-line:no-empty
     doExport() {
-        const items = [];
+        let items = [];
+        const order = [];
         let item;
         while (item = Zotero.nextItem()) {
             if (item.itemType === 'note' || item.itemType === 'attachment')
                 continue;
+            order.push({ id: item.citekey, index: items.length });
             let cached;
             if (cached = Zotero.BetterBibTeX.cacheFetch(item.itemID, Translator.options, Translator.preferences)) {
                 items.push(cached.reference);
@@ -15216,10 +15235,19 @@ exports.CSLExporter = new class {
             catch (err) {
                 cache = false;
             }
+            for (const field of Translator.preferences.skipFields) {
+                delete csl[field];
+            }
+            if (Translator.preferences.testing || Translator.preferences.sorted)
+                csl = sortObject(csl);
             csl = this.serialize(csl);
             if (typeof cache !== 'boolean' || cache)
                 Zotero.BetterBibTeX.cacheStore(item.itemID, Translator.options, Translator.preferences, csl);
             items.push(csl);
+        }
+        if (Translator.preferences.testing || Translator.preferences.sorted) {
+            order.sort((a, b) => a.id.localeCompare(b.id, undefined, { sensitivity: 'base' }));
+            items = order.map(i => items[i.index]);
         }
         Zotero.write(this.flush(items));
     }
