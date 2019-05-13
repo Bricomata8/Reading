@@ -1,0 +1,747 @@
+LoRaWAN in the Wild: Measurements from The Things Network
+
+Norbert Blenn and Fernando Kuipers Delft University of Technology, Mekelweg 4, 2628 CD Delft, The Netherlands
+{N.Blenn, F.A.Kuipers}@tudelft.nl
+
+arXiv:1706.03086v1 [cs.NI] 9 Jun 2017
+
+Abstract—The Long-Range Wide-Area Network (LoRaWAN) speciﬁcation was released in 2015, primarily to support the Internet-of-Things by facilitating wireless communication over long distances. Since 2015, the role-out and adoption of LoRaWAN has seen a steep growth. To the best of our knowledge, we are the ﬁrst to have extensively measured, analyzed, and modeled the performance, features, and use cases of an operational LoRaWAN, namely The Things Network. Our measurement data, as presented in this paper, cover the early stages up to the production-level deployment of LoRaWAN. In particular, we analyze packet payloads, radio-signal quality, and spatiotemporal aspects, to model and estimate the performance of LoRaWAN. We also use our empirical ﬁndings in simulations to estimate the packet-loss.
+Index Terms—Long-Range Wide-Area Network, LoRa, Measurements, Internet-of-Things, Wireless Communication.
+I. INTRODUCTION
+The Long-Range Wide-Area Network (LoRaWANTM) is a relatively new protocol in the family of Low-Power WANs (LPWANs). LPWANs are designed to ﬁll the gap between (a) short-range and typically high-bandwidth networks, like Bluetooth, WiFi, and ZigBee, and (b) cellular networks, like GSM, UMTS and LTE: networks with a fairly large coverage, but also high power consumption. Since the Internet-of-Things will include many battery-operated or energy-harvesting devices, an additional requirement, which is realized by most LPWANs, is to have inexpensive low-power transceivers that are able to operate for long periods.
+LoRaWAN [10], speciﬁed by the LoRa Alliance1 in January 2015, was mainly developed to facilitate Internet-of-Things (IoT) applications [7], [11], [1]. Despite its young age, the adoption of LoRaWAN has grown rapidly and its deployment by telecommunications providers suggests that it indeed is a strong contender among the set of LPWAN protocols. For example, the Dutch telecommunications operator KPN started rolling out LoRaWAN in November 2015 and within 8 months claimed to be the ﬁrst operator worldwide to offer nation-wide LoRa coverage2. The South Korean operator, SK Telecom, also reported full coverage of the country3 in July 2016. Furthermore, the list of members of the LoRa Alliance4 suggests that multiple telecommunications operators, electronics
+
+companies, entrepreneurs, and research institutes have adopted the technology or will do so in the near future.
+In this paper, we focus on “The Things Network” (TTN); thethingsnetwork.org operates a real crowd-funded IoT network that can be used free of charge. LoRa gateways in the network are mainly provided by volunteers. The TTN site provides of map containing all gateways worldwide. Many applications make use of TTN, ranging from applications made by hobbyists to large-scale applications like UK’s ﬂood network (https://ﬂood.network).
+The outline and main contributions of this paper are as follows: We explain LoRa and the various means of connecting devices to a LoRaWAN network in Sec. II, followed by a description of our large-scale measurements and data-set in Sec. III. In Sec. IV, we explain certain regulations present in the LoRaWAN speciﬁcation and their consequences in terms of the amount of trafﬁc potentially being sent on a daily basis. In Sec. V, we look at estimating the distance of a device from a gateway. We develop and use an empirically-grounded simulator, in Sec. VI, to compute the expected packet-loss. Sec. VII describes related work. We conclude and present several guidelines in Sec. VIII.
+II. LORA AND LORAWAN EXPLAINED
+A. LoRa
+The LoRaWAN protocol is based on LoRa, which deﬁnes the physical (radio) layer. LoRa uses a variant of the chirp spread-spectrum (CSS PHY) modulation described in the IEEE Low-Rate Wireless Personal Area Networks (LRWPANs) standard 802.15.4 [4].
+Chirp modulation is the method of transmitting symbols by encoding them into multiple signals of increasing (upchirp) or decreasing (down-chirp) radio frequencies. Because of the changing frequencies, chirp-modulated signals are fairly robust to multi-path interference, fading, and Doppler shifts [9]. In chirp modulation, error-free transmission in a channel with ﬁxed Signal-to-Noise Ratio (SNR) can be achieved by increasing the bandwidth, which is related to the number of “chirps” per symbol, allowing signals to be transmitted over long distances, as more information is transmitted per bit.
+
+1https://www.lora-alliance.org 2https://corporate.kpn.com/press/press-releases/the-netherlands-has-ﬁrst-
+nationwide-lora-network-for-internet-of-things-.htm 3http://www.sktelecom.com/en/press/detail.do?idx=1172 4https://www.lora-alliance.org/The-Alliance/Member-List
+
+B. The LoRaWAN protocol
+In principle, any protocol can be used on top of the LoRa protocol, but the LoRa Alliance decided to speciﬁcally develop LoRaWAN for that purpose. The reason being that other
+
+protocols, such as 6LoWPan, were expected to trigger a high amount of communication and they would “tie” a node to a single gateway, which would complicate the support of mobile communications. Additionally, many of the existing protocols lack(ed) security at the MAC level. LoRaWAN follows the IEEE 802.15.4 standard [4], allowing seamless mobility without handovers, since any gateway will forward received LoRaWAN data frames.
+LoRaWAN [10] has three modes/classes of operation, all modes/classes referring to bi-directional communication:
+A The basic mode, supported by all devices, is the preferred operational mode. End devices decide themselves when to send, which allows them to operate using a minimum amount of energy. After every sent data frame (uplink), a device will open two receive windows, enabling the reception of data from gateways (conﬁrmations and down-links).
+B Additional to the functionality of class A, in class B, gateways may transmit beacon frames at regular intervals, which only class B and C devices may receive.
+C In class C, devices may continuously receive frames, except when transmitting.
+C. Connecting Devices to a LoRaWAN Network
+Fig. 1 illustrates a typical LoRaWAN class A network.
+
+Thing
+
+Thing
+
+Gateway
+
+Router
+
+Thing
+
+Thing
+
+Router
+
+Thing Gateway
+
+Network operator A Broker Handler
+
+Application Server
+
+Broker Handler Network operator B
+
+Application Server
+
+Fig. 1. Overview of a typical LoRaWAN class A network. Data sent by devices are received by gateways. The gateways forward the correctly received packets to routers, which forward them to a broker based on the used network key. A broker checks the application ids of packets and forwards them to the appropriate handlers, which take care of the communication with a user’s application server.
+A LoRaWAN network is a star-shaped access network. Star-shaped networks are simpler to maintain than meshed networks: Devices broadcast packets, which will be received and forwarded by gateways (typically) to a service-provider operated network. The wireless protocol (LoRa) is used for communication between gateway and device. All further communication in the backbone network is typically realized via IP networks. Applications will connect via IP to the backbone network in order to receive data from wireless nodes or to send packets to devices. Within the backbone network, various servers can be found, performing authentication, validation, and forwarding of packets. Devices may connect to a network
+
+in two ways: “Over the Air Activation” (OTAA) and “Activation by Personalization” (ABP).
+1) Over the Air Activation (OTAA): A device needs to be equipped with a DevEUI, which is a 64-bit globallyunique identiﬁer of the device, an owner-unique AppEUI of 64 bits, which identiﬁes the application the device wants to connect to, and a 128-bit AppKey. The AppKey, obtained from the network operator after successful registration of a device, is used to sign an initial join-request, including the DevEUI, AppEUI, and a randomly generated two-byte DevNonce, which is signed by a Message Integrity Code (MIC). A server that validates the MIC may respond, within the time the receive windows of the device are open, with a new nonce (AppNonce), a 128-bit AppSKey (application session key), a 128-bit NwkSKey (network session key), a device address (DevAddr), RF delays (RxDelay), as well as channels to use (CFList), in a message signed by a MIC.
+2) Activation by Personalization (ABP): One may also skip OTAA and directly supply devices with a DevAddr, NwkSKey, and AppSKey to send packets. In that case, a device is typically manually registered at the service operator to obtain the keys directly.
+3) Default Activation for Generic Devices: A device that uses default keys is called a generic device. A generic device does not need to register its device id nor does it need an associated application, since all network operators should support the default keys. Packets sent by generic devices often are not encrypted. Generic devices use ABP with globally-known NwkSKey and AppSKey. Security is only partially available, namely when individual AppSKeys are used to encrypt data. However, meta-data of transmissions, like the time at which a packet was sent, the length of that packet, the DevAddr, signal strength, SNR, as well as gateway information, are visible to the public. By convention, the AppSKey equals the NwkSKey, in which case everyone is able to decode the data.
+Many network operators, like “The Things Network”, have supported generic keys5, but this might change due to serversided routing issues. For example, when a user registers a device on a network using the mentioned generic keys, it is unclear for the operator whether the packets sent by the registered device should be routed to a public interface, or to the application of the user.
+
+D. Data Encryption
+After a device connects to a network, packets are encrypted using a user-supplied key. LoRaWAN uses AES128 for encryption and adds a frame counter to the packets, whereas the application payload is encrypted by the AppSKey and the whole packet, including the frame counter and the DevAddr, is signed by the NwkSKey. As the NwkSkey is only known to the node and the network server, the integrity of a packet can only be veriﬁed within the network where the device is registered. In this case, the server checks the MIC of the received frame against the corresponding key in its key database.
+
+5Default
+
+Semtech
+
+keys:
+
+AppSKey
+
+=
+
+NwkSKey:
+
+2B7E151628AED2A6ABF7158809CF4F3C.
+
+Once the message integrity has been veriﬁed, the packet will be forwarded to the user’s application server or to an endpoint delivering packets to the application. Only the owner of the AppSKey can then decrypt the packet’s payload.
+Keys need to be stored in at least two locations: the network server and the node’s memory. A user therefore needs to take the necessary steps to secure access to the nodes. If an attacker would obtain keys from a node, it would be possible to intercept or inject falsiﬁed/malicious trafﬁc. Each device should therefore use different keys to avoid that the theft of data from one node compromises all other nodes.
+
+III. DATA COLLECTION AND ANALYSIS
+
+In this section, we present and analyze our measurement data.
+
+A. Data Collection
+
+All large-scale LoRaWANs currently deployed operate in class A. In this paper, we therefore focus on class A networks.
+We have captured all data received by the gateways from “The Things Network” between December 2015 until July 2016, which were sent by nodes using ABP (activation by personalization) with the generic NwkSkey: 2B7E151628AED2A6ABF7158809CF4F3C. Additionally, between May and July 2016, we have obtained 23.5 million gateway status updates from gateways in the network.
+Table I describes our data-set, which was obtained through the API of “The Things Network.” The data comprise two perspectives of all frames6 sent by devices using the previously mentioned generic key. On the one hand, raw data of all frames received by gateways and, on the other hand, information sent every 30 s by gateways containing aggregated numbers of received and sent frames.
+
+frames received by gateways
+
+17,467,312
+
+unique frames received by gateways 16,228,814
+
+unique device ids
+
+1,618
+
+gateways
+
+691
+
+size of the data-set
+
+9.4 GB
+
+TABLE I
+
+STATISTICS OF THE COLLECTED DATA-SET.
+
+number of nodes that sent n packets
+
+100 10
+
+1
+
+1e+01
+
+1e+03
+
+1e+05
+
+packets sent (n)
+
+Fig. 2. Histogram of the number of devices that sent n packets.
+
+B. Signal quality
+Figures 3 and 4 depict the probability-density function for the RSSI and SNR values, as captured for all frames in our data-set.
+
+0.05 0.04 0.03 0.02 0.01
+
+density
+
+Frames sent by LoRa devices are potentially received by multiple gateways. The number of received frames in the data-set is therefore larger than the number of unique frames received. 94.8% of the unique frames were received by one gateway, 3.7% by two gateways, and 1.1% by three gateways. The highest number of gateways that received one frame was 31. That particular frame originated from a LoRaMote7 that transmitted a packet from an altitude of 1.4 km.
+Fig. 2 shows that the number of unique frames, sent by individual devices, approaches a power law, which indicates a very skewed use pattern of devices. Very few devices sent more than 1,000 packets, whereas a high number of devices sent less than 50 packets.
+6We use the terms “frames” and “packets” interchangeably. 7A LoRaMoteTMis a device developed to test LoRaWAN connectivity, equipped with a sensor for atmospheric pressure, a temperature sensor, an accelerometer, a GPS receiver, and a LoRa transceiver.
+
+0.00
+
+−100
+
+−50
+
+0
+
+RSSI
+
+Fig. 3. Probability-density function of RSSI values of all received frames, as reported by gateways.
+
+The ﬁgures illustrate relatively small RSSI values and positive SNR values, which suggests that the majority of received data was sent by devices close to gateways.
+C. Payload analysis
+We have analyzed the payloads of all unique frames in our data-set. As depicted in Fig. 5, 93.7% of the captured payloads are smaller than 50 bytes and 50% of the payloads are even smaller than 19 bytes, whereas the average payload size is 18 bytes.
+Out of all unique frames, 97,888 were sent by LoRaMotes. The payload of the remaining 16.1 million frames contained
+
+1.00 0.75
+
+density
+
+0.50 0.25
+
+0.00
+−20
+
+0
+SNR
+
+20
+
+30
+
+Fig. 4. Probability-density function of SNR values in dB of all received frames, as reported by gateways.
+
+Nonetheless, Table II provides a good indication of the use of LoRaWAN devices on The Things Network (for our measurement time frame).
+D. Spreading Factor
+Spreading factors range from SF7 to SF12 and denote the number of chirps used to encode a bit. For example, SF7 encodes each bit into 128 (27) chirps, whereas in SF12 each bit is encoded into 4096 (212) chirps. A higher chirp rate enables a better reconstruction of the received signal, but also stretches the duration needed to send a bit. Fig. 6 displays the spreading factors (SF) used to send unique frames in our data-set. Most devices used SF7 125kHz, which is the default setting for devices using the open-source LoRa implementation provided by IBM8 and devices manufactured by MicrochipTM.
+1.2e+07
+
+3e+06
+
+8e+06
+
+frequency
+
+frequency
+
+2e+06
+
+4e+06
+
+1e+06
+
+0
+0
+
+25
+
+p5a0yload size (b75yte)
+
+100
+
+Fig. 5. Histogram of payload size in bytes.
+
+10,104,330 human-readable strings and roughly 6 million payloads that we could not decipher/decode. Table II gives a classiﬁcation of the human-readable strings.
+
+comma separated decimals ca. 5.54 million
+
+temperature readings
+
+ca. 1.3 million
+
+various other strings
+
+ca. 1 million
+
+string: foo...
+
+974,634
+
+string: hello
+
+733,724
+
+humidity measurements: 666,609
+
+GPS locations
+
+320,391
+
+battery level
+
+140,450
+
+light sensor (brightness) ca. 45,000
+
+string: test
+
+42,336
+
+distance measures:
+
+ca. 2,500
+
+string: coffee
+
+172
+
+TABLE II
+
+OVERVIEW OF HUMAN-READABLE PAYLOADS.
+
+As multiple sensor measurements, like battery and temperature values, are often combined in one frame, the counts in Table II sum up to a larger number than 10.1 million.
+
+0
+
+SF7 BW125
+
+SF8 BW125
+
+SF9 BW125
+
+SF11 BW125 SF12 BW500
+
+SF7 BW250
+
+SF8 BW500
+
+SF10 BW125 SF12 BW125
+
+Fig. 6. Histogram of the used spreading factors (SF).
+
+To analyze the inﬂuence of different spreading factors and power utilized in transmitting frames, we employed our own LoRa node. Our tests were conducted from one location, by sending packets having the same (one character) payload, at varying spreading factors and power settings. In total, we used all 6 spreading factors (0-5 in Table III) and 5 power settings (2, 5, 8, 11, 14 dBm) and transmitted 20 packets per conﬁguration. The results of these tests are shown in Fig. 7.
+The different sub-ﬁgures in Fig. 7 depict which spreading factors were used to transmit a frame. One may observe that using higher spreading factors and increasing the transmit power, reduce the observed packet-loss. For example, compare SF7, where no frames are received for output powers below 8 dBm, to SF12, for which these frames are received, even at 2 dBm transmit power. In contrast, sending packets at high power (14 dBm) results, in this example, in frames being received with SF7.
+IV. FREQUENCY USAGE AND REGULATION
+According to the frequencies used by nodes in our data-set, we observe that 89.4% of the packets were sent within the 868
+8https://www.research.ibm.com/labs/zurich/ics/lrsc/lmic.html
+
+SNR
+density
+
+1.8 −0 .2 −2 .2 −4 .2 −6 .2 −8 .2 −1 0.2 −1 2.2 −1 4.2 −1 6.2 −1 8.2
+1.8 −0 .2 −2 .2 −4 .2 −6 .2 −8 .2 −10.2 −12.2 −14.2 −16.2 −18.2
+2
+
+SF 7 SF 10 5 8 11 14 2
+
+SF 8
+SF 11
+5 8 11 14 2
+dBm
+
+SF 9 SF 12 5 8 11 14
+
+40
+
+30
+
+20
+
+10
+
+0
+867.0
+
+867.5
+
+868.0
+frequency
+
+868.5
+
+869.0
+
+Fig. 8. Histogram of the usage of the 863-870 MHz band.
+
+Fig. 7. Measured SNR under varying spreading factors and transmit power.
+
+Data-rate
+
+Conﬁguration
+
+Indicative physical bit rate [bit/s]
+
+0 1 2 3 4 5 6 7 8..15
+
+LoRa: SF12 / 125 kHz
+
+250
+
+LoRa: SF11 / 125 kHz
+
+440
+
+LoRa: SF10 / 125 kHz
+
+980
+
+LoRa: SF9 / 125 kHz
+
+1760
+
+LoRa: SF8 / 125 kHz
+
+3125
+
+LoRa: SF7 / 125 kHz
+
+5470
+
+LoRa: SF7 / 250 kHz
+
+11000
+
+FSK: 50 kbps 440
+
+50000
+
+RFU
+
+TABLE III
+
+EU 863-870 MHZ DATA-RATES [10].
+
+MHz band, 10.5% in the 902-928 MHz band, and 0.1% within the 433 MHz band. According to the LoRa speciﬁcation, Europe uses the 863-870 Mhz and the 433 MHz ISM bands9, the USA uses the 902-928 MHz band, and China uses the 779-787 MHz band. Our results therefore suggest that most devices in our data-set were located within Europe and the USA.
+For Europe, where The Things Network is indeed most prominent, LoRaWAN speciﬁes 3 channels (868.10, 868.30, 868.50 MHz of 125 kHz bandwidth), a data-rate between DR0 and DR5 (see Table III), a duty-cycle of < 1%, and a default radiated transmit power of 14 dBm [10].
+Fig. 8 depicts the frequencies in the 863-870 MHz band that were encountered in our data-set. The 3 compulsory frequencies of 868.1, 868.3, and 868.5 MHz were indeed used most. The other frequencies (867.1, 867.3, 867.5, 867.7, and 867.9 MHz) are supported by individual network operators.
+The time it takes to transmit a frame from node to gateway is calculated via the following set of equations [8]:
+
+2SF
+
+Tsym = BW
+
+(1)
+
+9Industrial, Scientiﬁc, Medical (ISM) bands are regulated, but free to use by certain domains, see ETSI [5].
+
+Tpreamble = (npreamble + 4.25) Tsym
+
+(2)
+
+8P L − 4SF + 28 + 16 − 20H
+
+β=
+
+(3)
+
+4(SF − 2DE)
+
+P Lsym = max (β (CR + 4) , 0) + 8
+
+(4)
+
+Tframe = Tpreamble + P Lsym × Tsym
+
+(5)
+
+where P L denotes the size of the payload in bytes, SF the spreading factor, npreamble is the number of preamble symbols, H = 0 if the header is enabled and 1 if it is not (for LoRaWAN the header is always present, whereas for pure LoRa one may create frames without header information), DE = 1 if low-data rate optimization is enabled and 0 otherwise (this optimization is active for SF11 and SF12 to account for drift of the crystal reference oscillator during long transmissions). The coding rate (CR) relates to Forward Error Correction. Higher values imply better reconstruction of noisy signals.
+Using the time to transmit one symbol, Eq. (1), the number of symbols in the payload, Eq. (4), and the size of the preamble (8 symbols in LoRaWAN), one may calculate the time needed to transmit a whole frame by Eq. (5).
+
+A. Limits
+We have calculated several theoretical limits, assuming a node follows the speciﬁcation. As depicted in Fig. 9, the airtime (time to transmit one frame) linearly increases with the size of the payload. According to the speciﬁcation, the maximum payload for frames using SF7 and SF8 is 230 bytes, 123 for SF9, and 59 for SF10-12.
+Figures 10 and 11 depict the effect of different airtime values on the maximum number of frames a node may transmit per day in one channel.
+These estimates are based on the assumption that a device is sending unconﬁrmed frames and does not activate via OTAA. It is possible to send conﬁrmed frames; frames which are acknowledged by the gateway(s). If the response, however,
+
+da ta s e nt pe r day (kb) 1% a irtime
+
+airtime in seconds
+
+3
+
+500
+
+SF
+
+400
+
+SF
+
+2
+
+7
+
+7
+
+8
+
+300
+
+8
+
+9
+
+9
+
+10
+
+200
+
+10
+
+1
+
+11
+
+11
+
+12
+
+12
+
+100
+
+0 0
+
+50
+
+100
+
+150
+
+200
+
+payload size (byte)
+
+0 0
+
+50
+
+100
+
+150
+
+200
+
+payload size (byte)
+
+Fig. 9. Airtime for different SF and payloads with BW = 125kHz and coding Fig. 11. Amount of data that can be sent per day for different SF and payloads
+
+rate
+
+4 5
+
+according
+
+to
+
+Eq.
+
+(5).
+
+with
+
+BW
+
+=
+
+125kHz
+
+and
+
+coding
+
+rate
+
+4 5
+
+.
+
+nr of packets per day, 1% airtime
+
+15000 10000
+5000
+
+SF 7 8 9 10 11 12
+
+often-used approximation based on the free-space path-loss equation [3], as shown in Eq. (6).
+
+d = 1027.55−(20 log10(f ))+|s|)/20.0
+
+(6)
+
+Here f denotes the frequency in MHz, s the received signal level in dB and d the expected distance in meters. Fig. 12 depicts a histogram of the differences between measured and estimated distances.
+
+0 0
+
+50
+
+100 150 200
+
+payload size (byte)
+
+Fig. 10. Number of frames that can be sent per day for different SF and
+
+payloads
+
+with
+
+BW
+
+=
+
+125kHz
+
+and
+
+coding
+
+rate
+
+4 5
+
+.
+
+is not received, a node would re-transmit that frame for a preconﬁgured number of times, which decreases the number of frames and data that can be transmitted per day.
+V. DISTANCE ESTIMATION
+From the used data-set, we were able to obtain some GPS locations, sent either by LoRaMotes or by individuals sending text containing a latitude, longitude tuple. The total number of captured frames containing GPS coordinates is 320,391.
+Comparing the distance from these known locations to the locations of gateways receiving frames, allows us to compare distance estimations to actual measurements.
+To estimate the distance of nodes to gateways, and in absence of a speciﬁc LoRa path-loss equation, we employ the
+
+60000
+
+frequency
+
+40000
+
+20000
+
+0
+
+−100
+
+−50
+
+0
+
+50
+
+100
+
+difference between expected and measured distance (meter)
+
+Fig. 12. Histogram depicting the differences between measured and estimated distances, between LoRa nodes and gateways, for a range of -100 to 100 meters.
+Our results look quite promising, as the majority of estimations match the measurements and hardly any difference exceeded 100 m. The observable high number of positive differences denote the difﬁculties of using Eq. (6) in urban
+
+node 1
+
+node 2
+
+SF dBm channel SF dBm channel packet forwarded
+
+11 14
+
+6
+
+11 14
+
+6
+
+none
+
+11 11
+
+6
+
+11 14
+
+6
+
+none
+
+11
+
+8
+
+6
+
+11 14
+
+6
+
+none
+
+10 14
+
+6
+
+11 14
+
+6
+
+both
+
+11 14
+
+1
+
+11 14
+
+6
+
+both
+
+TABLE IV PACKET-LOSS UNDER DIFFERENT SETTINGS.
+
+environments. In such scenarios, the measured distance is less than the estimated one, as the signal is dampened by buildings or other urban structures.
+VI. SIMULATIONS
+To further explore the practical limitations of LoRaWAN, we have developed a simulator that takes some observations from our empirical data as input.
+A. Packet loss
+In order to understand under which circumstances packets might get lost, apart from being too far from any receiving gateway, we conducted a physical experiment using two nodes at the same location. The results are shown in Table IV.
+For each conﬁguration listed in Table IV, both devices sent 120 packets with the same payload and at the same time. The table illustrates that the arrival of multiple frames using the same spreading factor and channel at the same time, will lead to collisions and hence packet loss. A similar experiment was conducted by Bor et al. [1], in which the authors found that, in plain LoRa, the stronger signal is recoverable. However, in our tests, using two Microchip RN2483 transceivers sending LoRaWAN packets to a Lorank 8 gateway10, we obtained different results. As the gateway checks the integrity of the received frames, corrupted data is not forwarded, and therefore attributes to packet loss.
+Our observations allow us to employ a simulation to estimate the number of collisions, at a single gateway, under arbitrary assumptions. We consider n packets, each having a payload of 1 byte, where every packet:
+• was sent with a SF selected randomly from a uniform distribution of all spreading factors (7-12), and
+• was sent on a channel selected at random from a uniform distribution out of the 3 EU channels deﬁned in the LoRaWAN speciﬁcation.
+Using this set-up, the airtime was calculated using Eq. (5). In the simulation, whenever a frame arrived at a gateway within the same interval, SF, and channel, as any other frame, both packets were marked as colliding. The resulting number of expected collisions is shown in Fig. 13.
+One may observe that a high number of collisions is to be expected once the packet rate increases. This effect can be mitigated by using lower SFs or reducing the transmission power to a value sufﬁcient to reach only one gateway. Since
+10http://www.ideetron.nl/lora
+
+Rate of collisions
+
+1 0,9 0,8 0,7 0,6 0,5 0,4 0,3 0,2 0,1
+0 0
+
+SF7 SF8 SF9 SF10 SF11 SF12 Average
+
+200
+
+400Packets p6e0r0minute 800
+
+1000
+
+1200
+
+Fig. 13. Rate of collisions for different SF, given n packets are sent within one minute on one of the 3 EU base channels deﬁned in the speciﬁcation.
+
+all gateways are operating in half-duplex mode, no frames can be received while a packet or conﬁrmation is being sent. Therefore, a communication channel will saturate quickly if many nodes ask for conﬁrmation of frames, or when a high number of down-link packets are scheduled.
+B. Conﬁrmed and Down-link Frames
+Our data-set provides the number of packets sent from and received at a gateway, which allows us to estimate the ratio of received to sent packets at 0.01095. Although this ratio includes OTAA activations and a small number of down-link frames, we assume the amount of conﬁrmed packets to be 1%.
+We extended the previously described simulation to incorporate packet conﬁrmations, by estimating the time a gateway needs to send a conﬁrmation; we assume the conﬁrmation to be a message without a payload that has the ACK bit set to 1 and which has a length (corresponding to the header length) of 13 bytes. Since all gateways operate in a half-duplex mode, no frames can be received at any channel or spreading factor, while a gateway is responding with a conﬁrmation on the same channel and spreading factor it received the frame on.
+
+Rate of collisions
+
+0,7 0,6 0,5 0,4 0,3 0,2 0,1
+0 0
+
+% of confirmed packets
+0,00% 0,25% 0,50% 1,00% 2,00% 5,00% 10,00%
+
+200
+
+400
+
+600
+
+800
+
+1000
+
+1200
+
+Packets per minute
+
+Fig. 14. Rate of collisions, given n packets are sent within one minute and a certain % of packets requested conﬁrmation.
+As shown in Fig. 14, the average packet-loss increases with the percentage of conﬁrmed packets sent. The ﬁgure depicts
+
+the average number of expected collisions between frames on all SFs, including the non-received frames, due to the gateway acknowledging. The packet-loss on higher spreading factors (SF11 and SF12) lies above the plotted lines in Fig. 14, whereas the lower ones (SF7, SF8 and SF9) are slightly below. Like in Fig. 13, SF10 matches the average quite well.
+Given that we observed that 1% of all packets in our data-set were requesting a conﬁrmation, these simulations indicate that users operating LoRaWAN nodes should reduce the usage of conﬁrmed packets, but also down-links, as much as possible. Moreover, we did not simulate re-transmissions nor other interference in the band, which would aggravate the situation.
+Another consequence of a high number of conﬁrmed packets is that gateways, which should follow the speciﬁcation as well, will quickly violate the duty-cycle regulation. Using our simulator, we estimated the total time a gateway spends on transmitting the conﬁrmations. A conﬁguration of 0.5% of conﬁrmed frames and 700 packets per minute will force the gateway to violate the regulation by using 1.28% of the total airtime. Given 1% of conﬁrmed frames, this problem will already occur at a rate of 200 packets per minute. If more than 2% of all packets request conﬁrmations, the gateway will violate the regulation in all tested cases.
+As LoRa transceivers are able to receive data, simple packet forwarders, also called single-channel gateways can be built. These are transceivers that are able to sequentially receive frames on one channel and one spreading factor, but which do not support sending data themselves. We note that in our dataset, out of the total number of 691 gateways, roughly 187 are based on the Raspberry Pi or ESP8266 platforms. From those, 97 never sent a packet to a node, and all frames were received at the same channel, which suggests that most of these 97 are indeed packet forwarders. Not being able to transmit frames means that a user has to use ABP and conﬁgure his/her device to use only one channel and SF; a fact that limits the number of packets per day and the amount of data. However, given the observation of high packet-loss, once many frames are “in the air,” single-channel gateways might be a cheap solution to mitigate the problem. However, network operators need to detect their presence, as to not schedule down-link packets via such packet forwarders.
+VII. RELATED WORK
+Vangelista et al. [11] present LoRa as “one of the most promising technologies for the wide-area IoT” and mention that LoRa exhibits certain advantages over the LPWAN technologies SigfoxTM, WeightlessTM, and On-Ramp Wireless. The robust chirp signal modulation and the low energy usage in combination with the low cost of end-devices together with the fact that the LoRa Alliance is also actively marketing and pushing interoperability aspects, makes LoRaWAN an interesting choice among available LPWAN technologies.
+In [2], Centenaro et al. provide an overview of the LPWAN paradigm in the context of smart-city scenarios. The authors also test the coverage of a LoRaWAN gateway in a city in
+
+Italy, by using a single base-station without antenna gain. The covered area had a diameter of 1.2 km.
+The expected coverage of LPWANs and especially LoRa was also analyzed by Peta¨ja¨ja¨rvi et al. [7], who conducted measurements in Finland. Using a single base-station with an antenna gain of 2 dBi and conﬁguring the nodes to send packets at SF12 using 14 dBm of transmit power, connectivity within a 5 km range in urban environments and 15 km in open space were found to result in packet-loss ratios smaller than 30%. Measurements conducted by sending packets from a node mounted to a boat revealed that packets can be sent over a distance of almost 30 km. Peta¨ja¨ja¨rvi et al. [6] also tested the usage of LoRa in indoor environments. The results show that very low packet-loss is to be expected with only one base-station to cover an average university campus.
+Bor et al. [1] conducted experiments using multiple nodes transmitting data using LoRa. Experiments were conducted in which two devices sent packets at different power levels, but the same spreading factor, to estimate the inﬂuence of concurrent transmissions. Additionally, a new media access control (MAC), LoRaBlink, was developed to enable direct connection of nodes without using LoRaWAN.
+Contrary to the above-mentioned work, we have not conﬁned to a single base-station, but we have provided extensive measurements based on the large-scale “The Things Networks” network and for a duration of 8 months.
+VIII. CONCLUSION
+In this paper, we have presented measurements from a real-live, large-scale, LoRaWAN network, along with statistics describing the use of LoRaWAN in practice, based on a data-set containing all packets, sent by devices using generic keys, within a time-frame of 8 months. Additionally, we have developed and used a simulator to study possible obstacles that might arise under heavy load of gateways.
+In order to maximize the utilization of LoRaWAN networks, certain parameters and effects should be known to the user. We have observed, for example, that not all available channels provided by a network operator are used evenly, which leads to increased packet-loss. The reason probably lies in the fact that LoRa devices are shipped with default settings complying with the LoRaWan speciﬁcation. Although the issue will not occur if devices register via “over the air activation,” presently that method of connecting is only used by a limited set of devices. Moreover, we believe that, especially in mobile environments, nodes will remain to use “activation by personalization,” for which the channel list has to be programmed by the user.
+Since the licensed free bands are a shared good, devices should be conﬁgured in such a way that they reach a minimum amount of gateways. We also recommend using the lowest possible spreading factor, rather than limiting the output power, to reduce the needed airtime for packet transmission, to allow optimal usage of the access medium and reduce the probability of packet-loss due to collisions. This could be achieved by using the adaptive data rate (ADR) setting, which means a node will try to ﬁnd optimal settings when transmitting the
+
+ﬁrst few packets. However, for mobile scenarios we propose the contrary, not to use ADR, as it would imply quite some overhead in terms of transmitted packets, especially in urban environments, because of constant retries bloating the used airtime of a node.
+As all gateways available today operate in half-duplex mode, no frames will be received while (re)transmitting or conﬁrming data. To ensure a fair usage of LoRaWAN, one should aim to reduce the number of packets sent from a gateway to a node. Although a base-station could theoretically penalize duty-cycle violations of nodes, it is unclear how the restriction can be enforced at the gateway side, especially when multiple nodes, each respecting the regulations, send conﬁrmed frames.
+ACKNOWLEDGMENT
+We thank Paul Dekkers from SURFnet who provided us with a LoRa gateway and in that way kick-started this work.
+REFERENCES
+[1] M. Bor, J. Vidler, and U. Roedig. Lora for the internet of things. In Proceedings of the 2016 International Conference on Embedded Wireless Systems and Networks, pages 361–366. Junction Publishing, 2016.
+[2] M. Centenaro, L. Vangelista, A. Zanella, and M. Zorzi. Long-range communications in unlicensed bands: the rising stars in the iot and smart city scenarios. arXiv preprint arXiv:1510.00620, 2015.
+[3] V. Erceg, L. J. Greenstein, S. Y. Tjandra, S. R. Parkoff, A. Gupta, B. Kulic, A. A. Julius, and R. Bianchi. An empirically based path loss model for wireless channels in suburban environments. IEEE Journal on selected areas in communications, 17(7):1205–1211, 1999.
+[4] IEEE. IEEE Standard for Information Technology- Telecommunications and Information Exchange Between Systems- Local and Metropolitan Area Networks- Speciﬁc Requirements Part 15.4: Wireless Medium Access Control (MAC) and Physical Layer (PHY) Speciﬁcations for Low-Rate Wireless Personal Area Networks (WPANs). Technical report, IEEE, 2006.
+[5] European Telecommunications Standards Institute. ETSI EN 300 220 Electromagnetic compatibility and Radio spectrum Matters (ERM); Short Range Devices (SRD); Radio equipment to be used in the 25 MHz to 1 000 MHz frequency range with power levels ranging up to 500 mW;, May 2012. http://www.etsi.org/deliver/etsi en/300200 300299/30022001/02.04.01 60/en 30022001v020401p.pdf.
+[6] J. Peta¨ja¨ja¨rvi, K. Mikhaylov, M. Hmlinen, and J. Iinatti. Evaluation of lora lpwan technology for remote health and wellbeing monitoring. In 2016 10th International Symposium on Medical Information and Communication Technology (ISMICT), pages 1–5, March 2016.
+[7] J. Peta¨ja¨ja¨rvi, K. Mikhaylov, A. Roivainen, T. Hanninen, and M. Pettissalo. On the coverage of lpwans: range evaluation and channel attenuation model for lora technology. In ITS Telecommunications (ITST), 2015 14th International Conference on, pages 55–59, Dec 2015.
+[8] Semtech. SX1272/3/6/7/8:LoRa Modem Designers Guide AN1200.13, revision 1 edition, July 2013. http://www.semtech.com/images/ datasheet/LoraDesignGuide STD.pdf.
+[9] Semtech. AN1200.22 LoRa Modulation Basics, revision 2 edition, May 2015. www.semtech.com/images/datasheet/an1200.22.pdf.
+[10] N. Sornin (Semtech), M. Luis (Semtech), T. Eirich (IBM), T. Kramp(IBM), and O.Hersent (Actility). Lora speciﬁcation. Technical report, LoRa Alliance, Inc., Jan 2015. www.lora-alliance.org/portals/0/ specs/LoRaWAN%20Speciﬁcation%201R0.pdf.
+[11] L. Vangelista, A. Zanella, and M. Zorzi. Long-Range IoT Technologies: The Dawn of LoRaTM, pages 51–58. Springer International Publishing, Cham, 2015.
+
