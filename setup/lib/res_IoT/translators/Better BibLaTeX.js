@@ -10,7 +10,7 @@
 	"inRepository": false,
 	"configOptions": {
 		"getCollections": true,
-		"hash": "e1c5901778609d08df852543d324e795-6beb7b8e5f822e78d88f892fba59bd67"
+		"hash": "e39f34ee770bef3ac2d8739b5579414c-40a99462ee9ee1956ceb1dc8216bd533"
 	},
 	"displayOptions": {
 		"exportNotes": false,
@@ -18,7 +18,7 @@
 		"useJournalAbbreviation": false,
 		"keepUpdated": false
 	},
-	"lastUpdated": "2019-05-08 13:56:39"
+	"lastUpdated": "2019-05-13 11:05:25"
 }
 
 var Translator = {
@@ -46,7 +46,11 @@ var Translator = {
     if (stage == 'detectImport') {
       this.options = {}
     } else {
-      this.pathSep = (Zotero.BetterBibTeX.platform().toLowerCase().startsWith('win')) ? '\\' : '/'
+      this.platform = Zotero.BetterBibTeX.platform().toLowerCase().slice(0, 3)
+      this.paths = {
+        caseSensitive: this.platform !== 'mac' && this.platform !== 'win',
+        sep: this.platform === 'win' ? '\\' : '/'
+      }
 
       this.references = []
 
@@ -61,7 +65,7 @@ var Translator = {
 
       if (stage === 'doExport') {
         this.options.exportPath = Zotero.getOption('exportPath')
-        if (this.options.exportPath && !this.options.exportPath.endsWith(this.pathSep)) this.options.exportPath += this.pathSep
+        if (this.options.exportPath && this.options.exportPath.endsWith(this.pathSep)) this.options.exportPath = this.options.exportPath.slice(0, -1)
       }
     }
 
@@ -10417,6 +10421,27 @@ const unicode_translator_1 = __webpack_require__(/*! ./unicode_translator */ "./
 const debug_1 = __webpack_require__(/*! ../lib/debug */ "./lib/debug.ts");
 const datefield_1 = __webpack_require__(/*! ./datefield */ "./bibtex/datefield.ts");
 const arXiv_1 = __webpack_require__(/*! ../../content/arXiv */ "../content/arXiv.ts");
+const Path = {
+    normalize(path) {
+        return Translator.paths.caseSensitive ? path : path.toLowerCase();
+    },
+    drive(path) {
+        if (Translator.platform !== 'win')
+            return '';
+        return path.match(/^[a-z]:\//) ? path.substring(0, 2) : '';
+    },
+    relative(path) {
+        if (this.drive(Translator.options.exportPath) !== this.drive(path))
+            return path;
+        const from = Translator.options.exportPath.split(Translator.paths.sep);
+        const to = path.split(Translator.paths.sep);
+        while (from.length && to.length && this.normalize(from[0]) === this.normalize(to[0])) {
+            from.shift();
+            to.shift();
+        }
+        return `..${Translator.paths.sep}`.repeat(from.length) + to.join(Translator.paths.sep);
+    },
+};
 const Language = new class {
     constructor() {
         this.babelMap = {
@@ -11273,10 +11298,13 @@ class Reference {
             if (Translator.preferences.testing) {
                 att.path = `files/${this.item.citekey}/${att.path.replace(/.*[\/\\]/, '')}`;
             }
-            else if (Translator.preferences.relativeFilePaths && Translator.options.exportPath && att.path.startsWith(Translator.options.exportPath)) {
-                this.cachable = false;
-                att.path = att.path.slice(Translator.options.exportPath.length);
-                debug_1.debug('clipped attachment::', Translator.options, att);
+            else if (Translator.preferences.relativeFilePaths && Translator.options.exportPath) {
+                const relative = Path.relative(att.path);
+                if (relative !== att.path) {
+                    this.cachable = false;
+                    att.path = relative;
+                    debug_1.debug('clipped attachment::', Translator.options, att);
+                }
             }
             attachments.push(att);
         }

@@ -10,10 +10,10 @@
 	"inRepository": false,
 	"configOptions": {
 		"getCollections": true,
-		"hash": "047d383b5a08ca0c372aaa290c6b02f3-0ceb75b7b7d3da751443454decb4c208"
+		"hash": "7c91f3ace8d0b4ff63695f371a81453e-0ceb75b7b7d3da751443454decb4c208"
 	},
 	"browserSupport": "gcsv",
-	"lastUpdated": "2019-05-08 13:56:39"
+	"lastUpdated": "2019-05-13 11:05:25"
 }
 
 var Translator = {
@@ -41,7 +41,11 @@ var Translator = {
     if (stage == 'detectImport') {
       this.options = {}
     } else {
-      this.pathSep = (Zotero.BetterBibTeX.platform().toLowerCase().startsWith('win')) ? '\\' : '/'
+      this.platform = Zotero.BetterBibTeX.platform().toLowerCase().slice(0, 3)
+      this.paths = {
+        caseSensitive: this.platform !== 'mac' && this.platform !== 'win',
+        sep: this.platform === 'win' ? '\\' : '/'
+      }
 
       this.references = []
 
@@ -56,7 +60,7 @@ var Translator = {
 
       if (stage === 'doExport') {
         this.options.exportPath = Zotero.getOption('exportPath')
-        if (this.options.exportPath && !this.options.exportPath.endsWith(this.pathSep)) this.options.exportPath += this.pathSep
+        if (this.options.exportPath && this.options.exportPath.endsWith(this.pathSep)) this.options.exportPath = this.options.exportPath.slice(0, -1)
       }
     }
 

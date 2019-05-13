@@ -9,13 +9,13 @@
 	"priority": 100,
 	"inRepository": false,
 	"configOptions": {
-		"hash": "31e77be452df383b27c1685c38404d85-bc7a2da9b2c6dc45d4a9bf4da8d8d8e2"
+		"hash": "e8b4dd27346b8b5ea8c9b56d851b3ee1-bc7a2da9b2c6dc45d4a9bf4da8d8d8e2"
 	},
 	"displayOptions": {
 		"keepUpdated": false
 	},
 	"browserSupport": "gcsv",
-	"lastUpdated": "2019-05-08 13:56:39"
+	"lastUpdated": "2019-05-13 11:05:25"
 }
 
 var Translator = {
@@ -43,7 +43,11 @@ var Translator = {
     if (stage == 'detectImport') {
       this.options = {}
     } else {
-      this.pathSep = (Zotero.BetterBibTeX.platform().toLowerCase().startsWith('win')) ? '\\' : '/'
+      this.platform = Zotero.BetterBibTeX.platform().toLowerCase().slice(0, 3)
+      this.paths = {
+        caseSensitive: this.platform !== 'mac' && this.platform !== 'win',
+        sep: this.platform === 'win' ? '\\' : '/'
+      }
 
       this.references = []
 
@@ -58,7 +62,7 @@ var Translator = {
 
       if (stage === 'doExport') {
         this.options.exportPath = Zotero.getOption('exportPath')
-        if (this.options.exportPath && !this.options.exportPath.endsWith(this.pathSep)) this.options.exportPath += this.pathSep
+        if (this.options.exportPath && this.options.exportPath.endsWith(this.pathSep)) this.options.exportPath = this.options.exportPath.slice(0, -1)
       }
     }
 

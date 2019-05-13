@@ -1,0 +1,1071 @@
+JOURNAL OF LATEX CLASS FILES, VOL. 14, NO. 8, AUGUST 2015
+
+1
+
+Scalability analysis of large-scale LoRaWAN networks in ns-3
+Floris Van den Abeele, Jetmir Haxhibeqiri, Ingrid Moerman, Jeroen Hoebeke Ghent University – imec, IDLab, Department of Information Technology Technologiepark Zwijnaarde 15, B-9052 Ghent, Belgium
+{ﬂoris.vandenabeele,jetmir.haxhibeqiri,ingrid.moerman,jeroen.hoebeke}@ugent.be
+
+arXiv:1705.05899v1 [cs.NI] 16 May 2017
+
+Abstract—As LoRaWAN networks are actively being deployed in the ﬁeld, it is important to comprehend the limitations of this Low Power Wide Area Network technology. Previous work has raised questions in terms of the scalability and capacity of LoRaWAN networks as the number of end devices grows to hundreds or thousands per gateway. Some works have modeled LoRaWAN networks as pure ALOHA networks, which fails to capture important characteristics such as the capture effect and the effects of interference. Other works provide a more comprehensive model by relying on empirical and stochastic techniques. This work uses a different approach where a LoRa error model is constructed from extensive complex baseband bit error rate simulations and used as an interference model. The error model is combined with the LoRaWAN MAC protocol in an ns-3 module that enables to study multi channel, multi spreading factor, multi gateway, bi-directional LoRaWAN networks with thousands of end devices. Using the lorawan ns-3 module, a scalability analysis of LoRaWAN shows the detrimental impact of downstream trafﬁc on the delivery ratio of conﬁrmed upstream trafﬁc. The analysis shows that increasing gateway density can ameliorate but not eliminate this effect, as stringent duty cycle requirements for gateways continue to limit downstream opportunities.
+Index Terms—LPWAN, LoRa, LoRaWAN, scalability, ns-3, simulation.
+I. INTRODUCTION
+With the ongoing continuous growth of the Internet of Things, the number of IoT application domains and deployments continues to increase. Market forecasts illustrating this growth, estimate that the number of connected IoT devices will continue to grow at an annual rate of 32% and will reach 20.8 billion IoT end points by the end of this decade [1]. Some of these novel IoT applications require low-rate, long-range and delay-tolerant wireless communication at very low energy usage and cost. These types of requirements are hard to fulﬁll using traditional Machine to Machine technologies such as cellular or WPAN [2]. Low Power Wide Area Networks (LPWANs) are a new set of technologies that are designed to ﬁll this gap in traditional technologies. By combining low energy usage with long range communication, they promise to bring connectivity that suits large scale, low power and low cost IoT deployments with battery lives up to ten years [2]. The 2016 Cisco VNI 2015-2020 data trafﬁc forecast estimates that the share of LPWA networks in global M2M connections will grow from 4% in 2015 to 28% in 2020 [3]. Similar market share numbers for LPWANs are reported in [4].
+LoRaWAN [5] is an LPWAN technology that builds on top of the LoRa modulation scheme, which is developed by
+
+Semtech. The LoRaWAN alliance has standardized LoRa radio usage in sub-GHz unlicensed spectrum for most areas in the world. By combining sub-GHz propagation and the LoRa modulation, LoRaWAN networks can cover large areas with only limited amounts of infrastructure. LoRaWAN networks are being deployed today. For instance in Belgium, Proximus, a large telecommunications company, provides LoRaWAN coverage in the whole of Flanders and in the major cities in Wallonia [6]. Another interesting initiative is The Things Network, where a community of mostly volunteers is collaborating to build a world-wide LoRaWAN network.
+While LoRaWAN networks are already being deployed in the ﬁeld, a number of questions remain unanswered about their performance as said networks grow larger and larger. Most LPWAN technologies promise to connect a massive number of devices (e.g. tens of thousands of devices per LoRaWAN gateway), but how valid is this claim in the case of LoRaWAN networks? What is the impact of network parameters on largescale LoRaWAN networks? Apart from a large number of devices, what is the impact of multiple gateways in large-scale networks? Does increasing gateway density yield measurable network performance beneﬁts?
+The work presented here aims to provide answers to the research questions posed above by studying LoRaWAN networks in the ns-3 network simulator. A network simulator provides the ﬂexibility to relatively quickly study a large number of different LoRaWAN scenarios at the expense of accuracy due to limitations in the modeling complexity. As such, the presented ns-3 module allows to study LoRaWAN networks with a varying numbers of end devices and gateways, different trafﬁc types and patterns, different data rates, different (re)transmission and receive parameters and many other parameters. Finally, the presented work also allows to study the impact of more fundamental changes to LoRaWAN network mechanics as everything is implemented in software.
+While a number of existing works have studied the scalability of LoRaWAN networks, they do not take into account the impact of downstream trafﬁc, interference between transmitters and the presence of multiple LoRaWAN gateways in dense deployments. Additionally, the spectrum modeling technique newly introduced in ns-3.26, which is applied in the LoRaWAN ns-3 module, should enable the module to be used in future coexistence studies with heterogeneous technologies such as 802.11ah. A more detailed comparison with works from literature is available in section VI.
+
+JOURNAL OF LATEX CLASS FILES, VOL. 14, NO. 8, AUGUST 2015
+
+2
+
+The contributions of this work are as follows. Firstly, we built an error model for the LoRa modulation for different coding rates and spreading factors. Secondly, we developed a comprehensive implementation of the LoRaWAN standard in the ns-3 simulator with support for class A end devices, multi gateway networks and an elementary network server. Thirdly, we conducted a scalability study focusing on the impact of conﬁrmed versus unconﬁrmed messages and the impact of downstream trafﬁc in large-scale LoRaWAN networks.
+Before detailing how LoRaWAN networks are modeled in ns-3 in section IV, the next section provides the necessary background on LoRa and LoRaWAN in order to comprehend the modeling efforts in the ns-3 module. Section V presents the scalability analysis itself. The results of the analysis are discussed and are compared to literature in section VI.
+
+LoRaWAN networks employ the robust LoRa modulation in order to achieve long range operation. They are standardized by the LoRaWAN alliance, which has deﬁned medium access, frame formats, provisioning and management messages, security mechanisms, device management and other aspects. Figure 1 illustrates that LoRaWAN networks form one hop star topologies around gateways, which act as packet forwarders between end devices and a central network server (NS). The network server is responsible for MAC layer processing and acts as a portal between applications running on end devices and application servers. The LoRaWAN standard deﬁnes three classes for end devices (A, B and C) in order to cater to a number of different scenarios. This work focuses on class A end devices as this class provides the longest battery life.
+
+II. BACKGROUND: LORA, LORAWAN AND NS-3
+
+As a Low Power Wide Area Network technology, Lo-
+
+RaWAN networks offer beneﬁts such as large coverage areas
+
+and long battery life operation for end devices. Unlike conven-
+
+tional network technologies (e.g. cellular and LAN), the trade-
+
+off in data rate versus range leans heavily towards range in
+
+LoRaWAN. LoRaWAN networks further employ a proprietary
+
+physical modulation technique (named LoRa) which has been
+
+developed with long range and low power operation at its
+
+core. This section describes some of the aspects of LoRaWAN
+
+networks that are important for the remainder of this paper.
+
+The LoRa physical modulation is a chirp spread spec-
+
+trum (CSS) technique where the base symbol is an up-chirp.
+
+An up-chirp is a signal in which the frequency increases
+
+with time. More speciﬁcally, in LoRa the frequency increases
+
+linearly with time so that the frequency of the up-chirp sweeps
+
+the entire bandwidth of the signal. The constellation diagram
+
+of LoRa consists of time-shifted up-chirps. Therefor, at the
+
+receiver the demodulation process attempts to determine the
+
+time shift in the received up-chirp.
+
+Next to bandwidth, the spreading factor is a second im-
+
+portant parameter of the LoRa modulation as it provides the
+
+ﬂexibility of trading range for data rate. The spreading factor
+
+can range from seven to twelve and determines the LoRa
+
+symbol
+
+rate
+
+as:
+
+Rs
+
+=
+
+BW 2SF
+
+.
+
+As
+
+the
+
+spreading
+
+factor
+
+increases
+
+the symbol rate is lowered, thereby trading reduced data rate
+
+for increased range. For a bandwidth of 125kHz, the PHY data
+
+rates range from 6835bps to 365bps for SF seven to twelve.
+
+The different spreading factors are orthogonal. This means
+
+that a LoRa gateway can receive multiple transmissions on
+
+different spreading factors simultaneously. Note that SF bits
+
+are mapped per LoRa symbol.
+
+In order to further increase the robustness of the LoRa mod-
+
+ulation, additional techniques such as forward error correction
+
+and interleaving are employed. These techniques are discussed
+
+in section IV-A1. Additionally, LoRa radios operate in the
+
+sub-GHz unlicensed bands as they provide a good trade-off
+
+between available unlicensed spectrum and reduced path loss.
+
+The combination of these design considerations results in a
+
+high link budget at the expense of data rate, which means
+
+that LoRa transmissions can still be received succesfully even
+
+though they are below the noise ﬂoor.
+
+Fig. 1. Architecture of LoRaWAN networks (image courtesy of Semtech)
+
+Class A end devices have their transceivers in deep sleep for the majority of the time and wake up infrequently to transmit data toward the network server. Wireless medium access in LoRaWAN follows a ALOHA scheme, which does not employ listen before talk, and is therefor subject to restrictions in most areas of the world. In Europe for example, the 868MHz band consists of a number of sub-bands where radio duty cycle restrictions range from 0.1% to 10% with 1% being most common. Note that each of these sub-bands is composed of one or more channels.
+
+Class A end device
+
+RX2_DELAY RX1_DELAY
+
+TX
+
+RX1
+
+RX2
+
+Fig. 2. Downlink receive window timing for LoRaWAN class A end devices
+As class A end devices are unreachable most of the time, the opportunities for sending to the device are scarce. As per the standard, class A end devices are obliged to open one or two receive windows after each upstream transmission in order to allow the NS to deliver a potential message to the end device. Figure 2 illustrates the timing for opening these windows, which is equal to one and two seconds after the end of the upstream transmission for the ﬁrst and second receive window respectively. When an end device receives a downlink transmission in the ﬁrst window, it is freed from opening the second window. Otherwise, it must open the second window. Note that an end device listens on the same channel and
+
+JOURNAL OF LATEX CLASS FILES, VOL. 14, NO. 8, AUGUST 2015
+
+3
+
+Gateways End devices
+
+LoRaWANEndDeviceApplication LoRaWANNetDevice LoRaWANMac LoRaWANPhy
+
+SpectrumChannel
+
+LoRaWANNetworkServer
+
+LoRaWANGatewayApplication
+
+LoRaWANNetDevice
+
+LoRaWANMac ... LoRaWANMac
+
+LoRaWANPhy
+
+LoRaWANPhy
+
+Fig. 3. LoRaWAN ns-3 module overview: class A end devices, gateways and the network server
+
+SF as the last upstream transmission in the ﬁrst receive window (unless RX1DROffset differs from zero), while it listens on a separate channel and SF12 in the second window. Additionally, a class A end device must defer all pending upstream transmissions until after the receive window(s).
+Finally, both upstream and downstream messages may be sent as either conﬁrmed and unconﬁrmed messages. Conﬁrmed messages are sent using a straightforward retransmission scheme at the discretion of the end device, without violating the duty cycle restrictions. Downstream (re)transmissions have to wait for an open receive window and their timing is therefor controlled by the upstream trafﬁc timing of an end device. The NS can however set a frame pending bit in a downstream message in order to signal to an end device that it might want to open a receive window sooner than normal.
+To conclude this section ns-3 is brieﬂy introduced. Ns-3 is an open source discrete-event network simulator, targeted primarily for research and educational use. It provides support for Wi-Fi, LTE, 802.15.4 and other networks and also implements an IP networking stack. A relatively new feature in ns-3 is the SpectrumPhy, which enables modeling of inter-technology interference and which is used in this work to implement the LoRa PHY.
+III. PROBLEM STATEMENT AND APPROACH
+As mentioned, the anticipated growth of IoT in general and LPWA networks in particular raises the question how these technologies will scale as the size of these networks grows. Vendors are keen to highlight the positive aspects of their respective products, but are less inclined to point out certain ﬂaws. Therefor an objective study of the limits of these LPWA networks is warranted and needed.
+Speciﬁcally for LoRaWAN networks, this work attempts to explore the limits of these networks in terms of size. This work attempts to answer the following research questions:
+• What is the impact of end device density on network performance?
+• What is the impact of the different message types on network performance?
+• What is the impact of assigning data rates to end devices? • What is gained in terms of network performance by
+increasing the gateway density?
+In order to formulate an answer to these questions, a simulation based approach was followed as it allows modeling large scale networks (i.e. up to 10 000 end devices). The
+
+ns-3 simulator was a natural choice due to its widespread adoption in the network research community. Also, the new SpectrumPhy feature promises to enable modeling multiple LPWAN technologies in parallel in ns-3 and to study coexistence and other problems in the future. Finally, this work aspires to provide a useful tool for research into LoRaWAN networks.
+IV. LORAWAN NS-3 MODULE
+Our modeling of LoRaWAN networks in ns-3 comprises a number of different elements. Firstly, an error model for the LoRa modulation was implemented in ns-3 based on baseband simulations of a LoRa transceiver over an Additive White Gaussian Noise (AWGN) channel. Secondly, the LoRaWAN PHY and MAC layers were added in ns-3 for gateways and class A end devices. Thirdly, ns-3 applications were developed to represent LoRaWAN class A end devices and LoRaWAN gateways. Finally, a simple LoRaWAN network server was added to ns-3.
+An overview of the LoRaWAN ns-3 module is presented in ﬁgure 3. While end device nodes contain a single MAC/PHY pair, gateways consists of one MAC/PHY pair per supported spreading factor. For example a gateway that supports multiSF (i.e. able to receive all LoRa spreading factors simultaneously) on six channels contains 36 MAC/PHY pairs. Apart from the components listed in ﬁgure, the ns-3 module also contains a number of units tests and examples of varying complexity. The lorawan ns-3 module is publicly available at https://github.com/imec-idlab/ns-3-dev-git/ tree/lorawan. Future works that use this ns-3 module, are requested to cite this manuscript.
+A. LoRa PHY error model
+1) LoRa PHY baseband implementation: In order to model the effects of path loss and intra-LoRa interference, an error model for the LoRa PHY has been developed in ns-3. The basis for this error model is a series of complex baseband Matlab simulations that measure the bit error rate (BER) for different LoRa PHY conﬁgurations over a complex AWGN channel. A block diagram of the BER simulations is shown in ﬁgure 4.
+The information bits generated at the information source are mapped to code bits by the error correction encoder. This encoder implements the 5/4, 7/4 and 8/4 code rates available
+
+JOURNAL OF LATEX CLASS FILES, VOL. 14, NO. 8, AUGUST 2015
+
+4
+
+SENDER
+
+Information source
+
+Error correction encoder
+
+Diagonal interleaver
+
+Data whitening
+
+Gray decoder
+
+Information sink
+
+Error correction decoder
+
+Diagonal
+
+Data
+
+deinterleaver dewhitening
+
+Gray encoder
+
+LoRa modulator
+AWGN channel
+LoRa demodulator
+
+RECEIVER
+
+Fig. 4. Block diagram of LoRa PHY baseband implementation: sender, AWGN channel and receiver
+
+in LoRa 1. While the 5/4 CR is a simple parity check code,
+
+the 7/4 and 8/4 CRs are (7,4) and (8,4) linear error-correcting
+
+hamming codes. These codes can correct one bit error and
+
+detect up to two bit errors.
+
+Next, the diagonal interleaver shufﬂes the code bits so
+
+that at its output, groups of PPM bits consist of bits from
+
+the same bit position of PPM consecutive code words. For
+
+example, the ﬁrst output word groups the bits at position 0
+
+from PPM consecutive code words. PPM represents the bit
+
+length of the output words of the interleaver. In LoRa the
+
+PPM of the interleaver is equal to the LoRa spreading factor.
+
+Consequently, the number of bits mapped per LoRa symbol
+
+is equal to the spreading factor. Due to the interleaver, a lost
+
+symbol at the receiver is converted into PPM 1-bit errors over
+
+PPM consecutive code words (rather than one PPM-bit error
+
+in one code word without the interleaver).
+
+After the interleaver, the output words are whitened in order
+
+to boost the entropy of the information source. Note that in
+
+the BER simulations the information bits are drawn from a
+
+uniform distribution, therefor the entropy of the information
+
+source is already at its maximum. Before passing the whitened
+
+bit stream to the modulator, it is reverse Gray mapped ﬁrst.
+
+This produces a sequence of integers, which are fed to the
+
+LoRa modulator. At the LoRa modulator, a sequence of N
+
+time-shifted complex baseband up-chirp samples is generated
+
+via a phase accumulator as given by equation 1 where N, the
+
+number
+
+of
+
+samples
+
+per
+
+baseband
+
+symbol,
+
+is
+
+equal
+
+to
+
+2
+
+SF
+
+fs BW
+
+.
+
+The input integer determines the time-shift of the up-chirp.
+
+exp (−jπ) m(i) =
+
+if i = 0
+
+(1)
+
+m(i − 1) exp (jf (i)) if i = 1, . . . , N − 1
+
+Where the instantaneous frequency f(i) is given by equation 2:
+
+i
+
+f (i) = −π + 2π, for i = 1, . . . , N − 1
+
+(2)
+
+n
+
+Next, the samples of the LoRa symbol are sent over the AWGN channel for a given signal to noise ratio (SN R) as per equation 3:
+
+At the receiver, the LoRa demodulator employs correlationbased demodulation where the received symbol is correlated to all known LoRa symbols. The decision on which symbol was sent, is made by selecting the LoRa symbol with the maximum correlation value. After demodulation, the receiver chain is the reverse of the sender chain. The error rate is measured in the information bits, after error correction.
+2) LoRa PHY BER simulations: In order to determine the BER of the LoRa physical layer, simulations were ran for the LoRa PHY parameters listed in table I. There was no oversampling, so therefor N = 2SF holds. The simulations were ran for SNR values in steps of 1dB in the ranges as published in the table.
+BW SF CR SNR(dB) BW SF CR SNR(dB) 125kHz 7 1,3 [-20..0] 125kHz 11 1 [-23..-13] 125kHz 8 1,3 [-20..0] 125kHz 11 3 [-25..-13] 125kHz 9 1,3 [-20,-8] 125kHz 12 1,3 [-26..-17] 125kHz 10 1,3 [-22,-8]
+TABLE I LORA PHY PARAMETERS FOR BER SIMULATIONS
+Afterwards an exponential curve as per equation 4 was ﬁtted to a subset of the logarithmic values of the measured BER values. The subset of BER values used for curve ﬁtting was determined as followed. Firstly, measured BER values of zero were discarded. Secondly, BER values were added to the subset until the BER reached a value where the corresponding packet delivery rate (PDR) dropped below one in a million for a 13B packet. The packet length of 13B stems from the minimum LoRa PHY payload length for a LoRaWAN transmission: 1B MAC header, 8B frame header and 4B MIC. Additionally, for every curve ﬁt a SNR cut-off point was chosen so that the packet delivery rate for a 13B (=108b) packet was equal to one in a million at the cut-off point. Table II lists the details of the curve ﬁt plus the SNR cut-off point for every LoRa PHY conﬁguration that was simulated.
+log 10(BER(SNRdB )) = α exp (βSN RdB) (4)
+
+c(i) = m(i) + Es [N (0; 1) + jN (0; 1)] 2SNR
+
+(3)
+
+for i = 0, . . . , N − 1
+
+where N (0; 1) is the standard normal distribution and SNR = 10SNRdB/10. Note that the energy per symbol is
+equal to one for the LoRa modulator.
+
+1The 6/4 code rate was not implemented as it is seldom used.
+
+B. LoRaWAN PHY layer
+After the error model was completed, work started on the implementation of the LoRaWAN Phy layer in ns-3. By building the LoRaWANPhy class on the SpectrumPhy concept (introduced in ns-3.26), inter-technology simulations (e.g. interference testing) are anticipated to be feasible in the future.
+
+JOURNAL OF LATEX CLASS FILES, VOL. 14, NO. 8, AUGUST 2015
+
+5
+
+SF CR
+
+α
+
+β rsquare SNR cut-off (dB)
+
+71
+
+-30.2580 0.2857 0.9997
+
+-12.2833
+
+7 3 -105.1966 0.3746 0.9999
+
+-12.6962
+
+81
+
+-77.1002 0.2993 0.9999
+
+-14.8485
+
+8 3 -289.8133 0.3756 0.9995
+
+-15.3588
+
+9 1 -244.6424 0.3223 0.9993
+
+-17.3749
+
+9 3 -1114.3312 0.3969 0.9994
+
+-17.9260
+
+10 1 -725.9556 0.3340 0.9996
+
+-20.0254
+
+10 3 -4285.4440 0.4116 0.9991
+
+-20.5581
+
+11 1 -2109.8064 0.3407 1.0000
+
+-22.7568
+
+11 3 -20771.6945 0.4332 0.9996
+
+-23.1791
+
+12 1 -4452.3653 0.3317 0.9986
+
+-25.6243
+
+12 3 -98658.1166 0.4485 0.9993
+
+-25.8602
+
+TABLE II EXPONENTIAL CURVE FIT PARAMETERS FOR THE LORA PHY ERROR
+MODEL IN NS-3
+
+C. LoRaWAN MAC layer
+The driver of the PHY layer is the LoRaWANMac ns-3 class. Its functionality includes queuing packets for delivery, opening receive windows and handling retransmissions on end devices and keeping track of a node’s radio duty cycle (RDC). While there is one LoRaWANMac class for both class A end devices and gateways, the functionality of this class differs as e.g. retransmissions for gateways are handled by the network server (see section IV-F). Likewise, the gateway MAC has no concept of receive windows as it always listening for upstream trafﬁc (when not transmitting).
+
+WRW1
+
+RW1
+
+WRW2
+
+RW2
+
+ACK_TO
+
+The majority of the PHY models available in ns-3 employ a chunk-based signal to interference noise ratio (SINR) approach for modeling the inﬂuence of propagation loss and intratechnology interference during packet reception. Every time the SINR changes during packet reception (e.g. an interfering transmission starts or ends), a new chunk is started and the error rate of the previously received chunk is evaluated based on the constant SINR and bit length of this chunk and the BER as provided by the error model. Note that the LoRaWANPhy only initiates packet reception for transmissions with a SINR value above the SNR cut-off value. Incoming transmissions which fall below the cut-off value are dropped immediately by the PHY.
+
+TRX_OFF
+
+IDLE
+
+RX_ON
+
+TX_ON
+
+BUSY_RX
+
+BUSY_TX
+
+Fig. 5. Finite state machine of the LoRaWANPhy class in ns-3
+Apart from the reception modeling, the LoRaWANPhy ns3 class also implements a ﬁnite state machine to structure its execution ﬂow. The FSM has six states as shown in ﬁg 5. The transitions between states are mostly triggered from the MAC layer (not shown in the ﬁgure). In the RX ON and TX ON states the PHY is ready to respectively start a packet reception or transmission. In the BUSY RX state the PHY is busy receiving a transmission (as per the aforementioned chunk-based reception). In the BUSY TX state the PHY is sending a transmission. Ongoing receptions and transmissions may be canceled at any time, which is indicated by the state transitions to TRX OFF. The PHYs of class A end devices are expected to be in the Idle state most of the time, whereas the PHYs of gateways are expected to be in the RX ON state for the majority of the time. There are no differences in the PHY ns-3 classes between class A end devices and gateways. Hence, differences in transceiver design between end devices and gateways are not taken into account in this model.
+
+IDLE
+
+TX
+
+UNAVAIL
+
+Gateway
+
+Fig. 6. The LoRaWANMac FSM consists of three states for gateways and seven states for class A end devices
+Similarly to LoRaWANPhy, the LoRaWANMac class also implements a FSM as depicted in ﬁgure 6. While an end device MAC object passes through all states in ﬁgure 6, gateway MAC objects are limited to three states. The UNAVAIL state is a case unique to gateways, where the MAC is blocked from sending a packet. This state is activated when one of the other MACs on the gateway is in the TX state, thereby prohibiting simultaneous transmissions on different MAC objects on the same gateway.
+The chain at the top of the ﬁgure is related to the mandatory receive windows for class A end devices in LoRaWAN networks. After the TX state, an end device always transitions to the WRW1 state. The end device spends one second (starting from the end of the transmission) in this ‘wait for RW1’ state, after which it opens RW1. The end device checks whether a PHY preamble has been received 12.25 LoRa symbols after the beginning of the receive window. If a preamble has been detected, the device continues receiving the downstream transmission. If a preamble has not been detected, it closes the receive window and transitions to the WRW2 state. If the end device successfully receives a downstream transmission in RW1, it transitions to the IDLE state. Otherwise, it closes the receive window and transitions to the WRW2 state.
+In the WRW2 state, the end device is waiting to open the second receive window (in the RW2 state) after two seconds after the end of the transmission. The same PHY preamble check from RW1 is performed after opening RW2. If a downstream transmission is received in RW2, the end device will transition to the IDLE state. Otherwise, it might transition to the ACK TO (acknowledgment timeout) state where it spends a random length of time before transiting to the IDLE state. The ACK TO state is only visited when the end device expected an acknowledgment in one of its receive windows (i.e. after the transmission of a conﬁrmed upstream
+
+JOURNAL OF LATEX CLASS FILES, VOL. 14, NO. 8, AUGUST 2015
+
+6
+
+message). In case an acknowledgment is not expected, the device transitions directly to the IDLE state from RW2.
+Retransmissions in the case of end devices are handled entirely by the LoRaWANMac class. As long as the number of remaining transmissions has not expired or a downstream frame with the Ack bit set has not been received, a conﬁrmed data packet will remain in the transmission queue. The number of transmissions for conﬁrmed messages can be set via ‘DEFAULT NUMBER US TRANSMISSIONS’ (in lorawan.h) and is set to four by default. Subsequent (re)transmissions are throttled based on the radio duty cycle limitations of the active sub-band. To this end there is a per LoRaWAN node singleton object, LoRaWANMacRDC, which keeps track of a node’s duty cycle for the different sub-bands. Finally, the LoRaWANMac class adds a 1B LoRaWANMacHeader (encoding the message type) and a 4B dummy MIC to the MAC payload before passing the packet on to the PHY.
+D. LoRaWAN class A end device ns-3 application
+A new ns-3 application, LoRaWANEndDeviceApplication, was developed to represent class A LoRaWAN end devices in ns-3. The application exposes attributes for parameters such as the data rate of the end device and the packet length and message type of upstream transmissions. It also supports conﬁgurable random variables for upstream channel selection and packet generation times. The application is responsible for generating the MAC payload, as such it adds the LoRaWAN frame header to the application payload. This frame header encodes the end device address, the packet counter and the frame port of the application. Meta data about the packet transmission - such as the desired channel, data rate and code rate - are passed on to the PHY by means of a LoRaWANPhyParamsTag packet tag.
+E. LoRaWAN gateway ns-3 application
+The LoRaWANGatewayApplication is a simple application that is installed on gateway ns-3 nodes. Apart from passing packets to and accepting packets from the network server, it also supports querying a gateway’s RDC status from the NS. Packets that are to be sent downstream, are tagged with the LoRaWANPhyParamsTag packet tag by the network server. The LoRaWANNetDevice on the gateway will select the MAC/PHY pair corresponding to the PHY attributes that are listed in the packet tag (i.e. spreading factor and channel).
+F. LoRaWAN Network server
+The LoRaWANNetworkServer class is instantiated only once per LoRaWAN network simulation. This singleton object accepts upstream packets from gateways and sends downstream trafﬁc to end devices via gateways. It exposes the following attributes to conﬁgure downstream trafﬁc generation: packet size, conﬁrmed or unconﬁrmed messages and random variable for packet generation (an ExponentialRandomVariable by default). The class keeps track of information such as device address, packet counters, last data rate, last known gateway(s) and last seen time for every end device. Based
+
+on the packet counters, it can detect duplicate data packets from multiple gateways.
+The network server generates downstream data and acknowledgments. To this end, it contains a per end device packet queue for storing downstream trafﬁc. For every end device, it stores RW1 and RW2 timers that are used for scheduling downstream trafﬁc. When a timer expires, the network server goes through the list of last known gateway(s) and searches for a gateway that can send the queued downstream packet immediately. These timers are scheduled every time an upstream transmission is processed by the network server. Finally, the network server takes care of retransmissions for conﬁrmed downstream data packets.
+V. SCALABILITY ANALYSIS OF LORAWAN NETWORKS
+The LoRaWAN ns-3 module includes the “lorawan-tracingexample.cc“ example which was used for all simulations discussed in this section. It enables automation of simulations from a CLI by setting simulation parameters and outputting ns-3 tracing results to csv ﬁles. The simulations focused on a number of different scenarios, which are detailed in the subsections below.
+All simulations consist of one, two or four gateways and a conﬁgurable number of end devices deployed in a disc with a 6 100m radius 2. All gateways and end devices are conﬁgured to use the same 125kHz LoRaWAN channel (868.100MHz), with the exception of the high power RW2 channel at 869.525MHz which lies in a sub-band with a 10% RDC restriction. This single upstream channel scenario is similar to that of a “the things gateway” as sold by The Things Networks. End devices employ Activation By Personalisation and as such no network join messages are exchanged. The gateways are deployed at ﬁxed positions, which depend on the number of gateways in the simulation. In case of one gateway, it is positioned in the origin of the disc. In case of two gateways, they are positioned one radius apart on a diameter line of the disc. In case of four gateways, they are positioned on the corners of a square which is centered on the disc origin and which has a diagonal equal to the disc radius. The gateway positions are visualized in ﬁgure 7. The end devices are uniformly distributed in the disc (using the UniformDiscPositionAllocator in ns3) and have a ﬁxed position during the simulation. For all experiments the default propagation loss model was used in ns-3. This model, named ’LogDistancePropagationLoss‘, has a 3.0 exponent at a 46.6777 dB reference loss at one meter.
+Simulation scenarios are run for three different upstream data generation periods: 600, 6 000 and 60 000 seconds. Each simulation is run for a simulation time equal to hundred times the upstream data generation period. For every end device, the transmission time of the ﬁrst upstream packet is picked from a random variable uniformly distributed between zero and the upstream period. Subsequent upstream packets are periodically generated according to the data generation period. Upstream packets have an application payload of 8 bytes, which implies a PHY payload of 21 bytes.
+2This radius was chosen as for the presented ns-3 error model, the PDR for 21B packets sent at SF12 lies close to 10% at this distance for the LogDistancePropagationLoss model.
+
+JOURNAL OF LATEX CLASS FILES, VOL. 14, NO. 8, AUGUST 2015 1.0
+0.8
+0.6
+R=6100m
+0.4
+
+7
+Random SF Fixed SF7 Fixed SF8 Fixed SF9 Fixed SF10 Fixed SF11 Fixed SF12 PER 0.001 PER 0.01 PER 0.1 PER 0.25
+
+Packet delivery ratio
+
+Fig. 7. Positions for one (cross), two (circles) and four (rectangles) gateways
+
+0.2
+
+in ns-3 simulations
+
+Downstream data generation happens according to an enddevice speciﬁc exponential random variable (representing an arrival of events, rather than periodic data transmission). The mean of this exponential random variable is set to either 60 000s or 600 000s, representing - on average - one downstream packet every ten and hundred upstream packets respectively.
+For all simulations, the packet delivery ratio was measured. An unconﬁrmed upstream data packet is considered delivered, if it was received successfully by a gateway node. A conﬁrmed upstream data packet is considered delivered, if one of its transmissions was successfully received by a gateway node and the end device received an acknowledgment from the network server. Note that the presented PDRs take into account all generated packets, even packets that are queued for transmission are counted towards PDR. Therefor the PDR reﬂects overall network throughput (for the same number of devices and data period).
+A. Assigning LoRa spreading factors to end devices
+The ﬁrst problem that was studied is how to assign LoRa spreading factors to end devices. Spreading factors have a major impact on packet delivery rates. Underestimating the spreading factor (i.e. assigning a SF that is too low) may lead to reception errors due to low SNR. Overestimating the spreading factor (i.e. assigning a SF that is too high) may lead to inefﬁcient use of air time.
+Three SF assignment strategies have been considered:
+1) Random: assign spreading factors to end devices according to a uniform random distribution.
+2) Fixed: assign the same spreading factor to end devices. 3) PER: for every end device, ﬁnd and assign the lowest
+spreading factor for which the packet error ratio falls below a certain threshold.
+For each strategy a number of simulations were performed for a six hundred seconds upstream data period and a varying number of end devices. For the PER strategy a number of different PER threshold were tested as well: 0.001, 0.01, 0.1 and 0.25. The packet delivery ratios for the different SF allocation strategies are presented in ﬁgure 8. Packet are sent as unconﬁrmed messages.
+
+Y -R −R 2
+0 R 2 R
+
+10000
+
+5000
+
+100 500 1000
+
+0.0
+Number of end devices
+Fig. 8. Packet delivery ratios for various spreading factor assignments strategies
+
+Comparing the results, it is clear that the PER strategy performs the best out of three in terms of PDR. The PDRs for different PER thresholds are very similar and there is no threshold that yields the highest PDR in all considered network sizes. Note that while there exist large variations in PDRs between different spreading factors, ﬁgure 8 plots the global PDR across all spreading factors. A PER threshold of 0.01 is chosen for allocating spreading factors in the remainder of this paper. With this threshold, there are on average about 43% SF12, 20% SF11, 12% SF10, 8% SF9, 6% SF8 and 11% SF7 in a single gateway LoRaWAN network with radius 6100 meters. This is represented graphically in ﬁgure 9.
+
+R
+
+SF7
+
+SF8
+
+SF9
+
+SF10
+
+SF11
+
+SF12
+
+R
+
+2
+
+0
+
+−R 2
+
+-R
+X
+Fig. 9. Spreading factor allocation to end devices for PER strategy (0.01)
+
+JOURNAL OF LATEX CLASS FILES, VOL. 14, NO. 8, AUGUST 2015
+
+8
+
+B. Unconﬁrmed vs conﬁrmed upstream data
+1) Single gateway LoRaWAN network: Next, the impact of sending upstream data as conﬁrmed MAC messages is considered on the PDR. One would expect the LoRaWAN retransmission scheme to boost the PDR, as unacknowledged messages are retransmitted by the end device. An end device attempts four transmissions before dropping the message. At all times, end devices respect duty cycle restrictions.
+
+1.0
+
+UNC 60000s
+
+UNC 6000s
+
+UNC 600s
+
+0.8
+
+CON 60000s
+
+CON 6000s
+
+CON 600s
+
+for 100 end devices for a 6 000 s data period. In all other cases the PDR of conﬁrmed messages is lower. Recall that a conﬁrmed message is only considered delivered if the end device receives an acknowledgment for that message. Table III shows that the number of missed receive windows (for sending an acknowledgment) goes up as the trafﬁc load increases. Receive windows are missed because the gateway is unable to transmit at the start of a receive window due to the duty cycle restrictions that apply in the sub-band of a receive window. As end devices retransmit more frequently, the average number of packets per conﬁrmed message increases as well. Finally, when a gateway sends an acknowledgment in either RW1 or RW2 all ongoing receptions at the gateway are aborted; which also impacts PDR.
+
+Packet delivery ratio
+
+100 500 1000
+
+0.6
+0.4
+0.2
+0.0
+Number of end devices
+Fig. 10. PDR for unconﬁrmed and conﬁrmed upstream messages in a single gateway LoRaWAN network
+The packet delivery ratios for sending upstream data as unconﬁrmed and conﬁrmed messages are shown in ﬁgure 10 for three different data periods in case of a single gateway LoRaWAN network. The PDR decreases as data is sent more frequently and as the number of end devices increases. In case of unconﬁrmed MAC messages, the primary cause of undelivered packets is due to collisions where the gateway is busy receiving a transmission and therefor any other transmission with the same data rate is dropped during the ongoing reception. For the 600 seconds data period, the share of drops due to collisions in all undelivered packets is close to 90%. Another 9% of the undelivered packets are destroyed due to interference during reception. The remainder of the undelivered packets are dropped due to a SINR value that falls below the SNR cut-off point (cfr. section IV-A2).
+Note that the share of slower data rates in the undelivered packets is higher than that of faster data rates. This is partially due to the higher share of end devices with slower data rates in the networks and partially due to the higher transmission times at lower data rates. The share of undelivered packets sent at SF11 or SF12, lies at 80.9%, 93.6% and 95.8% for the 600, 6 000 and 60 000 seconds data periods respectively.
+Somewhat counterintuitively, the PDR of conﬁrmed messages is not always higher than that of unconﬁrmed messages. The PDR is only higher in cases where the the trafﬁc load is very low. In the simulations this is only the case for 100, 500 and 1000 end devices for a 60 000 s data period and
+
+5000
+
+10000
+
+GW DP
+
+#ED
+
+Ack RW1 Ack RW2
+
+Missed RWs
+
+#packets message
+
+1 60000 100 8798
+
+1354
+
+0 ∗∗∗
+
+1.05
+
+1 60000 1000 47500 53162 7968 ∗∗
+
+1.19
+
+1 60000 10000 91950 438343 1604427 ∗ 3.08
+
+1 6000 100 4741
+
+5316
+
+1122
+
+1.21
+
+1 6000 1000 9542
+
+43767
+
+155513
+
+3.07
+
+1 6000 10000 17078 52033 1465697
+
+3.90
+
+1 600 100 943
+
+4315 15052 ††† 3.08
+
+1 600 1000 1623
+
+5199 143153 †† 3.90
+
+1 600 10000 6880
+
+5273 262385 † 3.98
+
+2 60000 100 9896
+
+174
+
+0 ∗∗∗
+
+1.02
+
+2 60000 1000 75062 24590 1026 ∗∗
+
+1.07
+
+2 60000 10000 248682 631806 877387 ∗ 2.09
+
+2 6000 100 7926
+
+2170
+
+0
+
+1.03
+
+2 6000 1000 25400 63095
+
+84263
+
+2.04
+
+2 6000 10000 42798 103371 2229616
+
+3.79
+
+2 600 100 2513
+
+6477 8502 ††† 2.02
+
+2 600 1000 4838 10327 216539 †† 3.77
+
+2 600 10000 13117 10577 645143 † 3.97
+
+4 60000 100 10012
+
+0
+
+0 ∗∗∗
+
+1.00
+
+4 60000 1000 95350 4866
+
+201 ∗∗
+
+1.01
+
+4 60000 10000 646058 355183 128053 ∗ 1.17
+
+4 6000 100 9380
+
+656
+
+2
+
+1.00
+
+4 6000 1000 66712 33302
+
+12972
+
+1.16
+
+4 6000 10000 135780 201664 2433131
+
+3.47
+
+4 600 100 6568
+
+3470 1360 ††† 1.15
+
+4 600 1000 14906 20085 242954 †† 3.45
+
+4 600 10000 26866 21163 1306882 † 3.94
+
+TABLE III TRANSMISSION OF ACKNOWLEDGMENTS FOR ONE, TWO AND FOUR
+GATEWAY LORAWAN NETWORK SIMULATIONS
+
+GW SF7 SF8 SF9 SF10 SF11 SF12
+
+1 11% 6% 8% 12% 20% 43%
+
+2 21% 10% 17% 18% 16% 18%
+
+4 40% 16% 23% 17% 4%
+
+0
+
+TABLE IV END DEVICES AT A SPECIFIC DATA RATE FOR LORAWAN NETWORKS
+WITH ONE, TWO AND FOUR GATEWAYS
+
+2) Multi gateway LoRaWAN networks: In this section the effect of the number of gateways in a LoRaWAN network on the PDR is studied. Note that for applying the PER 0.01 SF allocation strategy, the PER to the closest gateway is calculated for every end device. Increasing the gateway density, as per ﬁgure 7, is anticipated to have more than one effect. Firstly, it should enable higher data rates for end devices due to an increase in link budget (as on average gateways will appear closer). Secondly, as downstream transmissions in RW1 are
+
+JOURNAL OF LATEX CLASS FILES, VOL. 14, NO. 8, AUGUST 2015
+
+9
+
+sent with the same data rate as the upstream transmissions, RW1 acknowledgments should also proﬁt from the higher data rates of end devices. Finally, as duty cycle restrictions apply per gateway, the LoRaWAN network should be able to acknowledge more messages as the gateway density goes up.
+
+1.0
+
+UNC 600s
+
+UNC 6000s
+
+UNC 60000s
+
+0.8
+
+CON 600s
+
+CON 6000s
+
+CON 60000s
+
+0.6
+
+Packet delivery ratio
+
+0.4
+
+0.2
+
+0.0
+
+of gateways increases. For conﬁrmed messages, the increase in PDR is noticeable but is is not as sharp as for unconﬁrmed messages. Studying table III, it is clear that the number of sent acknowledgments increases as the number of gateways increases. The seemingly contradicting relation between number of missed RWs and the number of gateways is explained as follows. In saturated LoRaWAN networks (i.e. scenarios with low PDRs for unconﬁrmed messages), the number of sent messages that are successfully received increases with the gateway density. In case of conﬁrmed messages, the higher number of received upstream messages means that the network server is able to identify a larger number of receive windows of end devices (as RWs are always opened after a transmission of an end device). When gateways are unable to sent in these receive windows (due to duty cycle restrictions), the number of missed RWs increases. This is illustrated for the simulation scenarios marked with the † symbol in table III. In less saturated scenarios (marked with the ∗ symbol), the number of missed RWs goes down as increasing the gateway density does not lead to identifying more receive windows. Instead, the number of missed RWs decreases and more acknowledgments are sent (as seen in columns RW1 and RW2), which beneﬁts the PDR.
+
+10000
+
+5000
+
+100 500 1000
+
+Number of end devices
+Fig. 11. PDR for unconﬁrmed and conﬁrmed upstream messages in a two gateway LoRaWAN network
+Table IV lists the fraction of end devices at speciﬁc data rates in a 10 000 end devices LoRaWAN network with one, two and four gateways (following the PER SF assignment strategy, see section V-A). The table clearly illustrates that higher gateway densities lead to faster overall data rates.
+Figures 11 and 12 show the PDR for a LoRaWAN network with two and four gateways respectively. Notice how for un-
+
+1.0
+
+UNC 600s
+
+UNC 6000s
+
+UNC 60000s
+
+0.8
+
+CON 600s
+
+CON 6000s
+
+CON 60000s
+
+0.6
+
+Packet delivery ratio
+
+0.4
+
+0.2
+
+10000
+
+5000
+
+100 500 1000
+
+0.0
+Number of end devices
+Fig. 12. PDR for unconﬁrmed and conﬁrmed upstream messages in a four gateway LoRaWAN network
+conﬁrmed messages, the PDR increases greatly as the number
+
+C. Downstream data trafﬁc
+
+In the ﬁnal part of this evaluation, the impact of sending
+
+downstream data is studied. While most LoRaWAN deploy-
+
+ments are expected to exhibit high asymmetry between the vol-
+
+ume of upstream and downstream data, occasional downstream
+
+data messages are expected to be sent. Potential reasons for
+
+downstream data include notifying the end device of an event,
+
+end device and network management and updating application
+
+parameters (e.g. sensor sampling interval). Due to the sparse-
+
+ness and stochastic nature (e.g. events) of downstream data,
+
+generation of downstream data messages in ns-3 is modeled
+
+via a per-end device Poisson process with a conﬁgurable
+
+average
+
+rate
+
+λ
+
+and
+
+mean
+
+inter
+
+arrival
+
+time
+
+µ
+
+=
+
+1 λ
+
+.
+
+In terms of simulations the upstream scenario with a data
+
+period of six thousand seconds is chosen as a starting point.
+
+Two average downstream rates of one DS packet every 60
+
+000s and 600 000s are considered, which corresponds to one
+
+DS packet every ten and hundred US packets respectively.
+
+Both conﬁrmed and unconﬁrmed downstream messages and
+
+conﬁrmed and unconﬁrmed upstream messages are taken into
+
+account. Simulations were ran for one, two and four gateway
+
+networks with 100, 500, 1 000, 5 000 and 10 000 end devices.
+
+Downstream packets have a 21B size, which holds eight bytes
+
+of application payload.
+
+Tables V and VI present the PDRs of downstream and up-
+
+stream data messages respectively for the different parameters
+
+that were tested. The ﬁve columns per quadrant in the tables
+
+represent results for 100, 500, 1 000, 5 000 and 10 000 end
+
+devices from left to right.
+
+Studying table V the effect of saturating the available
+
+airtime at the gateway is clearly visible for simulations with
+
+one gateway and a large number of nodes (i.e. ≥5000). As
+
+the number of gateways increases, the downstream trafﬁc load
+
+JOURNAL OF LATEX CLASS FILES, VOL. 14, NO. 8, AUGUST 2015
+
+10
+
+Downstream Packet Delivery Ratios with 1 GW
+
+US
+
+DS UNC
+
+DS CON
+
+µ
+
+CON UNC CON UNC CON UNC
+
+98 97 94 67 40 99 97 93 59 33 10
+
+99 96 92 80 69 100 96 93 80 69 100
+
+100 98 92 50 31 100 97 90 48 30 10
+
+99 98 93 63 45 100 97 92 61 44 100
+
+Downstream Packet Delivery Ratios with 2 GWs
+
+DS UNC
+
+DS CON
+
+µ
+
+100 98 97 91 75 99 97 96 89 68 10
+
+100 98 97 93 88 99 97 97 92 87 100
+
+100 99 98 79 59 99 99 98 78 58 10
+
+99 99 98 85 73 99 100 98 84 72 100
+
+Downstream Packet Delivery Ratios with 4 GWs
+
+DS UNC
+
+DS CON
+
+µ
+
+100 100 100 98 96 100 99 99 98 96 10
+
+100 100 100 98 97 100 100 100 97 96 100
+
+100 100 100 97 91 100 99 99 97 88 10
+
+100 100 100 97 94 100 100 100 97 92 100
+
+TABLE V PACKET DELIVERY RATIOS OF DOWNSTREAM DATA MESSAGES
+
+Upstream Packet Delivery Ratios with 1 GW
+
+US
+
+DS UNC
+
+DS CON
+
+µ
+
+CON UNC CON UNC CON UNC
+
+98 95 90 70 60 98 95 89 70 60 10
+
+98 96 92 79 68 98 96 92 79 68 100
+
+100 81 49 10 5 100 81 49 10 5 10
+
+100 83 52 12 6 100 83 52 12 6 100
+
+Upstream Packet Delivery Ratios with 2 GWs
+
+DS UNC
+
+DS CON
+
+µ
+
+99 98 96 87 80 99 97 96 87 80 10
+
+99 98 97 92 88 99 98 97 92 88 100
+
+100 98 87 23 11 100 98 87 23 11 10
+
+100 98 88 26 14 100 98 88 26 13 100
+
+Upstream Packet Delivery Ratios with 4 GWs
+
+DS UNC
+
+DS CON
+
+µ
+
+100 100 99 97 94 100 100 99 97 94 10
+
+100 100 100 98 97 100 100 100 98 97 100
+
+100 100 100 58 30 100 100 100 58 29 10
+
+100 100 100 61 33 100 100 100 61 33 100
+
+TABLE VI PACKET DELIVERY RATIOS OF UPSTREAM MESSAGES IN THE PRESENCE OF
+DOWNSTREAM DATA
+
+is spread over more gateway which leads to less saturation per gateway and therefor to an increase in downstream PDR. The numbers also show that sending US data as conﬁrmed messages negatively impacts the PDR of downstream data messages. This is because conﬁrmed US messages require a downstream message for an acknowledgment, which increases the trafﬁc load and therefor saturation on the gateway(s). Finally, table V also shows that for saturated scenarios the PDR for conﬁrmed downstream messages is slightly lower than for unconﬁrmed downstream messages. While the cause of this is not obvious, it is probable that the 70-80% PDR of US messages in saturated scenarios (see UNC 6000s ﬁgure 10) leads to losses of upstream acknowledgments which decreases downstream data PDR in the case of conﬁrmed DS messages.
+Comparing table VI to the 6000s US PDRs in ﬁgures 10, 11 and 12, the presence of DS data trafﬁc leads to a negligible decrease in US PDR for low DS trafﬁc rates (µ = 100) and a small decrease in US PDR for the high DS trafﬁc rate (µ = 10) for scenarios with 5 000 and 10 000 end devices. The decrease is more profound for unconﬁrmed US messages than conﬁrmed US messages, which indicates an increase in US packet loss. This increase is US packet loss is due to the
+
+gateway being unable to receive US transmissions during a DS transmission. As more gateways are deployed, the DS data transmissions occupy less time per gateway (due to overall higher data rates) which means that the gateways can spent more time on listening for US messages, thereby reducing the effect of DS data trafﬁc on US packet loss. Finally, note that there is no difference in terms of US PDR between conﬁrmed and unconﬁrmed downstream data messages.
+VI. RELATED WORK
+A number of works have been published in literature that study the scalability of LoRa(WAN) LPWA networks.
+In one of the ﬁrst works on this topic, Mikhaylov et al. [7] present an analysis of the capacity and scalability of LoRa LPWANs. The authors perform an analytical analysis of the maximum throughput for a single LoRaWAN end device, taking into account such factors as RDC and the inﬂuence of receive windows. The authors note that receive windows drastically increase the time between subsequent transmissions and that RDC restrictions reduce the maximum throughput further. The authors applied the same methodology to determine the capacity of LoRaWAN based on ALOHA access. While it is true that the LoRaWAN MAC access is an ALOHA scheme, empirical data has shown that the assumptions made in pure ALOHA access do not adequately model a LoRaWAN network (see ﬁgure 4 in [8]). Speciﬁcally, it fails to model the interference between concurrent transmissions as pure ALOHA assumes concurrent transmissions are always lost regardless of their received power levels, timings and the presence of forward error correction. A second, but similarly lacking, pure ALOHA capacity analysis of LoRaWAN is discussed in [9]. In [10] Adelantado et al. also calculate LoRaWAN capacity as the superposition of independent ALOHA-based networks (one for each channel and for each SF). In conclusion, analyses based on pure ALOHA, fail to adequately model interference in LoRaWAN networks and therefor underestimate the capacity of LoRaWAN LPWANs.
+In [11], Georgiou and Raza provide a stochastic geometry framework for modeling the performance of a single channel LoRa network. Two independent link-outage conditions are studied, one which is related to SNR (i.e. range) and another one which is related to co-spreading factor interference. The authors argue that LoRa networks will inevitably become interference-limited, as end device coverage probability decays exponentially with increasing number of end devices. The authors report that this is mostly caused by co-spreading factor interference and that the low duty cycle and chirp orthogonality found in LoRa do little to mitigate this. Finally, the authors note that the lack of a packet-level software simulation is hindering the study into the performance of LoRa. It would be interesting to combine the authors’ modeling of co-spreading factor interference with our ns-3 error model, as in the SINR approach all interference is treated as noise.
+The work of Bor et al. [8] studies the limit on the number of transmitters supported by a LoRa system based on an empirical model. The authors performed practical experiments that quantify communication range and capture effect of LoRa
+
+JOURNAL OF LATEX CLASS FILES, VOL. 14, NO. 8, AUGUST 2015
+
+11
+
+transmissions. These ﬁndings were used to build a purposebuilt simulator, LoRaSim, with the goal of studying the scalability of LoRa networks. The authors conclude that LoRa networks can scale quite well if they use dynamic transmissions parameter selection and/or multiple sinks. Our study conﬁrms that multiple sinks drastically improve scalability, even though we use a very different approach for modeling interference. Furthermore, our study goes deeper into modeling LoRaWAN as the LoRaWAN MAC layer is modeled and the impact of conﬁrmed messages and downstream trafﬁc is studied.
+The recent work presented by Pop et al. in [12] studies the impact of bidirectional trafﬁc in LoRaWAN by extending the LoRaSim simulator to include bidirectional LoRaWAN communication. The resulting simulator is named LoRaWANSim. Both our ns-3 module and LoRaWANSim allow to study the scalability of LoRaWAN networks. Both works ﬁnd that duty cycle limitations at the gateway limit the number of downlink messages (Ack or data) a gateway can send. This problem grows worse as the end device density increases, but can be partially mitigated by increasing gateway density (see section V-C). The authors of [12] correctly identify that the absence of an acknowledgement, does not necessarily mean that the link quality has decreased and that a node should decrease its data rate for subsequent retransmissions. Actually, decreasing the data rate might exacerbate this problem as detailed in [12]. Notable differences between the two simulators include that the LoRaWANSim manuscript is limited to single gateway network, while the ns-3 module provides support for multi-gateway LoRaWAN networks. Secondly, the collision models are quite different. The ns-3 module builds on the error model derived from the complex baseband BER simulations, while LoRaWANSim reuses the empirical model from LoRaSim. Both collision models support the capture effect as well as modeling interference. Under capture effect, we understand the ability to receive an interfered transmission in the presence of one or more interferers as long as the SNR of the interfered transmission is sufﬁciently high for the transmission to be received error-free. The LoRaWANSim collision model incorrectly assumes perfect orthogonality between spreading factors, while the ns-3 module counts every transmission on the same channel with a different spreading factor as interference. Furthermore, the LoRaWANSim manuscript does not mention the 10% RDC restriction that applies in the subband of the RW2 channel in the EU. This underestimates the downlink capacity in RW2. Thirdly, the SpectrumPhy model for the LoRa PHY in ns-3 enables modeling inter-technology interference, which could facilitate studies on the interference between 802.11ah on LoRaWAN. Finally, the LoRaWANSim simulator does not appear to be open source although the manuscript is still under revision at this time.
+VII. DISCUSSION
+In this section a number of ﬁndings from our scalability analysis in section V are discussed. The results show that conﬁrmed messages severely impact the packet delivery ratios of upstream messages. While increasing the number of gateways helps to alleviate this problem somewhat, the results
+
+of the six hundred seconds data period show that the PDR remains low even in a four gateway network. The impact of downstream data messages on upstream messages was found to be negligible due to the sparseness of the tested downstream data trafﬁc load. Additionally, little difference was found between sending downstream data as unconﬁrmed messages vs conﬁrmed messages in terms of the DS PDR. Only for the single gateway and µ = 10 scenario a signiﬁcant difference was found.
+As every study has its limitations, a number of points that could be improved as part of future work are discussed here. As discussed in the related work study, the approach of modeling all interference as noise has its drawbacks. Speciﬁcally, literature has shown that while interference between different spreading factors can be accurately modeled as noise, co-spreading factor interference may be modeled more accurately via a stochastic approach. Future studies may opt to ﬁne-tune the path loss model in ns-3 in order to more closely match the radio environment under study. An interesting point for future work is to study the impact of the downstream data rate in RW2. By default, this is set to the lowest data rate in the LoRaWAN standard. However when downstream data messages are not delivered due to RDC limitations (rather than low link quality), a faster RW2 data rate might increase the capacity of the LoRaWAN. Another interesting research topic would be to introduce structure to the LoRaWAN medium access. While this will come at a cost in terms of trafﬁc overhead and power consumption, it might lead to higher network capacity by reducing interference. Additional MAC features such as adaptive data rate (ADR) and network management (e.g. joining) could be added to the ns-3 module. This would allow a more in-depth study of the LoRaWAN standard. Finally, it would be interesting to study how LoRaWAN networks are affected by the presence of other sub-GHz (LP)WAN technologies.
+VIII. CONCLUSION
+In this work a comprehensive model of LoRaWAN LPWANs in the ns-3 network simulator is presented. This model includes an error model used for determining range as well as interference between multiple simultaneous transmissions. All spreading factors and coding rates found in LoRaWAN are supported by the PHY layer model of LoRa in the ns-3 module. The ns-3 module models the MAC layer for class A end devices and supports both upstream and downstream (un)conﬁrmed messages via a simple network server. Furthermore, LoRaWAN networks with multiples gateways are supported.
+The ns-3 module forms the basis for a scalability analysis of single channel multi gateway LoRaWAN LPWANs. The results of this analysis show that allocating network parameters to end devices is hugely important for the performance of LoRaWAN networks. Furthermore, the capacity for different types of trafﬁc is studied. The results conﬁrm recent ﬁndings from literature that the limited downstream capacity highly deteriorates the packet delivery ratio of conﬁrmed upstream messages. Increasing the gateway density can delay the onset
+
+JOURNAL OF LATEX CLASS FILES, VOL. 14, NO. 8, AUGUST 2015
+
+12
+
+of this effect, but it cannot be eliminated completely. Finally, it is the hope of this work to encourage future work on all aspects of LoRaWAN networks by means of the publicly available ns-3 module. To this end, a number of interesting topics are presented as well.
+ACKNOWLEDGMENT
+This work was carried out in the context of following projects. MoniCow is a project realized in collaboration with imec. Project partners are DeLaval, Metagam, Multicap, NXP Semiconductors N.V. and snapTonic, with project support from VLAIO (Flanders Innovation & Entrepreneurship). IDEALIoT (Intelligent DEnse And Longe range IoT networks) is an SBO project funded by the Fund for Scientiﬁc ResearchFlanders (FWO-V) under grant agreement #S004017N. ‘Processing visual sensor data in low-power wide area networks’ is a project funded by the Fund for Scientiﬁc Research-Flanders (FWO-V) under grant agreement #G084177N.
+REFERENCES
+[1] P. Middleton, T. Tully, J. F. Hines, T. Koslowski, B. Tratz-Ryan, K. F. Brant, E. Goodness, A. McIntyre, and A. Gupta, “Forecast: Internet of Things - Endpoints and Associated Services, Worldwide, 2015,” p. 57, 2015. [Online]. Available: https://www.gartner.com/doc/3159717/ forecast-internet-things--endpoints
+[2] U. Raza, P. Kulkarni, and M. Sooriyabandara, “Low Power Wide Area Networks: An Overview,” IEEE Communications Surveys Tutorials, vol. PP, no. 99, pp. 1–15, 2017.
+[3] Cisco, “Cisco visual networking index: Global mobile data trafﬁc forecast update 2015-2020,” Tech. Rep., 2016. [Online]. Available: https://www.cisco.com/c/dam/m/en{ }in/innovation/ enterprise/assets/mobile-white-paper-c11-520862.pdf
+[4] Nokia White Paper, “LTE evolution for IoT connectivity,” Tech. Rep., 2016. [Online]. Available: http://resources.alcatel-lucent.com/ {%}0Aasset/200178
+[5] L. Alliance, “LoRaWAN Speciﬁcation,” LoRa Alliance, 2015. [6] Proximus NV, “LoRa network coverage map (January 2017).”
+[Online]. Available: https://www.proximus.be/resources/iportal/ecr/ maps/coverage-en.html{#}lora [7] K. Mikhaylov, J. Petaejaejaervi, and T. Haenninen, “Analysis of Capacity and Scalability of the LoRa Low Power Wide Area Network Technology,” in European Wireless 2016; 22th European Wireless Conference, 2016, pp. 1–6. [8] M. C. Bor, U. Roedig, T. Voigt, and J. M. Alonso, “Do LoRa Low-Power Wide-Area Networks Scale?” in Proceedings of the 19th ACM International Conference on Modeling, Analysis and Simulation of Wireless and Mobile Systems, 2016, pp. 59–67. [Online]. Available: http://doi.acm.org/10.1145/2988287.2989163 [9] A. Augustin, J. Yi, T. Clausen, and W. M. Townsley, “A Study of LoRa: Long Range & Low Power Networks for the Internet of Things,” Sensors, vol. 16, no. 9, 2016. [10] F. Adelantado, X. Vilajosana, P. Tuset-Peiro, B. Martinez, J. Melia, and T. Watteyne, “Understanding the limits of LoRaWAN,” IEEE Communications Magazine, pp. 8–12, 2016. [11] O. Georgiou and U. Raza, “Low Power Wide Area Network Analysis: Can LoRa Scale?” IEEE Wireless Communications Letters, 2017. [12] A.-I. Pop, U. Raza, P. Kulkarni, and M. Sooriyabandara, “Does Bidirectional Trafﬁc Do More Harm Than Good in LoRaWAN Based LPWA Networks?” arXiv:1704.04174v1 [cs.NI], 2017. [Online]. Available: https://arxiv.org/pdf/1704.04174.pdf
+
