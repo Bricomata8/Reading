@@ -1,0 +1,114 @@
+Poster: A Platform for Choreography of Heterogeneous Healthcare Services
+
+Wonjae Kim
+Hongik University Seoul, South Korea wonjaek36@gmail.com
+ABSTRACT
+In this paper, we design a novel platform that facilitates integrated healthcare services without a centralized orchestration. Events that reflect dynamically changing conditions of patients are published using a scalable messaging middleware built on top of a publish/subscribe broker overlay network. Events matching service rules are routed to the appropriate caretakers. Services rules are issued autonomously by the caretakers who subscribe to the future matching events. Through this event-driven system, we aim to help the caretakers and medical staff to recommend and offer services to patients in a more timely and seamless manner.
+CCS CONCEPTS
+• Information systems → Information integration; Information systems applications; Expert systems; • Applied computing → Event-driven architectures;
+KEYWORDS
+Service Choreography, Expert System, Enterprise Service Bus
+ACM Reference Format: Wonjae Kim and Young Yoon. 2018. Poster: A Platform for Choreography of Heterogeneous Healthcare Services. In DEBS ’18: The 12th ACM International Conference on Distributed and Event-based Systems, June 25–29, 2018, Hamilton, New Zealand. , 2 pages. https://doi.org/10.1145/3210284.3219771
+1 MOTIVATION
+Korea Veteran Health Service (VHS) medical center provides diverse healthcare services for men of national merit 1. It offers, not only general treatments but also visiting treatment service for nursing and rehabilitation. In addition, it manages nursing homes for patients who suffer from dementia or mental illness and provides an accommodation or a transportation services for people who have problems to get a treatment in the center.
+1 http://seoul.bohun.or.kr
+Permission to make digital or hard copies of part or all of this work for personal or classroom use is granted without fee provided that copies are not made or distributed for profit or commercial advantage and that copies bear this notice and the full citation on the first page. Copyrights for third-party components of this work must be honored. For all other uses, contact the owner/author(s). DEBS ’18, June 25–29, 2018, Hamilton, New Zealand © 2018 Copyright held by the owner/author(s). ACM ISBN 978-1-4503-5782-1/18/06. https://doi.org/10.1145/3210284.3219771
+
+Young Yoon
+Hongik University Seoul, South Korea young.yoon@hongik.ac.kr
+VHS has a team, namely One-Stop Care Managers (OSC), whose major responsibility is to assess and track patients’ medical condition and to determine appropriate healthcare services for the patients. However, VHS that relies on OSC to make centralized decisions suffer serious operational inefficiency. Due to the limited budget, there is currently only a handful of staff members in OSC. It is difficult for the OSC staff to be fully knowledgeable in all the services rules and keep up with all patients’ conditions.
+Each service in VHS keeps a partial patient information in a separate and independent EMR (Electronic Medical Record) system. Treatment status at each service was not openly shared with other services, and service providers were not inclined to proactively track the treatment status at other services either. Therefore, patients are rarely referred to another service unless they explicitly ask to be treated by a new service. In order to fulfill the goal of providing a timely and seamless service offering, sharing patient information among service providers is essential.
+In the following section, we design a non-centralized approach for determining services and routing patients to appropriate caretakes.
+2 PLATFORM DESIGN
+Instead of OSC making orders, we let each service providers subscribe to specific conditions of patients it is responsible for. Events reflecting the condition of patients are matched against service rules and routed to the appropriate caretakers. We call this system a platform for healthcare service choreography (in short, HSC) whose architecture is illustrated in Fig. 1. In
+
+Patient1 … Patientn Patient-Interface
+
+Messaging Middleware
+
+Service-Interface Data-Integrator
+
+Service-Interface Data-Integrator
+
+Service1 … Servicem
+
+Messaging Middleware Organization B
+Messaging Middleware Organization D
+
+Messaging Middleware Organization C
+Messaging Middleware Organization E
+
+Figure 1: The architecture of Healthcare Service Choreography (HSC) platform
+the core of HSC lies a messaging middleware that is built on top of PADRES publish/subscribe broker overlay network [2]. Each healthcare service connects to a messaging broker and implements a service-interface in order to send and receive patient information [3]. We employ PADRES since its overlay
+
+246
+
+DEBS ’18, June 25–29, 2018, Hamilton, New Zealand
+
+Wonjae Kim and Young Yoon
+
+network can dynamically scale out with easy addition of brokers during production [6]. This feature is necessary as HSC is to be expanded to encompass 3rd-party nation-wide medical and nursing home services.
+
+Patient
+
+Service
+
+Patient-Interface
+
+Service-Interface Data-Integrator
+
+Integrated EMR
+Warehouse
+
+Update patients information
+
+Subscribe patients
+
+Matching Engine
+Request a service directly Route patients to proper service
+
+Subscription Repository
+
+Service-Interface Data-Integrator
+Service
+
+Service-Interface Data-Integrator
+Service
+
+Figure 2: The architecture of Messaging Middleware in HSC platform
+
+Patient information generated by each service is relayed to an Integrated EMR Warehouse that represents the information by a set of attribute and value pairs as shown in Figure 3.(a). The Data-Integrator of each service converts service-specific EMR form to a newly standardized global EMR form. By supporting the mapping of legacy data to the new form, we avoid the cost re-implementing every servicespecific EMR system. This is a typical data interoperability seen in other existing systems such as IBM Integration Bus Healthcare Pack [1] and Health Service Bus [4].
+We differentiate our HSC by following choreography framework to enforce services to execute healthcare rules [7]. The rule is defined and uploaded in the form of subscription as shown in Figure 3.(b). Predicates represent patient conditions and "service" specifies the caretaker that is responsible for the patient. These rules are stored in the matching engine in PADRES message brokers and we use the routing table in order to alert subscribing caretakers. We utilize the message brokers as expert systems that support timely and seamless decision making upon dynamic changes to patient conditions. It is the caretakers’ responsibility to define rules. The rules can be queried and revised by reissuing them as new subscriptions.
+Lastly, HSC provides an interface for the patients to keep their medical condition and histories and check recommended services. In addition, they can make a direct request to receive a wanted service.
+3 CHALLENGES
+Patient information is updated by human caretakers concurrently and autonomously. In such an operational mode, ensuring any ordering constraint and dependency requirement becomes challenging. Ordering constraints and dependency relationships between service executions can be defined in a rule. Before executing a task upon receiving a new patient condition, a caretaker is forced to check if any precondition
+
+{ "name": "Young Jun Choi", "age": 74, "blood pressure": 156, "ADL score": 3, "self-reliance": "No",
+…
+"city": "Seoul", "address": "9-11 93 Wausan street, Mapo-gu", }
+(a) An example of a patient record
+
+{ "name": "Nursing home service for not self-reliance", "predicates": [ { "attribute":"ADL score", "value": 3, "operator":">=" }, { "attribute":"self-reliance", "value": "No", "operator":"=" } ], "service": "Nursing Home"
+}
+(b)An example of a service rule
+
+Figure 3: Examples of a patient information and a service rule
+
+is satisfied [7]. Here, the Integrated EMR Warehouse can be used for checking the status of patients at dependent services.
+Manual update of patient information can have human errors. Therefore, an integration of a system that can sense and update correct patient conditions automatically is necessary. Employing systems for quantified self can be considered [5].
+We learned that not all services can run concurrently with others. For instance, a patient cannot receive several surgeries or examinations simultaneously. We have to advise the caretakers to specify in a rule that such an exclusive service is not preempted and disrupted by other services. Also, our system must detect any attempt to disrupt an exclusive service by trying to run other services on a patient.
+Lastly, human caretakers are not necessarily tech-savvy and find it difficult to define or update service rules. Providing a user-friendly way for rule definition and updates is an interesting subject for a future research.
+4 ACKNOWLEDGEMENT
+This work was supported by VHS Medical Center in South Korea.
+REFERENCES
+[1] 2015. IBM Integration Bus Healthcare Pack. (2015). Retrieved Dec 07, 2015 from https://www.ibm.com/support/knowledgecenter/ en/SSMKHH_9.0.0/com.ibm.healthcare.doc/ha00010.htm
+[2] Hans-Arno Jacobsen, Alex King Yeung Cheung, Guoli Li, Balasubramaneyam Maniymaran, Vinod Muthusamy, and Reza Sherafat Kazemzadeh. 2010. The PADRES Publish/Subscribe System. Principles and Applications of Distributed Event-Based Systems 164 (2010), 205.
+[3] Falko Menge. 2007. Enterprise service bus. In Free and open source software conference, Vol. 2. 1–6.
+[4] Despina Meridou, Andreas Kapsalis, Panagiotis Kasnesis, Charalampos Patrikakis, Iakovos Venieris, and Dimitra-Theodora Kaklamani. 2015. An Event-driven Health Service Bus. In Proceedings of the 5th EAI International Conference on Wireless Mobile Communication and Healthcare. ICST (Institute for Computer Sciences, Social-Informatics and Telecommunications Engineering), 267–271.
+[5] Melanie Swan. 2012. Sensor mania! the internet of things, wearable computing, objective metrics, and the quantified self 2.0. Journal of Sensor and Actuator Networks 1, 3 (2012), 217–253.
+[6] Young Yoon, Vinod Muthusamy, and Hans-Arno Jacobsen. 2011. Foundations for highly available content-based publish/subscribe overlays. In Distributed Computing Systems (ICDCS), 2011 31st International Conference on. IEEE, 800–811.
+[7] Young Yoon, Chunyang Ye, and Hans-Arno Jacobsen. 2011. A distributed framework for reliable and efficient service choreographies. In Proceedings of the 20th international conference on World wide web. ACM, 785–794.
+
+247
+
+
