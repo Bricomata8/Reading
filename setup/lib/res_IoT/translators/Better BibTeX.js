@@ -11,7 +11,7 @@
 	"configOptions": {
 		"async": true,
 		"getCollections": true,
-		"hash": "8807a1d51a4301129cbe10b3763dd90c-542ae2c90374aab94bef25f09a66b99c"
+		"hash": "1eccbff513f3c17519358919e371de27-542ae2c90374aab94bef25f09a66b99c"
 	},
 	"displayOptions": {
 		"exportNotes": false,
@@ -20,7 +20,7 @@
 		"keepUpdated": false
 	},
 	"browserSupport": "gcsv",
-	"lastUpdated": "2019-05-13 11:05:25"
+	"lastUpdated": "2019-05-14 09:52:53"
 }
 
 var Translator = {
@@ -104,6 +104,9 @@ var Translator = {
 
         // if you're looking at this.options.exportPath in the postscript you're probably outputting something different based on it
         || ((this.preferences.postscript || '').indexOf('Translator.options.exportPath') >= 0)
+
+        // relative file paths are going to be different based on the file being exported to
+        || this.preferences.relativeFilePaths
       )
       Zotero.debug('export caching:' + this.caching)
     }
