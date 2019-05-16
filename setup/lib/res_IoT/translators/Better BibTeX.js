@@ -11,7 +11,7 @@
 	"configOptions": {
 		"async": true,
 		"getCollections": true,
-		"hash": "1eccbff513f3c17519358919e371de27-542ae2c90374aab94bef25f09a66b99c"
+		"hash": "1eccbff513f3c17519358919e371de27-c83a4107984adbd3cd2a03605f1d3a57"
 	},
 	"displayOptions": {
 		"exportNotes": false,
@@ -20,7 +20,7 @@
 		"keepUpdated": false
 	},
 	"browserSupport": "gcsv",
-	"lastUpdated": "2019-05-14 09:52:53"
+	"lastUpdated": "2019-05-16 07:16:05"
 }
 
 var Translator = {
@@ -12541,7 +12541,7 @@ class Reference {
         }
         if (f.raw || raw)
             return f.value;
-        const caseConversion = !Translator.preferences.suppressTitleCase && (this.caseConversion[f.name] || f.caseConversion);
+        const caseConversion = this.caseConversion[f.name] || f.caseConversion;
         const latex = unicode_translator_1.text2latex(f.value, { html: f.html, caseConversion: caseConversion && this.english });
         let value = latex.latex;
         if (caseConversion && Translator.BetterBibTeX && !this.english)
