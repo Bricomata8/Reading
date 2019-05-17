@@ -10,7 +10,7 @@
 	"inRepository": false,
 	"configOptions": {
 		"getCollections": true,
-		"hash": "e39f34ee770bef3ac2d8739b5579414c-40a99462ee9ee1956ceb1dc8216bd533"
+		"hash": "718c341a70c67e8c778d26c41242462d-edcb9bcfc36f30cbcb1c9d32375dd249"
 	},
 	"displayOptions": {
 		"exportNotes": false,
@@ -18,7 +18,7 @@
 		"useJournalAbbreviation": false,
 		"keepUpdated": false
 	},
-	"lastUpdated": "2019-05-13 11:05:25"
+	"lastUpdated": "2019-05-16 07:16:05"
 }
 
 var Translator = {
@@ -102,6 +102,9 @@ var Translator = {
 
         // if you're looking at this.options.exportPath in the postscript you're probably outputting something different based on it
         || ((this.preferences.postscript || '').indexOf('Translator.options.exportPath') >= 0)
+
+        // relative file paths are going to be different based on the file being exported to
+        || this.preferences.relativeFilePaths
       )
       Zotero.debug('export caching:' + this.caching)
     }
@@ -11220,7 +11223,7 @@ class Reference {
         }
         if (f.raw || raw)
             return f.value;
-        const caseConversion = !Translator.preferences.suppressTitleCase && (this.caseConversion[f.name] || f.caseConversion);
+        const caseConversion = this.caseConversion[f.name] || f.caseConversion;
         const latex = unicode_translator_1.text2latex(f.value, { html: f.html, caseConversion: caseConversion && this.english });
         let value = latex.latex;
         if (caseConversion && Translator.BetterBibTeX && !this.english)
