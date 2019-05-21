@@ -9,10 +9,10 @@
 	"priority": 100,
 	"inRepository": false,
 	"configOptions": {
-		"hash": "87978f835581dba67ee077b19777278e-45cd41e0f0886212f775ff496e60c0c4"
+		"hash": "87978f835581dba67ee077b19777278e-70c1392f7a3049a0419eb332cc698ab9"
 	},
 	"browserSupport": "gcsv",
-	"lastUpdated": "2019-05-14 09:52:53"
+	"lastUpdated": "2019-05-19 12:55:55"
 }
 
 var Translator = {
@@ -301,7 +301,12 @@ Translator.doExport = () => {
         node(id, _item.citekey);
         items[_item.citekey] = {
             id,
-            cites: (_item.extra || '').split('\n').filter(line => line.startsWith('cites:')).map(line => line.replace(/^cites:/, '').trim()).filter(key => key),
+            cites: [].concat.apply([], (_item.extra || '')
+                .split('\n')
+                .filter(line => line.startsWith('cites:'))
+                .map(line => line.replace(/^cites:/, '').trim())
+                .filter(keys => keys)
+                .map(keys => keys.split(/\s*,\s*/))),
         };
     }
     debug_1.debug(items);

@@ -15,7 +15,7 @@
 	"displayOptions": {
 		"exportNotes": true
 	},
-	"lastUpdated": "2019-04-12 02:25:00"
+	"lastUpdated": "2019-05-21 02:05:00"
 }
 
 /*
@@ -320,7 +320,15 @@ var ns = "http://www.loc.gov/mods/v3",
 	xns = { m: ns };
 
 function detectImport() {
-	var doc = Zotero.getXML().documentElement;
+	let doc;
+	try {
+		doc = Zotero.getXML().documentElement;
+	}
+	catch (err) {
+		// most likely just not XML
+		return false;
+	}
+
 	if (!doc) {
 		return false;
 	}
