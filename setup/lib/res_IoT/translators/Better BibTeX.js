@@ -11,7 +11,7 @@
 	"configOptions": {
 		"async": true,
 		"getCollections": true,
-		"hash": "1eccbff513f3c17519358919e371de27-bda59dd5389fe70b3f39927d57a9ad0f"
+		"hash": "1eccbff513f3c17519358919e371de27-b9ee2d972cabad4db9aefc557d2d91a2"
 	},
 	"displayOptions": {
 		"exportNotes": false,
@@ -20,7 +20,7 @@
 		"keepUpdated": false
 	},
 	"browserSupport": "gcsv",
-	"lastUpdated": "2019-05-19 12:55:55"
+	"lastUpdated": "2019-05-28 09:00:23"
 }
 
 var Translator = {
@@ -10419,6 +10419,7 @@ reference_1.Reference.prototype.fieldEncoding = {
     institution: 'literal',
     publisher: 'literal',
     organization: 'literal',
+    address: 'literal',
 };
 reference_1.Reference.prototype.lint = function (explanation) {
     const required = {
@@ -12544,7 +12545,15 @@ class Reference {
         const caseConversion = this.caseConversion[f.name] || f.caseConversion;
         const latex = unicode_translator_1.text2latex(f.value, { html: f.html, caseConversion: caseConversion && this.english });
         let value = latex.latex;
-        if (caseConversion && Translator.BetterBibTeX && !this.english)
+        /*
+          biblatex has a langid field it can use to exclude non-English
+          titles from any lowercasing a style might request, so no
+          additional protection by BBT is necessary. bibtex lacks a
+          comparable mechanism, so the only thing BBT can do to tell
+          bibtex to back off from non-English titles is to wrap the whole
+          thing in braces.
+        */
+        if (caseConversion && Translator.BetterBibTeX && !this.english && !Translator.preferences.suppressBraceProtection)
             value = `{${value}}`;
         if (f.value instanceof String && !latex.raw)
             value = new String(`{${value}}`); // tslint:disable-line:no-construct
