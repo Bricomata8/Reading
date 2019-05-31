@@ -1,200 +1,0 @@
-CS109 – Data Science
-Joe Blitzstein, Hanspeter Pfister, Verena Kaynig-Fittkau vkaynig@seas.harvard.edu staff@cs109.org
-
-Announcements
-• Homework Collaboration Policy:
-– See Syllabus on CS109.org – The work you turn in must be your own – This is a data science course. It takes us 20
-minutes to get a similarity ranking of all homework submissions.
-
-k1 v1 k2 v2 k3 v3 k4 v4 k5 v5 k6 v6
-
-map
-
-map
-
-map
-
-map
-
-Shuffle and Sort: aggregate values by keys
-
-a 15
-
-b 27
-
-c 298
-
-reduce
-a6
-
-reduce
-b9
-
-reduce
-c 19
-
-Example Input File
-…
-
-Importance of Local Aggregation
-• Ideal scaling characteristics:
-– Twice the data, twice the running time – Twice the resources, half the running time
-• Why can’t we achieve this?
-– Synchronization requires communication – Communication kills performance
-• Thus… avoid communication!
-– Reduce intermediate data via local aggregation – Two possibilities:
-• Combiners • In-mapper combining
-
-k1 v1 k2 v2 k3 v3 k4 v4 k5 v5 k6 v6
-
-map
-
-map
-
-map
-
-map
-
-a1 b2 combine
-
-c3 c6 combine
-
-a5 c2 combine
-
-b7 c8 combine
-
-a1 b2
-
-c9
-
-a5 c2
-
-b7 c8
-
-partition
-
-partition
-
-partition
-
-partition
-
-Shuffle and Sort: aggregate values by keys
-
-a 15
-
-b 27
-
-c 298
-
-reduce
-r1 s1
-
-reduce
-r2 s2
-
-reduce
-r3 s3
-
-Combiner
-• “mini-reducers” • Takes mapper output before shuffle and sort • Can significantly reduce network traffic • No access to other mappers • Not guaranteed to get all values for a key • Not guaranteed to run at all! • Key and value output must match mapper
-Why does the key and value output have to match the mapper output?
-
-Word Count with Combiner
-
-Combiner Design
-• Combiners and reducers share same method signature
-– Sometimes, reducers can serve as combiners – Often, not…
-• Remember: combiners are optional optimizations
-– Should not affect algorithm correctness – May be run 0, 1, or multiple times
-• Example: find average of all integers associated with the same key
-
-Computing the Mean: Version 1
-Why can’t we use reducer as combiner?
-
-Computing the Mean: Version 2
-Why doesn’t this work?
-
-Computing the Mean: Version 3
-Fixed? What if combiner does not run?
-
-In-Mapper Combining
-• “Fold the functionality of the combiner into the mapper by preserving state across multiple map calls
-
-In-Mapper Combining
-• Advantages
-– Speed – Why is this faster than actual combiners?
-• Disadvantages
-– Explicit memory management required – Potential for order-dependent bugs
-
-Word Count with In-Mapper-Comb.
-
-Which is better?
-• For large dictionaries?
-– Combiner has no memory problems
-• For skewed word distributions (“the”)?
-– In-mapper reduces load on reducer
-
-Pairs and Stripes:
-• Term co-occurrence matrix for a text collection
-– M = N x N matrix (N = vocabulary size) – Mij: number of times i and j co-occur in some
-context – Context can be a sentence, sequence of m words,
-etc. – In this case co-occurrence matrix is symmetric
-
-MapReduce: Large Counting Problems
-• Term co-occurrence matrix for a text collection = specific instance of a large counting problem
-– A large event space (number of terms) – A large number of observations (the collection itself) – Goal: keep track of interesting statistics about the
-events
-• Basic approach
-– Mappers generate partial counts – Reducers aggregate partial counts
-
-First Try: “Pairs”
-• Each mapper takes a sentence:
-– Generate all co-occurring term pairs – For all pairs, emit (a, b) → count
-• Reducers sum up counts associated with these pairs
-• Use combiners!
-
-Pairs: Pseudo-Code
-
-“Pairs” Analysis
-• Advantages
-– Easy to implement, easy to understand
-• Disadvantages
-– Lots of pairs to sort and shuffle around – Not many opportunities for combiners to work
-
-Another Try: “Stripes”
-
- Idea: group together pairs into an associative array
-
-(a, b) → 1 (a, c) → 2 (a, d) → 5 (a, e) → 3 (a, f) → 2
-
-a → { b: 1, c: 2, d: 5, e: 3, f: 2 }
-
- Each mapper takes a sentence:
-
- Generate all co-occurring term pairs  For each term, emit a → { b: countb, c: countc, d: countd … }
- Reducers perform element-wise sum of associative arrays
-
-a → { b: 1, d: 5, e: 3 }
-
-+ a → { b: 1, c: 2, d: 2,
-
-f: 2 }
-
-a → { b: 2, c: 2, d: 7, e: 3, f: 2 }
-
-Stripes: Pseudo-Code
-
-“Stripes” Analysis
-• Advantages
-– Far less sorting and shuffling of key-value pairs – Keys are less unique than in pairs approach – Can make better use of combiners
-• Disadvantages
-– More difficult to implement – Underlying object more heavyweight – Fundamental limitation in terms of size of event
-space
-
-Cluster size: 38 cores Data Source: Associated Press Worldstream (APW) of the English Gigaword Corpus (v3), which contains 2.27 million documents (1.8 GB compressed, 5.7 GB uncompressed)
-
-Map Reduce for Machine Learning
-• Random Forest? • SVM?
-
-
