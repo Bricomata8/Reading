@@ -1,15 +1,15 @@
 {
 	"translatorID": "e623eec7-ad54-4201-b709-654bf3fd7f70",
+	"translatorType": 4,
 	"label": "Washington Monthly",
 	"creator": "Philipp Zumstein",
 	"target": "^https?://(www\\.)?washingtonmonthly\\.com",
 	"minVersion": "3.0",
-	"maxVersion": "",
+	"maxVersion": null,
 	"priority": 100,
 	"inRepository": true,
-	"translatorType": 4,
 	"browserSupport": "gcsibv",
-	"lastUpdated": "2017-06-25 18:58:09"
+	"lastUpdated": "2019-06-11 20:25:00"
 }
 
 /*
@@ -38,16 +38,18 @@
 
 function detectWeb(doc, url) {
 	var header = ZU.xpath(doc, '//header[contains(@class, "entry-header")]');
-	if (header && header.length==1) {
-		if (url.indexOf('/magazine/')>-1) {
+	if (header && header.length == 1) {
+		if (url.includes('/magazine/')) {
 			return 'magazineArticle';
-		} else {
+		}
+		else {
 			return 'blogPost';
 		}
 	}
 	if (getSearchResults(doc, true)) {
 		return "multiple";
 	}
+	return false;
 }
 
 
@@ -55,7 +57,7 @@ function getSearchResults(doc, checkOnly) {
 	var items = {};
 	var found = false;
 	var rows = ZU.xpath(doc, '//h3[contains(@class, "entry-title")]/a');
-	for (var i=0; i<rows.length; i++) {
+	for (var i = 0; i < rows.length; i++) {
 		var href = rows[i].href;
 		var title = ZU.trimInternal(rows[i].textContent);
 		if (!href || !title) continue;
@@ -70,23 +72,23 @@ function getSearchResults(doc, checkOnly) {
 function doWeb(doc, url) {
 	if (detectWeb(doc, url) == "multiple") {
 		Zotero.selectItems(getSearchResults(doc, false), function (items) {
-			if (!items) {
-				return true;
-			}
+			if (!items) return;
+
 			var articles = [];
 			for (var i in items) {
 				articles.push(i);
 			}
 			ZU.processDocuments(articles, scrape);
 		});
-	} else {
+	}
+	else {
 		scrape(doc, url);
 	}
 }
 
 
 function scrape(doc, url) {
-	var type = (url.indexOf('/magazine/')>-1) ? 'magazineArticle' : 'blogPost';
+	var type = url.includes('/magazine/') ? 'magazineArticle' : 'blogPost';
 	
 	var translator = Zotero.loadTranslator('web');
 	// Embedded Metadata
@@ -98,17 +100,17 @@ function scrape(doc, url) {
 		var authors = ZU.xpathText(header, './/div[contains(@class, "author-info")]/a[contains(@class, "author-name")]');
 		if (authors) {
 			var authorsList = authors.split(' and ');
-			for (var i=0; i<authorsList.length; i++) {
+			for (var i = 0; i < authorsList.length; i++) {
 				item.creators.push(ZU.cleanAuthor(authorsList[i], "author"));
 			}
 		}
 		item.volume = ZU.xpathText(header, './div[contains(@class, "issue-header")]');
 		var category = ZU.xpathText(header, './div[contains(@class, "header-tag")]');
-		if (type=="blogPost" && category) {
+		if (type == "blogPost" && category) {
 			delete item.publicationTitle;
 			item.blogTitle = "Washington Monthly - " + category.trim();
 		}
-		if (type=="magazineArticle") {
+		if (type == "magazineArticle") {
 			item.ISSN = "0043-0633";
 		}
 		item.complete();
