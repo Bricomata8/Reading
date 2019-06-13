@@ -11,14 +11,15 @@
 	"configOptions": {
 		"async": true,
 		"getCollections": true,
-		"hash": "04d92027a1e88b688db8db2c42cee1bb-d9525b9cd18b860be2ce0b44821c1c5a"
+		"hash": "f90c1c0518d3627a1b438e160c4b72f5-5c3636823db12884e3074bf8d79009ea"
 	},
 	"displayOptions": {
 		"exportNotes": true,
-		"exportFileData": false
+		"exportFileData": false,
+		"keepUpdated": false
 	},
 	"browserSupport": "gcsv",
-	"lastUpdated": "2019-05-14 09:52:53"
+	"lastUpdated": "2019-06-12 07:34:22"
 }
 
 var Translator = {
@@ -29,7 +30,7 @@ var Translator = {
   header: ZOTERO_TRANSLATOR_INFO,
   // header: < %- JSON.stringify(header) % >,
   preferences: {"DOIandURL":"both","ascii":"","asciiBibLaTeX":false,"asciiBibTeX":true,"autoAbbrev":false,"autoAbbrevStyle":"","autoExport":"immediate","autoExportDelay":1,"autoExportIdleWait":10,"autoExportPrimeExportCacheBatch":4,"autoExportPrimeExportCacheDelay":100,"autoExportPrimeExportCacheThreshold":0,"autoExportTooLong":10,"autoPin":false,"auxImport":false,"biblatexExtendedDateFormat":true,"biblatexExtendedNameFormat":false,"bibtexParticleNoOp":false,"bibtexURL":"off","cacheFlushInterval":5,"citeCommand":"cite","citekeyFold":true,"citekeyFormat":"​[auth:lower][shorttitle3_3][year]","citeprocNoteCitekey":false,"csquotes":"","exportBibTeXStrings":"off","git":"config","importBibTeXStrings":true,"itemObserverDelay":100,"jabrefFormat":0,"keyConflictPolicy":"keep","keyScope":"library","kuroshiro":false,"lockedInit":false,"parseParticles":true,"postscript":"","qualityReport":false,"quickCopyMode":"latex","quickCopyPandocBrackets":false,"rawLaTag":"#LaTeX","relativeFilePaths":false,"scrubDatabase":false,"skipFields":"","skipWords":"a,ab,aboard,about,above,across,after,against,al,along,amid,among,an,and,anti,around,as,at,before,behind,below,beneath,beside,besides,between,beyond,but,by,d,da,das,de,del,dell,dello,dei,degli,della,dell,delle,dem,den,der,des,despite,die,do,down,du,during,ein,eine,einem,einen,einer,eines,el,en,et,except,for,from,gli,i,il,in,inside,into,is,l,la,las,le,les,like,lo,los,near,nor,of,off,on,onto,or,over,past,per,plus,round,save,since,so,some,sur,than,the,through,to,toward,towards,un,una,unas,under,underneath,une,unlike,uno,unos,until,up,upon,versus,via,von,while,with,within,without,yet,zu,zum","sorted":false,"strings":"","suppressBraceProtection":false,"suppressTitleCase":false,"warnBulkModify":10},
-  options: {"exportFileData":false,"exportNotes":true},
+  options: {"exportFileData":false,"exportNotes":true,"keepUpdated":false},
 
   stringCompare: (new Intl.Collator('en')).compare,
 
@@ -1955,15 +1956,21 @@ Translator.doExport = () => {
             }
         }
         for (const att of item.attachments || []) {
-            att.path = att.localpath;
+            if (Translator.options.exportFileData && att.saveFile && att.defaultPath) {
+                att.saveFile(att.defaultPath, true);
+                att.path = att.defaultPath;
+            }
+            else if (att.localPath) {
+                att.path = att.localPath;
+            }
+            if (!att.path)
+                continue; // amazon/googlebooks etc links show up as atachments without a path
+            att.relations = att.relations ? (att.relations['dc:relation'] || []) : [];
             for (const field of Object.keys(att)) {
-                att.relations = att.relations ? (att.relations['dc:relation'] || []) : [];
                 if (!validAttachmentFields.has(field))
                     delete att[field];
             }
         }
-        if (item.relations)
-            debug_1.debug('adding item', item);
         data.items.push(item);
     }
     debug_1.debug('data ready');
