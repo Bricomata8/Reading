@@ -10,7 +10,7 @@
 	"inRepository": false,
 	"configOptions": {
 		"getCollections": true,
-		"hash": "718c341a70c67e8c778d26c41242462d-b91baa45e1ceb8251606eca442ca10c7"
+		"hash": "718c341a70c67e8c778d26c41242462d-72e9b56a362922def73e0aa1047fbacc"
 	},
 	"displayOptions": {
 		"exportNotes": false,
@@ -18,7 +18,7 @@
 		"useJournalAbbreviation": false,
 		"keepUpdated": false
 	},
-	"lastUpdated": "2019-05-28 09:00:23"
+	"lastUpdated": "2019-06-14 08:28:30"
 }
 
 var Translator = {
@@ -9654,8 +9654,12 @@ const fieldSet = {
   'optional_online': new Set([
     'addendum',
     'author',
+    'doi',
     'editor',
     'editortype',
+    'eprint',
+    'eprintclass',
+    'eprinttype',
     'language',
     'note',
     'organization',
@@ -9855,6 +9859,9 @@ const fieldSet = {
   'optional_unpublished': new Set([
     'addendum',
     'author',
+    'eventdate',
+    'eventtitle',
+    'eventtitleaddon',
     'howpublished',
     'language',
     'location',
@@ -9862,7 +9869,9 @@ const fieldSet = {
     'pubstate',
     'subtitle',
     'title',
-    'titleaddon'
+    'titleaddon',
+    'type',
+    'venue'
   ])
 }
 const allowed = {
@@ -11065,22 +11074,23 @@ class Reference {
             this.add({ name: 'note', value: this.item.extra });
             this.add({ name: annotation, value: notes, html: true });
         }
-        let cache;
+        // I do this all the way here because there are lots of ways we could end up with an urldate; literal bibtex fields, csl cheater syntax, and, of course, accessDate
+        if (!this.has.url && this.has.urldate)
+            this.remove('urldate');
+        let cachable;
         try {
-            cache = this.postscript(this, this.item);
+            cachable = this.postscript(this, this.item);
         }
         catch (err) {
             if (Translator.preferences.testing && !Zotero.getHiddenPref('better-bibtex.postscriptProductionMode'))
                 throw err;
             debug_1.debug('Reference.postscript failed:', err);
-            cache = false;
+            cachable = false;
         }
-        this.cachable = this.cachable && (typeof cache !== 'boolean' || cache);
+        this.cachable = this.cachable && (typeof cachable !== 'boolean' || cachable);
         for (const name of Translator.preferences.skipFields) {
             this.remove(name);
         }
-        if (!this.has.url && this.has.urldate)
-            this.remove('urldate');
         if (!Object.keys(this.has).length)
             this.add({ name: 'type', value: this.referencetype });
         const fields = Object.values(this.has).map(field => `  ${field.name} = ${field.bibtex}`);

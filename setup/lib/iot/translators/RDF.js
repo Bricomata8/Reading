@@ -13,7 +13,7 @@
 		"async": true,
 		"dataMode": "rdf/xml"
 	},
-	"lastUpdated": "2018-10-09 03:15:00"
+	"lastUpdated": "2019-06-15 13:25:00"
 }
 
 /*
@@ -143,7 +143,7 @@ function handleCreators(newItem, creators, creatorType) {
 			if (c.firstName || c.lastName) return c;
 
 			c = getFirstResults(obj, [n.so+"name"], true);
-			if (c) return ZU.cleanAuthor(c, creatorType);
+			if (c) return ZU.cleanAuthor(c, creatorType, c.includes(','));
 		}
 	}
 

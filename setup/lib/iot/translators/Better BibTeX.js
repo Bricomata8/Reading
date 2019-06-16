@@ -11,7 +11,7 @@
 	"configOptions": {
 		"async": true,
 		"getCollections": true,
-		"hash": "1eccbff513f3c17519358919e371de27-b9ee2d972cabad4db9aefc557d2d91a2"
+		"hash": "1eccbff513f3c17519358919e371de27-98652859e0fba8040ce2c1b7eb7f8f7e"
 	},
 	"displayOptions": {
 		"exportNotes": false,
@@ -20,7 +20,7 @@
 		"keepUpdated": false
 	},
 	"browserSupport": "gcsv",
-	"lastUpdated": "2019-05-28 09:00:23"
+	"lastUpdated": "2019-06-14 08:28:30"
 }
 
 var Translator = {
@@ -12382,22 +12382,23 @@ class Reference {
             this.add({ name: 'note', value: this.item.extra });
             this.add({ name: annotation, value: notes, html: true });
         }
-        let cache;
+        // I do this all the way here because there are lots of ways we could end up with an urldate; literal bibtex fields, csl cheater syntax, and, of course, accessDate
+        if (!this.has.url && this.has.urldate)
+            this.remove('urldate');
+        let cachable;
         try {
-            cache = this.postscript(this, this.item);
+            cachable = this.postscript(this, this.item);
         }
         catch (err) {
             if (Translator.preferences.testing && !Zotero.getHiddenPref('better-bibtex.postscriptProductionMode'))
                 throw err;
             debug_1.debug('Reference.postscript failed:', err);
-            cache = false;
+            cachable = false;
         }
-        this.cachable = this.cachable && (typeof cache !== 'boolean' || cache);
+        this.cachable = this.cachable && (typeof cachable !== 'boolean' || cachable);
         for (const name of Translator.preferences.skipFields) {
             this.remove(name);
         }
-        if (!this.has.url && this.has.urldate)
-            this.remove('urldate');
         if (!Object.keys(this.has).length)
             this.add({ name: 'type', value: this.referencetype });
         const fields = Object.values(this.has).map(field => `  ${field.name} = ${field.bibtex}`);
