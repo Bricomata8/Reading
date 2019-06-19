@@ -10,7 +10,7 @@
 	"inRepository": false,
 	"configOptions": {
 		"getCollections": true,
-		"hash": "718c341a70c67e8c778d26c41242462d-72e9b56a362922def73e0aa1047fbacc"
+		"hash": "718c341a70c67e8c778d26c41242462d-d6d72abb5576d326ea3133fe2faf2bfb"
 	},
 	"displayOptions": {
 		"exportNotes": false,
@@ -18,7 +18,7 @@
 		"useJournalAbbreviation": false,
 		"keepUpdated": false
 	},
-	"lastUpdated": "2019-06-14 08:28:30"
+	"lastUpdated": "2019-06-19 12:05:31"
 }
 
 var Translator = {
@@ -10883,7 +10883,7 @@ class Reference {
             name = itemtype_name[1];
         }
         else {
-            name = itemtype_name;
+            name = field.name;
         }
         if ((typeof field.value === 'string') && (field.value.trim() === '')) {
             this.remove(name);
@@ -11074,23 +11074,22 @@ class Reference {
             this.add({ name: 'note', value: this.item.extra });
             this.add({ name: annotation, value: notes, html: true });
         }
-        // I do this all the way here because there are lots of ways we could end up with an urldate; literal bibtex fields, csl cheater syntax, and, of course, accessDate
-        if (!this.has.url && this.has.urldate)
-            this.remove('urldate');
-        let cachable;
+        let cache;
         try {
-            cachable = this.postscript(this, this.item);
+            cache = this.postscript(this, this.item);
         }
         catch (err) {
             if (Translator.preferences.testing && !Zotero.getHiddenPref('better-bibtex.postscriptProductionMode'))
                 throw err;
             debug_1.debug('Reference.postscript failed:', err);
-            cachable = false;
+            cache = false;
         }
-        this.cachable = this.cachable && (typeof cachable !== 'boolean' || cachable);
+        this.cachable = this.cachable && (typeof cache !== 'boolean' || cache);
         for (const name of Translator.preferences.skipFields) {
             this.remove(name);
         }
+        if (!this.has.url && this.has.urldate)
+            this.remove('urldate');
         if (!Object.keys(this.has).length)
             this.add({ name: 'type', value: this.referencetype });
         const fields = Object.values(this.has).map(field => `  ${field.name} = ${field.bibtex}`);
@@ -11210,10 +11209,10 @@ class Reference {
      * @param {field} field to encode.
      * @return {String} field.value encoded as author-style value
      */
-    enc_literal(f) {
+    enc_literal(f, raw = false) {
         if (!f.value)
             return null;
-        return this.enc_latex({ value: Translator.preferences.suppressBraceProtection ? f.value : new String(f.value) }); // tslint:disable-line:no-construct
+        return this.enc_latex(Object.assign({}, f, { value: Translator.preferences.suppressBraceProtection ? f.value : new String(f.value) }), raw); // tslint:disable-line:no-construct
     }
     /*
      * Encode text to LaTeX
