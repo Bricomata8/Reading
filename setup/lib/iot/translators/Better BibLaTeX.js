@@ -10,7 +10,7 @@
 	"inRepository": false,
 	"configOptions": {
 		"getCollections": true,
-		"hash": "718c341a70c67e8c778d26c41242462d-04f4062903ee998c90663e7ec0548330"
+		"hash": "718c341a70c67e8c778d26c41242462d-d6d72abb5576d326ea3133fe2faf2bfb"
 	},
 	"displayOptions": {
 		"exportNotes": false,
@@ -18,7 +18,7 @@
 		"useJournalAbbreviation": false,
 		"keepUpdated": false
 	},
-	"lastUpdated": "2019-06-28 14:24:26"
+	"lastUpdated": "2019-06-19 12:05:31"
 }
 
 var Translator = {
@@ -10834,12 +10834,10 @@ class Reference {
                 if (!value)
                     return;
                 value = value.trim();
-                // scrub fields of unwanted {}, but not if it's a raw field or a bare field without spaces
                 if (!field.bare || field.value.match(/\s/)) {
                     // clean up unnecesary {} when followed by a char that safely terminates the command before
                     // value = value.replace(/({})+($|[{}$\/\\.;,])/g, '$2') // don't remove trailing {} https://github.com/retorquere/zotero-better-bibtex/issues/1091
-                    if (!(this.raw || field.raw))
-                        value = value.replace(/({})+([{}\$\/\\\.;,])/g, '$2');
+                    value = value.replace(/({})+([{}\$\/\\\.;,])/g, '$2');
                     value = `{${value}}`;
                 }
                 field.bibtex = value;

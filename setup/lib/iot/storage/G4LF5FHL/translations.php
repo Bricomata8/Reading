@@ -1,0 +1,9 @@
+var locale = 'en';
+var translations = {"Voir l'export":"Show export","T\u00e9l\u00e9charger l'export":"Download export","Le choix des champs n'est pas possible avec ce format":"Selecting fields is not possible with this format","Partager sur Facebook":"Share on Facebook","\u00c9pingler sur Pinterest":"Pin it","T\u00e9l\u00e9charger l\\'image":"Download image","Vue simplifi\u00e9e":"Simplified view","Vue d\u00e9taill\u00e9e":"Detailled view","haladmin":"HAL administrator","administrator":"Administrator","adminstruct":"R\u00e9f\u00e9rent Structure","moderateur":"Valideur technique","validateur":"Valideur scientifique","tamponneur":"Gestionnaire de collection","loadDoc":"Loading file","loadMeta":"Loading metadata","loadAff":"Looking for an author affiliation","copyStructure":"Affiliation loading","switchMain":"Switch main file","rechargeForm":"Recharging your form","reloadFiles":"Loading files in session","addIdext":"Adding external identifier","changeType":"Update document type","testArxiv":"Test Arxiv transmission","latexCompilation":"Latex compilation running","unzipFile":"File decompression","saveSubmission":"Saving submission","Fichier principal du d\u00e9p\u00f4t":"Main file","D\u00e9finir comme fichier principal":"Select as main file","Des\u00e9lectionner le fichier principal":"Unselect as main file","Erreur du serveur. Veuillez contacter le support : hal.support@ccsd.cnrs.fr":"Server error. Please contact us : hal.support@ccsd.cnrs.fr","Afficher la carte":"Display the map","Masquer la carte":"Hide the map","Double-cliquez pour changer la position du rep\u00e8re":"Double-click in any location to change the marker","Cr\u00e9er une nouvelle zone":"Create a new zone","Cliquez sur le \u2b1b pour cr\u00e9er une nouvelle zone":"Click on the \u2b1b to create a new zone"}
+
+function translate ($key) {
+if (translations[$key] == undefined) {
+return $key;
+}
+return translations[$key];
+}
