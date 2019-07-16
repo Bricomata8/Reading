@@ -9,10 +9,10 @@
 	"priority": 100,
 	"inRepository": false,
 	"configOptions": {
-		"hash": "a39fe44d2f6526ceddc20f9e248281a4-70c1392f7a3049a0419eb332cc698ab9"
+		"hash": "4b7192f0fdbee55c8bc3a8447c03c65f-70c1392f7a3049a0419eb332cc698ab9"
 	},
 	"browserSupport": "gcsv",
-	"lastUpdated": "2019-07-08 11:49:05"
+	"lastUpdated": "2019-07-12 08:01:52"
 }
 
 var Translator = {
@@ -81,9 +81,8 @@ var Translator = {
       this.preferences[pref] = value
     }
     // special handling
-    this.preferences.skipWords = this.preferences.skipWords.toLowerCase().trim().split(/\s*,\s*/).filter(function(s) { return s })
-    this.preferences.skipFields = this.preferences.skipFields.toLowerCase().trim().split(/\s*,\s*/).filter(function(s) { return s })
-    this.preferences.skipField = this.preferences.skipFields.reduce((acc, field) => { acc[field] = true; return acc }, {})
+    this.skipFields = this.preferences.skipFields.toLowerCase().trim().split(/\s*,\s*/).filter(function(s) { return s })
+    this.skipField = this.skipFields.reduce((acc, field) => { acc[field] = true; return acc }, {})
     this.preferences.testing = Zotero.getHiddenPref('better-bibtex.testing')
     Zotero.debug('prefs loaded: ' + JSON.stringify(this.preferences, null, 2))
 
