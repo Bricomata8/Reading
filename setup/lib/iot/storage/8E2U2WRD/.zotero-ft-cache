@@ -1,0 +1,888 @@
+Nonnegatively Constrained Tensor Network for Classiﬁcation Problems
+Rafał Zdunek, Krzysztof Fonał Wroclaw University of Science and Technology, Faculty of Electronics,
+Wybrzeze Wyspianskiego 27, 50-370 Wroclaw, Poland Emails: {rafal.zdunek, krzysztof.fonal}@pwr.edu.pl
+
+Abstract—In the era of big data, massive data are multimodal and highly dimensional, and their processing and analysis is often performed in distributed computing systems, including cloud computing, fog computing as well as ubiquitous network computing. However, a curse of dimensionality strongly limits the usage of fundamental machine learning methods, and hence new state-of-the art models for multi-way data are needed. In this study, we discuss a possibility of using one speciﬁc topology of tensor networks for solving multi-label classiﬁcation problems, under the assumption that the data are gathered in the form of nonnegatively constrained multi-way arrays, and can be represented by a tensor-train model. We propose a new computational algorithm for extracting low-rank and nonnegative 2D features, and show how to apply this algorithm for solving classiﬁcation problems. The computational experiments demonstrated that our approach outperforms the fundamental and state-of-the art methods for dimensionality reduction and classiﬁcation problems.
+Index Terms—machine learning, tensor networks, big data networks, tensor train, classiﬁcation
+I. INTRODUCTION
+In the network theory, a graph representing either symmetric as well as asymmetric edges between nodes is regarded as a network [1]. Such a model is used in many disciplines of science, particularly in computer science, technology and communication, biology, physics, and sociology. In a widerange of applications, the networks can be divided into application-oriented groups [2]–[4] that are usually speciﬁed by a corresponding adjective or noun adjunct, e.g. such as telecommunication, broadcast, electrical, neural, biology, social, transportation, etc.. The interpretation of network elements (nodes and edges) in each type of network is different. For example, the nodes in a computer network are represented by computers that share resources by data links, while the nodes in a neural networks are neurons that are interconnected by synaptic connections. Topologies of networks can also differ signiﬁcantly in each type, ranging from simple ones, such as lines, rings, stars, trees, buses, to highly complex with hierarchical levels and various degrees of abstraction.
+This study is concerned with an emerging application of the network theory, i.e. a tensor network (TN) [5]. In this type of a network, the nodes are represented by multi-way arrays, often referred to as tensors, which are connected by pair of modes along which the tensors are contracted. The concept of TN was initialized at least in the 70’s in quantum physics [6], [7], which resulted in the creation of many topologies of TN, such as the Matrix Product States (MPS) [8], [9],
+
+Matrix Product Operators (MPO) [10], Tree Tensor Networks (TTN) [11], Quantics TT (QTT) [12], the Multi-scale Entanglement Renormalization Ansatz (MERA) [13], and Projected Entangled Pair States (PEPS) [14]. Currently it is developed in many areas of computer science, including signal processing, machine learning, and large-scale computations. Cichocki et al. published a comprehensive review of TN in a series of research papers [15]–[17], emphasising a potential of TN for big data analytics and large-scale optimization problems. TNs have many important advantageous over traditional matrix and tensor decomposition models that are so popular in multiple disciplines of science. One of them is so-called blessing of dimensionality. It relaxes a curse of dimensionality which intrinsically arises in highly dimensional multi-linear models. An increase in dimensionality results in an exponential grow of the volume of the corresponding high-dimensional space that leads to excessive sparsiﬁcation of data, and in consequence a decrease in their statistical signiﬁcance. TNs break down this problem by diminishing the dimensionality due to an increase in their modality (more modes). Moreover, reshaping of high-dimensional multi-way arrays to a longer but lowdimensional tensors is more computationally efﬁcient, and low-rank representations of such objects usually involve much less storage resources.
+The reshaped or tensorized data can be represented by many models of TNs. The study presented here is restricted to the Tensor Train (TT) which is known in the quantum physics as MPS. It allows us to decompose a multi-array data into a set of 3-way core tensors connected in the form of a line topology. The TT model was successfully applied in many disciplines of science and engineering, especially in quantum physics [18], [19], chemistry [20], [21], signal and image processing [16], [17], [22]–[24], and machine learning [25]. The core tensors in TT are usually computed with the algorithms that are based on the underlying Singular Value Decomposition (SVD). This approach was proposed by Oseledets [26], and then developed in many papers, e.g. [16], [22]–[25], [27].
+In many real-world applications, observed multi-way arrays contain only nonnegative numbers. The example of nonnegative data include images, spectra, probability and frequency matrices, etc. Representing such data with low-rank unconstrained models might be suboptimal because the unconstrained features may mutually suppress when their encoding vectors (coefﬁcients of their linear combinations) also contain
+
+978-1-7281-1340-1/19/$31.00 ©2019 IEEE
+
+218
+
+ICUFN 2019
+
+negative entries. The nonnegativity constraints imposed onto the model make the output approximations interpretable and with a physical meaning. The nonnegativity constrained lowrank models, such as Nonnegative Matrix Factorization (NMF) [28] or Nonnegative Tensor Factorization (NTF) [29] are wellknown in a wide range of applications. A survey of such models and the related algorithms can be found in [30], [31]. To our best knowledge, the nonnegativity constrained TT model has been only used by Lee et al. [32] for feature extraction from ERP data, where the underling algorithm for updating core tensors is based on a computational scheme of the Hierarchical Alternating Least-Squares (HALS) algorithm [30]. The Lee’s algorithm has only been used for solving clustering problems.
+In this study, we propose a new computational framework for updating the nonnegative core tensors in TT with any NMF algorithm, and apply it for solving classiﬁcation problems in machine learning. The framework is based on a recursive strategy of updating each core tensor in a chain, where all core tensors before and after an updating core are merged to two core subtensors. Moreover, NMF is applied in each recursive step to a matrix that belongs to a class of tall-andskinny. Hence, it can be easily factorized assuming the distributed computing strategy that was proposed in [33]. Then, we propose the TT-based projection algorithm that allows us to project testing multilinear samples on the subspaces spanned by the core tensors estimated for training samples. The numerical experiments demonstrate high efﬁciency of the proposed approach.
+The remainder of this paper is organised as follows. In Section II, we present the fundamentals for tensor decomposition models and review the fundamental models of tensor networks. Section III contains our contribution, together with pseudocodes of the proposed algorithms. The experimental results are described in Section IV. Finally, the conclusions are drawn in Section V.
+
+II. TENSOR NETWORK MODELS
+
+In this section, we give preliminaries on the selected tensor
+
+operations and brieﬂy describe the selected models of tensor
+
+networks . The notation for tensors and related operations used
+
+in this study are as followed. Calligraphic uppercase letters
+
+(e.g. X ) denotes tensors, boldface uppercase ones (e.g. X) –
+
+matrices; lowercase boldface ones (e.g. x) – vectors, and not
+
+bold letters are scalars. For the N -way array or N -th order tensor X ∈ RI1×...×IN , xi1,...,iN denotes the (i1, i2, . . . , iN )th element, xj stands for the j-th column of X. The symbol
+|| · ||F denotes the Frobenius norm. The set of nonnegative real numbers is denoted by R+. For a matrix, X ∈ RI+×J or X ≥ 0 means that all elements in X are nonnegative.
+
+Mode-n unfolding: Unfolding along the n-th mode, also
+
+known as the mode-n matricization, reshapes a N -way array
+
+X ∈ RI1×I2×...IN , into a matrix X(n) ∈ RIn× p=n Ip by
+
+mapping any tensor element xi1,...,iN to a matrix element
+
+xin,j , where j = 1 +
+
+N k=1
+
+(ik
+
+−
+
+1)jk
+
+with
+
+jk
+
+=
+
+k−1 m=1
+
+Im.
+
+k=n
+
+m=n
+
+The unfolding can also be done in other ways. The mode-
+
+{n} canonical matricization reshapes a tensor X to a matrix
+
+X <n>
+
+∈
+
+R
+
+n p=1
+
+Ip ×
+
+N r=n+1
+
+Ir
+
+by mapping tensor element
+
+xi1,...,iN to matrix element xi,j , where i = 1 + np=1(ip −
+
+1)
+
+p−1 m=1
+
+Im
+
+and
+
+j
+
+=
+
+1+
+
+N r>n
+
+(ir
+
+−
+
+1)
+
+r−1 m=n+1
+
+Im
+
+.
+
+Tensor contraction: Tensor contraction is a fundamen-
+
+tal operation in tensor networks that links tensors (nodes)
+
+into a network. It basically expressed a multiplication op-
+
+eration along the selected modes of two tensors, and it
+
+might be considered as a generalization of a matrix multiplication. The tensor X ∈ RI1×I2×...×IN can be linked along its n-th mode with the tensor Y ∈ RJ1×J2×...×JM
+
+along its m-th mode, provided that In = Jm. The
+
+modes {n, m} is a pair of contracting modes, i.e the
+
+modes along which the tensors are multiplied. The mode-
+
+m n
+
+product of X and Y gives the tensor Z = X ×m n
+
+Y ∈ RI1×...×In−1×In+1×...×IN ×J1×...×Jm−1×Jm+1×...×JM
+
+whose elements are calculated as:
+
+z = i1,...,in−1,in+1,...,iN ,j1,...,jm−1,jm+1,...,jM
+
+In
+
+=
+
+x y . i1,...,in−1,in,in+1,...,iN j1,...,jm−1,in,jm+1,...,jM
+
+in =1
+
+For easier presentation, super- or sub-index (m, n) can be
+
+omitted with assumption that ×1N is a default conﬁguration.
+
+For example: X ×n Y = X ×1n Y , and XY = X ×12 Y . The
+
+mode-
+
+1 N
+
+product is a special case for TT and is denoted by
+
+the operator •, i.e. X • Y = X ×1N Y.
+
+Tensor train model: The TT model of the tensor X ∈
+
+RI1×I2×...IN is formulated as follows:
+
+J1 J2
+
+JN −1
+
+X=
+
+...
+
+X1(1, :, j1) ◦ X2(j1, :, j2)
+
+j1=1 j2=1 jN−1=1
+
+◦ . . . ◦ XN (jN−1, :, 1)
+
+= X1 • X2 • . . . • XN ,
+
+(1)
+
+where ∀n : Xn ∈ RJn−1×In×Jn is the n-th core tensor, and the symbol ◦ stands for the outer product. The set
+{J0, J1, . . . , JN−1, JN } determine the TT-ranks, where J0 = JN = 1. The cores X1 ∈ RI1×J1 and XN ∈ RJN−1×IN can be regarded as matrices. Note that the n-th core tensor is linked
+with the (n + 1)-th core tensor only along one mode, i.e. the
+last mode of Xn is contracted with the ﬁrst mode of Xn+1 for n = 1, . . . , N − 1. In this way, X , modelled by a chain of
+core tensors, resembles a topology of a line network, shown in
+Fig. 1. Each intermediate circle, which represents a node being
+
+Fig. 1. Topology of the TT network
+a core tensor, has three links that represent the contraction
+
+219
+
+modes. The ﬁrst and last circle have only two links, which
+means that they denote matrices.
+Hierarchical Tucker model: In the Hierarchical Tucker (HT) model, the tensor X ∈ RI1×I2×...IN with N = 2d, where d = 1, 2, . . ., is modeled by a multi-level binary tree structure
+which is shown in Fig. 2. HT is equivalent to TTN [11] in
+quantum physics. The fundamental Tucker model is expressed by: X = G ×1 U (1) ×2 . . . ×N U (N), where G ∈ RJ1×...×JN is the core tensor, and U (n) ∈ RIn×Jn are factor matrices of ranks (J1, . . . , JN ) (the circles with digit ”0” in Fig. 2). The HT expands the core tensor G with a multi-level binary tree
+structure composed of 3-way core tensors (nodes), except for
+the top level. Each core tensor merges two modes at a given
+level. The nodes at the lowest level are marked by circles with digit ”1”, the top level (the circle with the letter ”L”) is
+represented by a matrix.
+
+entries) that can be represented by the model (1), which can be rewritten as follows:
+
+X = X1 • X2 • . . . • XN
+
+= X<n • Xn • X>n
+
+(2)
+
+= X<n • X≥n
+
+(3)
+
+= X≤n • X>n,
+
+(4)
+
+where X<n
+
+∈
+
+R , I1×...×In−1×Jn−1
++
+
+X>n ∈ RJ+n×In+1×...×IN , X≥n ∈
+
+X≤n ∈ RI+1×...×In×Jn .
+
+Xn
+
+∈
+
+RJn−1
++
+
+×In
+
+×Jn
+
+,
+
+RJn−1
++
+
+×In
+
+×...×IN
+
+,
+
+and
+
+Note that any entry of the model (3) is expressed by:
+
+xi1,...,iN =
+
+Jn−1 jn−1 =1
+
+(X<n )i1 ,...,in−1 ,jn−1
+
+(X≥n )jn−1 ,in ,...,iN
+
+.
+
+The mode-{n − 1} canonical matricization of (3) leads to:
+
+M n−1 = (X<n • X≥n)<n−1> ∈ RI+1·...·In−1×In·...·IN . (5)
+
+Applying NMF with rank Jn−1 to (5), we get:
+
+M n−1 = F n−1Zn−1,
+
+where F n−1
+
+∈
+
+RI1 ·...·In−1 ×Jn−1
++
+
+and
+
+RJn−1
++
+
+×In
+
+·...·IN
+
+.
+
+Then
+
+the
+
+matrices
+
+F n−1
+
+can be reshaped to the tensors
+
+(6)
+Zn−1 ∈ and Zn−1
+
+X<n = reshape(F n−1, [I1, . . . , In−1, Jn−1]),
+
+(7)
+
+and
+
+Fig. 2. Topology of the HT network
+Table I lists the storage complexity of the following tensor decomposition models: CANDECOMP/PARAFAC (CP), standard Tucker, HT, and TT, under the assumption that I1 = I2 = . . . = IN = I and J1 = J2 = . . . = JN = J .
+
+X≥n = reshape(Zn−1, [Jn−1, In, . . . , IN ]).
+
+(8)
+
+Similarly, the mode-{n} canonical matricization of X gives the matrix M n = X<n> ∈ RI+1·...·In×In+1·...·IN . Factorizing it with NMF at rank Jn, we obtain: M n = F nZn, where F n ∈ RI+1·...·In×Jn and Zn ∈ RJ+n×In+1·...·IN . Note that F n and Zn can be easily reshaped to the tensors of the model
+(4). Thus:
+
+TABLE I STORAGE COMPLEXITIES OF TENSOR DECOMPOSITION MODELS
+
+Model Full tensor format
+CP Tucker
+HT TT/MPS TT/MPO
+QTT
+
+Storage complexity O(IN )
+O(N IJ) O(N IJ + JN ) O(N IJ + N J3)
+O(N IJ2) O(N I2J 2) O(N J2 logq(I))
+
+III. ALGORITHM
+The most frequently-used algorithms for updating the core tensors in the model (1) is based on the SVD of the recursively reshaped TT model [16], [22]–[27]. In this study, we propose to update the core tensors with NMF due to its intrinsic nonnegativity constraints and our assumption that all the core tensors should contain nonnegative numbers. Let X ∈ RI+1×...×IN be a nonnegative tensor (with all nonnegative
+
+X≤n = reshape(F n, [I1, . . . , In, Jn]),
+
+(9)
+
+X>n = reshape(Zn, [Jn, In+1, . . . , IN ]).
+
+(10)
+
+To estimate the core tensors in (1), NMF can be applied
+
+recursively to reshaped matrices. For n = 1, we have: M 1 = X<1> = X(1) ∈ RI+1×I2·...·IN . Applying NMF with rank J1 to M 1, we have M 1 = F 1Z1, where F 1 ∈ RI+1×J1 and Z1 ∈ RJ+1×I2·...·IN . Note that F 1 = X≤1 = X1 ∈ RJ0×I1×J1 , assuming that J0 = 1, and Z1 can be reshaped
+
+to: X>1 = reshape(Z1, [J1, I2, . . . , IN ]). In the next step
+
+(n = 2), the mode-{2} canonical matricization is applied to
+
+X>1, which gives: M˜ 2 = (X>1)<2> ∈ RJ+1I2×I3·...·IN , and
+
+NMF
+
+of
+
+M˜ 2
+
+at
+
+rank
+
+J2
+
+gives
+
+us
+
+the
+
+factors
+
+F˜ 2
+
+∈
+
+RJ1 I2 ×J2
++
+
+and Z˜ 2 ∈ RJ+2×I3·...·IN . Then, X2 can be obtained from
+
+F˜ 2 by the reshaping: X2 = reshape(F˜ 2, [J1, I2, J3]), and
+
+X>2 = reshape(Z˜ 2, [J2, I3, . . . , IN ]). For n = 3, M˜ 3 =
+
+(X>2)<2> ∈ RJ+2I3×I4·...·IN , and the whole procedure repeats.
+
+In the above recursive procedure, the core tensors are
+
+estimated from the left side (X1) to the right side (XN ).
+
+Note that the opposite way of estimation is also possible.
+
+220
+
+Starting from n = N and using the model (3), we have
+
+X = X<N • X≥N . Following (5), we have: M N−1 =
+
+X<N−1> ∈ RI+1·...·IN−1×IN . For the right-left updating, NMF
+
+is
+
+applied
+
+to
+
+M
+
+T N
+
+−1
+
+,
+
+which
+
+gives:
+
+M
+
+T N
+
+−1
+
+=
+
+F¯ N−1Z¯ N−1,
+
+where F¯ N−1
+
+∈
+
+RI+N ×JN−1 , Z¯ N −1
+
+∈
+
+R , JN−1×I1·...·IN−1
++
+
+and
+
+XN
+
+=
+
+F¯
+
+T N
+
+−1.
+
+In
+
+the
+
+next
+
+step,
+
+(Z¯ N−1)T
+
+is
+
+reshaped
+
+to the tensor X<N
+
+∈
+
+R , I1×...×IN−1×JN−1
++
+
+and
+
+M¯ N−2
+
+=
+
+(X<N )<N−2>
+
+∈
+
+R . I1·...·IN−2×IN−1JN−1
++
+
+Next,
+
+NMF
+
+is
+
+ap-
+
+plied to (M¯ N−2)T at rank JN−1, and the recursive procedure
+
+repeats until n = 1.
+
+The multi-way samples are be ordered along an arbitrary
+
+mode but to have a higher ﬂexibility in selecting higher ranks,
+
+we proposed it was an interior mode. If the samples are
+
+ordered along the ﬁrst or last mode, then the modes of training
+
+and testing tensors should be permuted in such a way that the
+
+samples are represented by the n-th mode, where 1 < n < N .
+
+Following the concept of two-side recursive updates that was
+
+proposed in [34], both recursive procedures can be applied, e.g.
+
+according to the model (3). In the forward direction (from left
+
+to right), the core tensors {X1, X2, . . . , Xn−1} are estimated
+
+while the core tensors {XN , XN−1, . . . , Xn} are estimated
+
+in the backward direction (from right to left). The complete
+
+procedure is expressed by Algorithm 1.
+
+Algorithm 1 NMF-TT
+Input : X ∈ RI1×...×IN – N -way array of multilinear training samples, [J1, . . . , JN−1] – TT-ranks
+Output: {Xn} - estimated core tensors
+
+J0 = 1
+
+M = X(1) % Mode-1 unfolding
+
+for i = 1, . . . , n − 1 do
+
+Compute: M = F Z
+
+// NMF at rank Ji
+
+Xi = reshape(F , [Ji−1, Ii, Ji])
+
+M = reshape(Z, [JiIi+1,
+
+N p=i+2
+
+Ip])
+
+end
+
+M ← reshape(M , [Jn−1
+
+N p=n
+
+Ip
+
+,
+
+IN
+
++1])
+
+T
+
+JN+1 = 1
+
+for i = N + 1, . . . , n do
+
+Compute M = F Z
+
+// NMF at rank Ji
+
+Xi = reshape(F T , [Ji−1, Ii, Ji])
+
+M = reshape(Z, [Jn−1
+
+i−1 p=n
+
+Ip
+
+,
+
+Ji−1Ii−1])
+
+end
+
+Xn = reshape(M , [Jn−1, In, Jn])
+
+Remark 1: Assuming the computational complexity
+
+O(IJ T ) for NMF of Y ∈ RI+×T given the rank J , then
+
+we have O(
+
+i r=1
+
+Jr
+
+N p=i
+
+Ip)
+
+for
+
+any
+
+i-th
+
+step
+
+in
+
+Algorithm
+
+1. Thus, the computational complexity for all steps can be
+
+roughly approximated by O(
+
+N i=1
+
+i r=1
+
+Jr
+
+N p=i
+
+Ip).
+
+Algorithm 1 extracts the multilinear features from the
+
+multilinear training samples, stored in X . The core tensor
+
+Xn
+
+∈
+
+RJn−1 ×In ×Jn
++
+
+contains
+
+In
+
+2D
+
+features
+
+(Jn−1 × Jn)
+
+that
+
+are extracted from the training samples. The similar features
+
+need to be extracted from testing samples. Let Y ∈ RI+1×...×IN contain In testing multilinear samples ordered along its n-th mode. Note that In for Y can be different than In for X . Assuming testing samples come from the same observation
+space as training samples, we have:
+
+Y = X<n • Xˆn • X>n,
+
+(11)
+
+where X<n and X>n are extracted from X (training samples),
+
+and Xˆn
+
+∈
+
+RJn−1 ×In ×Jn
++
+
+contains
+
+2D features of testing
+
+samples. The core tensor Xˆn can therefore be estimated by
+
+projecting the samples in Y onto tensor subspaces spanned by
+
+the core tensors {X1, . . . , Xn−1, Xn, . . . , XN }. The projection
+
+procedure is described by Algorithm 2.
+
+Algorithm 2 Tensor projection
+
+Input : Y ∈ RI1×...×IN – testing multilinear samples, {Xn} - estimated training core tensors, [J1, . . . , JN−1] –
+TT-ranks Output: Xˆn
+
+J0 = 1
+
+M = Y(1) % Mode-1 unfolding
+
+for i = 1, . . . , n − 1 do
+
+Q = reshape(Xi, [Ji−1Ii, Ji])
+
+M = reshape(QT M , [JiIi+1,
+
+N +1 p=i+2
+
+Ip])
+
+end
+
+M ← reshape(M , [Jn−1
+
+N p=n
+
+Ip
+
+,
+
+IN
+
++1
+
+])
+
+JN+1 = 1
+
+for i = N + 1, . . . , n do
+
+Q = reshape(Xi, [Ji−1Ii, Ji])
+
+M ← reshape(M QT , [Jn−1
+
+i−2 p=n
+
+Ip,
+
+Ji−1Ii−1
+
+])
+
+end
+
+Xˆn = reshape(M , [Jn−1, In, Jn])
+
+IV. EXPERIMENTS
+This section presents the results of numerical experiments that were carried out on various well-known datasets. Due to the limited space, we present only the results of applying the proposed algorithm to dimensionality reduction of original high-dimensional samples in classiﬁcation problems. We compared it with the fundamental and most efﬁcient NMF algorithms that are also free from discriminative constraints and used for solving similar classiﬁcation problems. Obviously, the discriminant constraints are used in the classiﬁer that is applied to the results provided by the discussed methods.
+A. Data sets
+The following datasets were used for the tests: • COIL-100: This data set1 contains RGB color images
+of 100 objects at varying object poses, covering a fulldegree rotation with 5 degree interval, which gives 72 images per one class. Hence, the whole dataset contains 7200 images of 128 × 128 pixel resolution.
+1http://www1.cs.columbia.edu/CAVE/software/softlib/coil-100.php
+
+221
+
+• MNIST: MNIST2 contains grey-scale images of 70 000 hand-written digits, divided into two groups: 60 000 for training and 10 000 for testing. The resolution of each image is 20 × 20 pixels. The digits are size-normalized and centered in a ﬁxed-size image.
+• ORL: ORL contains 400 frontal facial images of 40 people (10 pictures per person). The pictures 3 were taken at different times, varying the lighting gradient, facial expressions (open / closed eyes, smiling / not smiling) and facial occlusions (glasses / no glasses). All the images have a dark homogeneous background with the subjects in an upright, frontal position. The resolution of each image is 112 × 92 pixels.
+B. Setup
+The proposed NMF-TT algorithm (Algorithm 1) can be used with various NMF algorithms. A survey of them can be found in [30], [31]. One of the fundamental ones is the multiplicative algorithm that minimizes the Euclidean distance using the alternating optimization scheme. It was proposed by Lee and Seung in [28], and in this study we will refer to it as MUE-NMF. Its update rules are simple to implement and guarantee a monotonic convergence, however, they are terrible slowly convergent. One of the most efﬁcient algorithms for NMF is the fast HALS which is an improved version [35] of the basic HALS [36]. In this study, we used the fast HALS both in Algorithm 1 (denoted by the acronym: HALS-TT) as well as directly, i.e. for a comparison with HALS-TT.
+All the algorithms were coded in Matlab 2016a and run on the workstation equipped with CPU Intel Core i7-7700 (4 cores, 8 threads), 16GB RAM, 512 GB SSD, and under Linux Ubuntu.
+Since the alternating optimization is intrinsically nonconvex, NMF algorithms may suffer from various indeterminacies, which means that the results might be initializerdependent. To minimize the risk of a suboptimal solution, each algorithm (including HALS-TT) was validated with 10 Monte Carlo (MC) runs. In each MC run, a new initializer was generated from a uniformly distribution, and the outcome results are averaged. Each algorithm was terminated when its normalized residual error drops below the threshold of 10−5.
+The output tensors Xn (Algorithm 1) and Xˆn (Algorithm 2) were yielded to a classiﬁer. We tested different classiﬁers, such as k-NN (Nearest Neighbors), Support Vector Machine (SVM), and the best results are obtained if the Linear Discriminant Analysis (LDA) is combined with the 1-NN classiﬁer.
+C. Results
+The analyzed datasets are partitioned according to the 5fold Cross Validation (CV), and the classiﬁcation results are evaluated with the Misclassiﬁcation Rate (MCR) measure – the crossval function in Matlab. The results averaged over CV folds and MC runs are presented in Fig. 3.
+2http://yann.lecun.com/exdb/mnist/ 3http://people.cs.uchicago.edu/∼dinoj/vis/orl/
+
+6
+
+5
+
+4
+
+MCR [%]
+
+3
+
+2
+1
+0 COIL-100
+
+MNIST
+
+MUE-NMF HALS-NMF HALS-TT
+ORL
+
+Fig. 3. Misclassiﬁcation rates (MCR) obtained for classiﬁcation of the tested datasets (COIL-100, MNIST, ORL) with the algorithms: MUE-NMF, HALSNMF, and HALS-TT.
+
+Additionally, the Hinton diagram of the confusion matrix obtained for classiﬁcation of the ORL dataset is illustrated in Fig. 4.
+
+Output
+
+MUE-NMF, MCR = 4.75
+
+5 10 15 20 25 30 35 40
+
+10
+
+20
+
+30
+
+Input
+
+40
+
+Output
+
+HALS-NMF, MCR = 3.85
+
+5 10 15 20 25 30 35 40
+
+10
+
+20 Input
+
+30
+
+40
+
+Output
+
+HALS-TT, MCR = 2.675
+
+5 10 15 20 25 30 35 40
+
+10
+
+20 Input
+
+30
+
+40
+
+Fig. 4. Hinton diagrams of the confusion matrices obtained for classiﬁcation of the ORL dataset with the algorithms: MUE-NMF, HALS-NMF, and HALSTT.
+
+D. Discussion
+The results shown in Fig. 3 conﬁrm that the proposed NMFTT algorithm outperforms the fundamental and the most efﬁcient NMF methods in terms of the accuracy of classiﬁcation. For the MNIST and ORL datasets, HALS-TT is considerably better than the other ones. For the COIL-100, all the algorithms give roughly similar accuracy results, and HALS-TT is ranked the second best. Additionally, the Hinton diagram in Fig. 4 indicate that all classes from the ORL dataset are recognized correctly, and misclassiﬁcation errors are uniformly cross-class dissipated with the lowest mean-value of MCR for HALS-TT.
+The results also demonstrate a potential of NMF-TT for solving large-scale classiﬁcation problems, especially when analyzed samples are represented by high-dimensional multiway arrays. Note that the matrix M in Algorithm 1 belongs to a class of tall-and-skinny matrices, i.e. it has much more columns than rows. In such a case, the MapReduce computational paradigm can be applied. In the mapping phase, the matrix M can be partitioned into column-blocks (chunks), and each block can be proceeded concurrently by multiple nodes in the distributed computational environment. In the reducing phase, the features extracted from each block can be aggregated into a much smaller matrix which can be shared
+
+222
+
+and proceeded by any NMF algorithm on a single node. The details on this idea can be found in [33].
+V. CONCLUSIONS
+In this study, we discuss a possibility of imposing nonnegativity constraints onto the TT model of tensor networks, and proposed a new computational algorithm for updating the nonnegative core tensors in the nonnegative TT model. The algorithm is based on recursive updates of core tensors with a general framework of NMF, which reﬂects its ﬂexibility and scalability for processing large-scale data. It has been successfully applied for solving classiﬁcation problems but its range of applications is not only limited to such problems. We believe that it can ﬁnd useful applications in many disciplines of science, especially where other tensor network models are used. It can also be used for low-rank nonnegative data approximations, especially in image completion problems, recommendation systems, distance prediction problems, etc. These aspects will be studied in our future research.
+ACKNOWLEDGMENT
+This work was partially supported by the statutory grant, no. 401/0034/18. The other part is supported by the grant ”Mloda Kadra”, no. 0402/0116/18 from the Ministry of Science and Higher Eduction.
+REFERENCES
+[1] E. Estrada and P. A. Knight, First Course in Network Theory. Oxford University Press, 2015.
+[2] S. Dorogovtsev and J. Mendes, Evolution of Networks: From Biological Nets to the Internet and WWW. Oxford University Press, 2003.
+[3] N. Ahmed, H. Rahman, and M. Hussain, “A comparison of 802.11ah and 802.15.4 for iot,” ICT Express, vol. 2, no. 3, pp. 100–102, 2016, special Issue on ICT Convergence in the Internet of Things (IoT).
+[4] B. Liu, Z. Yan, and C. W. Chen, “Medium access control for wireless body area networks with qos provisioning and energy efﬁcient design,” IEEE Transactions on Mobile Computing, vol. 16, no. 2, pp. 422–434, Feb 2017.
+[5] S.-J. Ran, E. Tirrito, C. Peng, X. Chen, G. Su, and M. Lewenstein, “Review of Tensor Network Contraction Approaches,” arXiv e-prints, p. arXiv:1708.09213, Aug 2017.
+[6] R. Penrose, “Applications of negative dimensional tensors,” in Combinatorial Mathematics and its Applications. Academic Press, 1971.
+[7] K. G. Wilson, “The renormalization group: Critical phenomena and the kondo problem,” Rev. Mod. Phys., vol. 47, p. 773, 1975.
+[8] S. O¨ stlund and S. Rommer, “Thermodynamic limit of density matrix renormalization,” Phys. Rev. Lett., vol. 75, pp. 3537–3540, Nov 1995.
+[9] S. R. White, “Density matrix formulation for quantum renormalization groups,” Phys. Rev. Lett., vol. 69, no. 19, pp. 2863–2866, 1992.
+[10] F. Verstraete, J. J. Garc´ıa-Ripoll, and J. I. Cirac, “Matrix product density operators: Simulation of ﬁnite–temperature and dissipative systems,” Phys. Rev. Lett., vol. 93, no. 20, p. 207204, 2004.
+[11] Y.-Y. Shi, L.-M. Duan, and G. Vidal, “Classical simulation of quantum many-body systems with a tree tensor network,” Phys. Rev. A, vol. 74, no. 2, p. 022320, 2006.
+[12] I. V. Oseledets, “Approximation of 2d × 2d matrices using tensor decomposition,” SIAM J. Matrix Anal. Appl., vol. 31, no. 4, pp. 2130– 2145, Jun. 2010.
+[13] G. Vidal, “Entanglement renormalization,” Phys. Rev. Lett., vol. 99, p. 220405, Nov 2007.
+[14] F. Verstraete, M. M. Wolf, D. Perez-Garcia, and J. I. Cirac, “Criticality, the area law, and the computational power of projected entangled pair states,” Phys. Rev. Lett., vol. 96, p. 220601, Jun 2006.
+[15] A. Cichocki, “Era of big data processing: A new approach via tensor networks and tensor decompositions,” CoRR, vol. abs/1403.2048, 2014. [Online]. Available: http://arxiv.org/abs/1403.2048
+
+[16] A. Cichocki, N. Lee, I. V. Oseledets, A. H. Phan, Q. Zhao, and D. P. Mandic, “Tensor networks for dimensionality reduction and large-scale optimization: Part 1 low-rank tensor decompositions,” Foundations and Trends in Machine Learning, vol. 9, no. 4-5, pp. 249–429, 2016.
+[17] A. Cichocki, A. H. Phan, Q. Zhao, N. Lee, I. V. Oseledets, M. Sugiyama, and D. P. Mandic, “Tensor networks for dimensionality reduction and large-scale optimization: Part 2 applications and future perspectives,” Foundations and Trends in Machine Learning, vol. 9, no. 6, pp. 431– 673, 2017.
+[18] B. P. Lanyon, C. Maier, M. Holza¨pfel, T. Baumgratz, C. Hempel, P. Jurcevic, I. Dhand, A. S. Buyskikh, A. J. Daley, M. Cramer, M. B. Plenio, R. Blatt, and C. F. Roos, “Efﬁcient tomography of a quantum many-body system,” Nature Physics, vol. 13, p. 1158?1162, July 2017.
+[19] T. Huckle and K. Waldherr, “Computations in quantum tensor networks,” Institut fu¨r Informatik, TUM, XVIII Householder Symposium 2011, Lake Tahoe, Jul. 2011.
+[20] V. A. Kazeev, M. Khammash, M. Nip, and C. Schwab, “Direct solution of the chemical master equation using quantized tensor trains,” PLoS Computational Biology, vol. 10, no. 3, 2014.
+[21] V. Khoromskaia and B. N. Khoromskij, “Tensor numerical methods in quantum chemistry: from hartreefock to excitation energies,” Phys. Chem. Chem. Phys., vol. 17, pp. 31 491–31 509, 2015.
+[22] A. H. Phan, A. Cichocki, A. Uschmajew, P. Tichavsky´, G. Luta, and D. P. Mandic, “Tensor networks for latent variable analysis. part I: algorithms for tensor train decomposition,” CoRR, vol. abs/1609.09230, 2016.
+[23] J. A. Bengua, H. N. Phien, H. D. Tuan, and M. N. Do, “Efﬁcient tensor completion for color image and video recovery: Low-rank tensor train,” IEEE Transactions on Image Processing, vol. 26, no. 5, pp. 2466–2479, May 2017.
+[24] C. Y. Ko, K. Batselier, W. Yu, and N. Wong, “Fast and accurate tensor completion with tensor trains: A system identiﬁcation approach,” CoRR, vol. abs/1804.06128, 2018. [Online]. Available: http://arxiv.org/abs/1804.06128
+[25] W. Wang, V. Aggarwal, and S. Aeron, “Tensor train neighborhood preserving embedding,” IEEE Trans. Signal Processing, vol. 66, no. 10, pp. 2724–2732, 2018.
+[26] I. V. Oseledets, “Tensor-train decomposition,” SIAM J. Sci. Comput., vol. 33, no. 5, pp. 2295–2317, 2011.
+[27] L. Grasedyck and S. Kra¨mer, “Stable ALS Approximation in the TT-Format for Rank-Adaptive Tensor Completion,” arXiv e-prints, p. arXiv:1701.08045, 2017.
+[28] D. D. Lee and H. S. Seung, “Learning the parts of objects by nonnegative matrix factorization,” Nature, vol. 401, pp. 788–791, 1999.
+[29] A. Shashua and T. Hazan, “Non-negative tensor factorization with applications to statistics and computer vision,” in Proc. of the 22-th International Conference on Machine Learning, Bonn, Germany, 2005.
+[30] A. Cichocki, R. Zdunek, A. H. Phan, and S.-I. Amari, Nonnegative Matrix and Tensor Factorizations: Applications to Exploratory Multiway Data Analysis and Blind Source Separation. Wiley and Sons, 2009.
+[31] Y.-X. Wang and Y.-J. Zhang, “Nonnegative matrix factorization: A comprehensive review,” IEEE Trans. on Knowl. and Data Eng., vol. 25, no. 6, pp. 1336–1353, 2013.
+[32] N. Lee, A.-H. Phan, F. Cong, and A. Cichocki, “Nonnegative tensor train decompositions for multi-domain feature extraction and clustering,” in Neural Information Processing, A. Hirose, S. Ozawa, K. Doya, K. Ikeda, M. Lee, and D. Liu, Eds. Cham: Springer International Publishing, 2016, pp. 87–95.
+[33] R. Zdunek and K. Fonal, “Distributed geometric nonnegative matrix factorization and hierarchical alternating least squares-based nonnegative tensor factorization with the mapreduce paradigm,” Concurrency and Computation: Practice and Experience, vol. 30, no. 17, 2018.
+[34] K. Fonal and R. Zdunek, “Distributed and randomized tensor train decomposition for feature extraction,” in 2019 International Joint Conference on Neural Networks (IJCNN), 2019.
+[35] A. Phan and A. Cichocki, “Multi-way nonnegative tensor factorization using fast hierarchical alternating least squares algorithm (HALS),” in Proc. of The 2008 International Symposium on Nonlinear Theory and its Applications, Budapest, Hungary, 2008.
+[36] A. Cichocki, R. Zdunek, and S.-I. Amari, “Hierarchical ALS algorithms for nonnegative matrix and 3D tensor factorization,” in Independent Component Analysis and Signal Separation, ser. LNCS. Springer Berlin / Heidelberg, 2007, vol. 4666, pp. 169–176, iCA 2007.
+
+223
+

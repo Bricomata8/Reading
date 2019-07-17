@@ -8,13 +8,13 @@
 	"priority": 100,
 	"inRepository": false,
 	"configOptions": {
-		"hash": "b2cd75ceffae93a878f0444e0134c85a-92d3b12632c486e55476e9b982d2d108"
+		"hash": "b2cd75ceffae93a878f0444e0134c85a-6ed1e833bf91cf37dd93719b50005ef3"
 	},
 	"displayOptions": {
 		"quickCopyMode": ""
 	},
 	"browserSupport": "gcsv",
-	"lastUpdated": "2019-07-12 08:01:52"
+	"lastUpdated": "2019-07-17 11:41:06"
 }
 
 var Translator = {
@@ -8189,12 +8189,11 @@ function template(string) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const format = __webpack_require__(/*! string-template */ "../node_modules/string-template/index.js");
 const exporter_1 = __webpack_require__(/*! ./lib/exporter */ "./lib/exporter.ts");
-function select_link(item, mode) {
-    switch (mode) {
-        case 'id': return item.libraryID > 1 ? `zotero://select/items/${item.libraryID}_${item.key}` : `zotero://select/items/${item.key}`;
-        case 'citekey': return `zotero://select/items/@${encodeURIComponent(item.citekey)}`;
-        default: throw new Error(`Unsupported link mode ${mode}`);
-    }
+function select_by_id(item) {
+    return `zotero://select/items/${item.libraryID}_${item.key}`;
+}
+function select_by_citekey(item) {
+    return `zotero://select/items/@${encodeURIComponent(item.citekey)}`;
 }
 const Mode = {
     gitbook(items) {
@@ -8238,19 +8237,19 @@ const Mode = {
     },
     orgmode(items) {
         for (const item of items) {
-            Zotero.write(`[[${select_link(item, 'id')}][@${item.citekey}]]`);
+            Zotero.write(`[[${select_by_id(item)}][@${item.citekey}]]`);
         }
     },
     orgmode_citekey(items) {
         for (const item of items) {
-            Zotero.write(`[[${select_link(item, 'citekey')}][@${item.citekey}]]`);
+            Zotero.write(`[[${select_by_citekey(item)}][@${item.citekey}]]`);
         }
     },
     selectLink(items) {
-        Zotero.write(items.map(item => select_link(item, 'id')).join('\n'));
+        Zotero.write(items.map(select_by_id).join('\n'));
     },
     selectLink_citekey(items) {
-        Zotero.write(items.map(item => select_link(item, 'citekey')).join('\n'));
+        Zotero.write(items.map(select_by_citekey).join('\n'));
     },
     rtfScan(items) {
         const reference = items.map(item => {
