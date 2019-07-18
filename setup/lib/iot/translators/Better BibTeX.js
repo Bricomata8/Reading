@@ -11,7 +11,7 @@
 	"configOptions": {
 		"async": true,
 		"getCollections": true,
-		"hash": "51609fe7fa93796a9b561d4c38fc0639-c3812b4fe8b55f96b6759cec9784d711"
+		"hash": "51609fe7fa93796a9b561d4c38fc0639-0ddbcc21aa92f5b8bd6363a353423e7f"
 	},
 	"displayOptions": {
 		"exportNotes": false,
@@ -20,7 +20,7 @@
 		"keepUpdated": false
 	},
 	"browserSupport": "gcsv",
-	"lastUpdated": "2019-07-17 11:41:06"
+	"lastUpdated": "2019-07-12 08:01:52"
 }
 
 var Translator = {
@@ -13196,7 +13196,7 @@ const htmlConverter = new class HTMLConverter {
                 latex += '\\vphantom\\{';
                 braced = 0;
             }
-            // if we just switched out of math mode, and there's a lone sup/sub at the end, unpack it. The extra option brace is for when we're in nocased mode (see switchTo)
+            // if we just switched out of math mode, and there's a lone sup/sub at the end, unpack it
             if (switched && mode === 'text' && (m = latex.match(/([\^_])\{(.)\}(\$\}?)$/))) {
                 latex = latex.slice(0, latex.length - m[0].length) + m[1] + m[2] + m[3]; // tslint:disable-line no-magic-numbers
             }
