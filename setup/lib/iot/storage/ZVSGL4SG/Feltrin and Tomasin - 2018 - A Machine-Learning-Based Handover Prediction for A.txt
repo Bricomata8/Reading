@@ -1,0 +1,259 @@
+A Machine-Learning-Based Handover Prediction for Anticipatory Techniques in Wi-Fi Networks
+Mauro Feltrin and Stefano Tomasin
+Department of Information Engineering University of Padova, Italy
+
+Abstract—Handover and blind spots in Wi-Fi networks generate temporary interruptions of connection between the devices and the access point, with major quality degradation, for example to video streaming. In this paper we propose a technique to predict the event of handover and blind spots in order to allow the implementation of anticipatory techniques, where connection resources are reallocated or video buffers are ﬁlled with lowdeﬁnition video frames before the connection gets lost. The prediction is based on a machine-learning approach, where the received signal strength indicator (RSSI) is monitored and an upcoming handover is recognized by the pattern of the RSSI over time. Since a number of impairments (different paths followed by the user, different movement speed, fading, noise) affect the RSSI evolution, we resort to a neural-network to learn the peculiarities of each handover and solve the pattern recognition problem.
+Index Terms—Anticipatory Techniques; Handover; Machine Learning; Wi-Fi Networks.
+I. INTRODUCTION
+Large Wi-Fi networks include many Access Points (APs) to guarantee coverage of large areas, such as campuses or buildings with multiple ﬂoors. When a user moves within the network his mobile device will connect to various APs, however the handover procedure does not maintain a smooth connection at all time, with signiﬁcant ﬂuctuations of the quality of service (QoS) and possible long connection breaks. This scenario is further worsened by the presence of blind spots, where the signal power is insufﬁcient to support the data rate: these typically include elevators and stairs but also corridors and even portions of rooms. When a user reaches a blind spot the connection is interrupted. Although in this paper we focus on Wi-Fi networks, similar issues are observed also in cellular networks, where both handovers among cells and coverage holes are usually experienced.
+As of today, video streaming has generated 45% of all mobile data trafﬁc, and in 2019 is predicted to rise to 62%. Clearly, video streaming on a mobile device will particularly suffer from temporary connection losses and video stalls are perceived as major issues by users [1]. Therefore various solutions are emerging to alleviate these problems. Although the data rate of Wi-Fi and cellular systems has steadily increased with standard evolutions, keeping the video buffer full with high-quality video is typically not possible due to device limitations and duration of the connection quality drop. Recently, anticipatory approaches [2] have been advocated [3] in the allocation of wireless radio resources where the player buffer is ﬁlled with low-deﬁnition video frames before a blind
+
+spot is reached. Other strategies include the interaction between the video player and the network to receive information about the upcoming connection loss, or the prediction of the loss by the device itself, and suitable interventions on the player (e.g., data rate reduction and buffer ﬁlling).
+A key ingredient for all anticipatory strategies is a suitable long-term prediction of channel conditions, in a time-scale which is much larger than small-scale fading. In this respect, various solutions have been considered in different contexts, as illustrated in the survey paper [2]. Within the geographical context the use of bandwidth maps overlaid to road maps has been proposed in [4] to increase quality of services in vehicular communications. In particular, for the improvement of video streaming quality, maps have been used in [5]. This paper focuses instead on the link context, where the evolution of the physical channel is tracked and predicted to counteract adverse conditions. In this context, various works address the prediction of pathloss and shadowing (e.g., [6] and [7]). Other approaches combine channel and mobility prediction with channel-assisted video optimization also under uncertainty (see [2] for a full survey). For prediction, most of the existing literature is based either on a speciﬁc channel model or on extensive and detailed channel maps. However, these two approaches may be inadequate to ensure video streaming QoS: on the one side model prediction may be insufﬁcient for the long-term needs of anticipatory solutions, while on the other side maps may provide a too detailed information, with a high implementation complexity.
+In this paper we propose a novel technique to predict handovers and blind spots in the mobility of Wi-Fi devices, based on a machine-learning approach using the received signal power. We do not aim at obtaining neither a coverage map nor a model for channel evolution. Instead, an automatic technique for the early detection of conditions that are going to lead to a performance loss in the future is provided. In particular, the received signal strength indicator (RSSI) is monitored and an upcoming handover is recognized by the pattern of the RSSI over time. Since a number of impairments (different paths followed by the user, different movement speed, fading, noise) affect the RSSI evolution, we resort to a neural network (NN) to learn the peculiarities of each handover and solve the pattern recognition problem. Since we look for an automatic solution, a supervised machine-learning approach is adopted, where the AP learns the correspondence between RSSI patterns and handover or blind spots by collecting data
+
+978-1-5386-4646-5/18/$31.00 ©2018 IEEE
+
+341
+
+ICUFN 2018
+
+from users and marking RSSI evolution a-posteriori (thus obtaining a supervised machine-learning).
+The rest of the paper is organized as follows. Section II introduces the system model and the anticipatory handover detection problem. Section III describes the detection approach by machine learning. In Section IV a simulator for the generation of the data-set used to train the neural network is described. Numerical results are provided in Section V before conclusions are driven in Section VI.
+
+II. SYSTEM MODEL
+We consider a Wi-Fi network comprising N APs where a mobile user goes though the network. Time is divided into slots, and at slot t ∈ Z the mobile terminal is connected at AP A(t) ∈ {1, . . . , N }. When moving around, handover procedures allows a mobile user to change the serving AP, according to the connection quality. The terminal continuously monitors the RSSI Γ(t) and the serving AP A(t). When RSSI falls below a threshold Γth for a given time, the handover procedure starts, with the two steps of exploration and reauthentication. Within the exploration phase the device scans the Wi-Fi spectrum to ﬁnd an available AP i with RSSI
+
+Γi(t) > Γth.
+
+(1)
+
+Then, the device re-authenticates itself by using the new AP. This operation takes a considerable amount of time, and although IEEE 802.11 standard recommendation pushes for an handover latency of 50ms, delays in the range of seconds are commonly experienced, even in test-bed scenarios [8].
+In this paper we let the network collect RSSI data from the mobile terminals and at the same time track their movements in the network. In particular, the network will collect both RSSI Γ(t) and the serving AP A(t) over time in order to detect handovers, or blind spots. A handover is detected when condition (1) is not met at time t and a time t1 > t the mobile device authenticates at another AP A(t1) = A(t). Similarly, when a blind spot is hit, condition (1) is not met at time t and a time t1 > t the mobile device is again connected to the same AP, i.e., A(t1) = A(t).
+
+III. ANTICIPATORY HANDOVER DETECTION BY MACHINE LEARNING
+The proposed technique for handover (blind spot) detection is based on a time-sliding window of M RSSI observations
+
+R(t) = [Γ(t), Γ(t − 1), . . . , Γ(t − M )] .
+
+(2)
+
+Using R(t), the Wi-Fi network must decide if after a given number of slots ∆ a connection loss will occur or not, i.e., if
+
+Γ(t + ∆) < Γth .
+
+(3)
+
+This hypothesis testing problem must be solved at each slot t: hypothesis H0 corresponds to a good connection after ∆ slots, and hypothesis H1 corresponds to a connection loss, i.e. condition (3) occurs.
+With a closer look at R(t) we observe that RSSI measurements are related to path-loss, shadowing, fading and noise.
+
+Input layer Input 1
+Input 2
+Input 3
+Input 4
+Input 5
+
+Hidden layer
+
+Output layer
+
+Output
+
+Fig. 1. Example of an artiﬁcial neural network with three nodes of hidden layer and 5 inputs.
+In the last two effects we also include small variations in the position of the device on the path and presence of temporary obstacles. Clearly all transient phenomena (as fading and noise) are irrelevant for the prediction of the average channel conditions (over one or more slots) after ∆ slots, when this is large with respect to the involved quantities (such as channel coherence time). Moreover, the evolution of Γ(t) over time is also affected by the speed of movement of the user, as well as small variations of the walk path. For example, even if the two users are going along a corridor with the same speed, they may follow different paths or even just have a constant displacement that affects the RSSI. Indeed, it is well know in the literature [9][10][11] that localization by RSSI is a hard task. However we observe that our hypothesis testing problem is quite different from the localization problem, as we must only identify critical situations, without necessarily providing accurate localization. However, we still expect signiﬁcant variations of the RSSI, which can be hard to be properly modelled.
+In order to cope with the difﬁculties or recognizing a handover in advance by ∆ slots, we cast our hypothesis testing problem into a pattern recognition problem, and use well established techniques of machine learning for its solution. In particular, we observe that to each handover we may associate a RSSI evolution pattern and that we must recognize if R(t) corresponds to any of this identiﬁed patterns.
+A. Pattern Recognition By Machine Learning
+The problem of pattern recognition is widely studied [12], the most common example being the recognition of handwrit-
+
+342
+
+x1
+
+w1
+
+generates RSSI evolution by emulating the device movement
+
+Activate
+
+in the Wi-Fi network.
+
+function Output
+
+Inputs x2
+
+w2
+
+Σ
+
+1 1+e−t
+
+y
+
+x3
+
+w3
+
+Weights
+
+Fig. 2. Example of node function with three inputs.
+
+ten numbers. Two types of machine learning approaches for pattern recognition are possible:
+• supervised machine learning where the dataset is composed of examples labelled with the event to be recognized: in the example of number recognition, labels are the ten numbers 0 to 9;
+• unsupervised machine learning where no labelling is available and the machine only groups images with a similar pattern: in the example of number recognition, the machine must group images in ten different sets.
+For the handover prediction problem we assume that the network collects RSSI values Γ(t) and AP connections A(t), thus building a dataset and associating to the RSSI pattern the presence (or not) of an handover (or blind spot). Therefore in our scenario we can use supervised machine learning techniques for the hypothesis testing problem.
+The most common structures used for pattern recognition are artiﬁcial NNs. In our case we consider a feed-forward NN with one level of hidden nodes, as shown in the example network of Fig. 1. Each node uses a sigmoid function with weights wn and no bias, as shown in Fig. 2. The number of hidden nodes is varied and the performance of the resulting NN is presented in Section V. The training phase uses the back-propagation algorithm [12], and the gradient descend algorithm is used to evaluate the gradient of error function respect to the NN weights. In our NN, the number of inputs is M (the size of the observation window) a single output is provided, and the number of hidden-layer nodes is varied.
+In the training phase the Wi-Fi network collects observations R(t) and corresponding AP evolution A(t), and feeds the NN with RSSI evolutions associated to both handover nonhandover phases. Using the back-propagation algorithm the weights wn of the NN are adjusted in order to provide the best decision on R(t) with respect to the future situation (A(t+∆), handover or non-handover). Then, in the operational phase the Wi-Fi network uses the tuned NN to decide between the two hypothesis, based on the current observation window R(t).
+IV. DEVICE MOTION SIMULATOR
+In order to both have a proper training of the NN and assess its performance in a variety of scenarios, a large dataset must be collected. Therefore, it is useful to have a simulator that
+
+Fig. 3. Example of AP positions and ﬂoor map in the device motion simulator.
+
+RSSI’s measures are generated every T = 0.25 s (duration
+
+of a slot), which is a typical value encountered in Wi-Fi
+
+cards. We consider a squared ﬂoor with 8 APs positioned at
+
+the ends and in the middle of corridors, as shown in Fig. 3,
+
+where AP positions are indicated with circles containing the
+
+AP’s numbers. The user’s movement is simulated by iterating
+
+between two phases: a) an acceleration phase and b) a constant
+
+speed phase:
+
+a) Acceleration Phase: Each acceleration phase lasts ta
+
+slots, randomly selected with uniform distribution in [2, 8]
+
+slots. For the acceleration, the initial speed is v0 (obtained
+
+from the previous quasi-constant speed phase), while the ﬁnal
+
+speed vf is the realization of a Gaussian random value with µvf = 1 m/s and σv2f = 0.5 (discarding negative values). The
+acceleration is set as
+
+a = vf − v0 , ta
+
+(4)
+
+and the speed is updated in the acceleration phase using a and
+
+adding a further Gaussian noise with mean µvnoise = 0 and
+
+variance
+
+σ2
+vnoise
+
+=
+
+0.01,
+
+i.e.,
+
+v(t) = v(t − 1) + aT + vnoise .
+
+(5)
+
+b) Quasi-constant-speed phase: Each quasi-constantspeed phase lasts a time tc, randomly selected from a uniform distribution in [0, 120] slots. The speed is then updated with respect to the target speed by only adding some noise, i.e.,
+
+v(T ) = v(t − 1) + vnoise.
+
+(6)
+
+Movement’s direction is determined by a unit vector parallel to the corridor in zone 2, 4, 6, 8 of Fig. 3 and an angle of π/4
+
+343
+
+Fig. 4. Error test with ∆ = 1 slot.
+
+Fig. 5. Error test with ∆ = 8 slots.
+
+with respect to the wall in all the other zones. The direction is
+
+such that the device always moves to the next zone (denoted by an incremental value) or, if the mobile device is in zone 8,
+
+it moves to the zone 1. In order to add some randomness to
+
+the movement we also add a Gaussian random variable with
+
+zero mean and variance
+
+σa2ngle
+
+=
+
+π/12 max{v(t),
+
+1}
+
+.
+
+(7)
+
+This provides a variation of movement’s angle inversely proportional to the speed of the user, limited at speed 1m/s to discard large angle variations.
+Let now d(t) be the distance between the device and the serving AP at slot t. For the computation of the RSSI we consider the effects of both path loss and shadowing. The path loss is given (in dB) by
+
+PL,dB(d(t)) = 10α log10 d(t)
+
+(8)
+
+and the shadowing component (in dB) is modelled as a Gaussian random variable with zero mean and variance
+
+σ2 = σX2
+
+1 + δ e−d/δ − δ
+
+d
+
+d
+
+,
+
+(9)
+
+with δ = 0.4 and σX2 = 0.31 [13]. The RSSI is then computed as
+
+(Γ)dB = PTx,dB − PL,dB(d) − PS,dB ,
+
+(10)
+
+Fig. 6. Error test with M = 10 slots.
+the training phase. We considered two values of ∆ = 1 and ∆ = 8 slots, corresponding to an anticipation time in the prediction of the handover event of 0.25 s and 2 s, respectively. The observation window length is set at M = 20 slots. As we expect, increasing ∆ leads to a higher error test percentage, and in both cases 12 to 14 hidden nodes already provide closeto-optimal performance of the NN. Moreover, even with an anticipation of 8 slots (corresponding to 2 s) the error test percentage is below 10%.
+We then vary the the size of the RSSI observation window
+
+where all variables are represented in dB and PTX,dB is the sum (in dB) of the transmitted power and the transmitter and receiver gains.
+
+V. NUMERICAL RESULTS
+With the simulator described in Section IV we generate 3 · 109 RSSI measures (approximately corresponding to eight days of measures and we use them to create the dataset for the training phase of NN. In all tests we varied the number of NN hidden nodes from 10 to 40 with step of two nodes.
+Fig.s 4 and 5 show the error test (in percentage) vs the number of hidden nodes. The error test percentage is the probability that the wrong hypothesis is chosen in the hypothesis testing problem (after the training phase is concluded). It is computed on a different dataset with respect to that used for
+
+Fig. 7. Error test with M = 40 slots.
+
+344
+
+R(t). In this case we set the anticipation time at ∆ = 4 slots. Fig.s 6 and 7 show the error test percentage vs the number of hidden nodes for M = 10 and M = 40 slots. As we expect a larger observation window reduces the error test percentage, and also in this case we note that a number of 12 to 14 hidden nodes already provides optimal performance. With these results we have seen that it is possible predict handovers with a NN. Parameters choice is fundamental for proper functioning of the system.
+VI. CONCLUSIONS
+In this paper we have proposed a technique based on NN to predict upcoming handover and blind spots of a device in a Wi-Fi network with multiple APs. The prediction technique is based on a machine learning approach in which the network learns and then recognizes patterns of RSSI evolution, being resilient to noise, speed and fading phenomena. Numerical results obtained by a movement simulator have shown the validity of the proposed solution. Future work include the collection of experimental data to further corroborate the results and the application of the prediction technique to anticipatory system that can improve for example the quality of service in the reproduction of streaming videos. Moreover, computational complexity and impact of training phase should also be assessed.
+REFERENCES
+[1] M. Seufert, S. Egger, M. Slanina, T. Zinner, T. Hofeld and P. Tran-Gia, ”A Survey on Quality of Experience of HTTP Adaptive Streaming,” IEEE Communications Surveys & Tutorials, vol. 17, no. 1, pp. 469-492, Firstquarter 2015.
+
+[2] N. Bui, M. Cesana, S. A. Hosseini, Qi Liao, I. Malanchini and J. Widmer, ”A Survey of Anticipatory Mobile Networking: Context-Based Classiﬁcation, Prediction Methodologies, and Optimization Techniques”, available on-line on orxiv.org as arXiv:1606.00191.
+[3] D. Tsilimantos, A. Nogales-Gomez and S. Valentin, ”Anticipatory radio resource management for mobile video streaming with linear programming,” in Proc. 2016 IEEE Int. Conf. on Communications (ICC), Kuala Lumpur, 2016, pp. 1-6.
+[4] J. Yao, S. S. Kanhere and M. Hassan, ”Improving QoS in High-Speed Mobility Using Bandwidth Maps,” IEEE Trans. on Mobile Computing, vol. 11, no. 4, pp. 603-617, April 2012.
+[5] H. Riiser, T. Endestad, P. Vigmostad, C. Griwodz and P. Halvorsen, ”Video Streaming Using a Location-based Bandwidth-lookup Service for Bitrate Planning,” ACM Trans. Multimedia Comput. Commun. Appl., vol 8, no. 3, July 2012.
+[6] M. Piacentini and F. Rinaldi, Path loss prediction in urban environment using learning machines and dimensionality reduction techniques, 25 Springer Computational Management Science, vol. 8, no. 4, pp. 371– 385, 2011.
+[7] E. DallAnese, S.-J. Kim, and G. B. Giannakis, ”Channel gain map tracking via distributed Kriging,” IEEE Trans. on Vehicular Technology, vol. 60, no. 3, pp. 12051211, 2011.
+[8] J. Balazia, R. Bencel and I. Kotuliak, ”Architecture proposal for seamless handover in 802.11 networks,” in Proc. 2016 9th IFIP Wireless and Mobile Networking Conference (WMNC), Colmar, 2016, pp. 95-102.
+[9] P. Barsocchi, S. Lenzi, S. Chessa and G. Giunta, ”A novel approach to indoor RSSI localization by automatic calibration of the wireless propagation model”, in Proc. Vehicular Technology Conference, VTC Spring 2009. IEEE 69th.
+[10] Y. Lai, and J. Cheng, ”A 2.45-GHz RFID wireless-sensor-network location tracking system”, in Proc. IEEE 17th International Symposium on Consumer Electronics, pp. 133-134, 2013.
+[11] F. Montorsi, F. Pancaldi and G. M. Vitetta, ”Map-aware RSS localization models and algorithms based on experimental data”, in Proc. IEEE ICC 2013 - Wireless Communications Symposium, pp. 5798-5803, 2013.
+[12] C. Bishop, Pattern Recognition and Machine Learning, Springer-Verlag New York, 2008.
+[13] P. Agrawal and N. Patawari, ”Correlated link shadow fading in multihop wireless networks” in IEEE Trans. on Wireless Communications, vol. 8, no. 8, pp. 4024-4036, August 2009.
+
+345
+
+

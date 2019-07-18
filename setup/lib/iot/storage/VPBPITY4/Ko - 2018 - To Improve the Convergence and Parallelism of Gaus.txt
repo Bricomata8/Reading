@@ -1,0 +1,615 @@
+To Improve the Convergence and Parallelism of Gauss-Seidel Routing Algorithm with Finite
+Element Method for Wireless Sensor Networks
+
+Ren-Song Ko Department of Computer Science and Information Engineering
+National Chung Cheng University, Chia-Yi, Taiwan 621 E-mail: korenson@cs.ccu.edu.tw
+
+Abstract—The scalability challenge of many problems in massively-dense wireless sensor networks may be mitigated from a macroscopic perspective. One example is the weak formulation of the load-balancing routing problem, which solution can be used to route information. Hence, a routing algorithm, the distributed Gauss-Seidel iteration (DGSI), was proposed to coordinate sensors to solve the weak formulation iteratively. In this paper, we propose the atomic red-black distributed Gauss-Seidel iteration with ﬁnite element method (ARB-DGSI-FEM) to eliminate the early termination problem of DGSI due to the presence of holes, and thus improve the accuracy of numerical solutions. In addition, ARB-DGSI-FEM allows the values of unknowns to be updated in the red-black order to achieve the maximum degree of parallelism and reduce the convergence time. Our simulation results reveal that ARB-DGSI-FEM signiﬁcantly improves the parallelism without too much sacriﬁce of accuracy.
+Index Terms—wireless sensor networks, load-balancing routing, partial differential equations, ﬁnite element method, GaussSeidel method
+
+I. INTRODUCTION
+
+Though advances in hardware miniaturization enable the possibility of a large scale wireless sensor network (WSN) [1], it becomes difﬁcult to keep sensors operating in an efﬁcient manner. For instance, one important consideration in designing an energy-efﬁcient routing algorithm is the load-balancing due to the limited energy capacity and the coverage requirement imposed on a WSN. However, to balance the routing load of all sensors is a global optimization problem and is subject to the scalability problem. Though several load-balancing algorithms have been proposed for WSNs [2], [3], these algorithms determine the next forwarding sensor nodes based on local information, which may make the results less optimal.
+The scalability problem may be alleviated by ignoring microscopic details for the massively-dense WSN in which a huge amount of sensors are deployed in a small region. For example, Ko [4] derived the weak formulation of the loadbalancing routing problem from a macroscopic perspective,
+
+D = J ∇Φ,
+
+(1)
+
+and
+
+J ∇Φ · ∇νdydx = − ρνdydx.
+
+(2)
+
+A
+
+A
+
+This research was supported by Ministry of Science and Technology of Taiwan, under Grant MOST 106-2221-E-194-027. The authors gratefully acknowledge this support.
+
+Here A and ρ(x, y) respectively represents the region of interest (ROI) and the amount of information generated at (x, y) ∈ A. D : A → R2 is the routing vector ﬁeld in which the direction of D(x, y) points to the next forwarding node of the sensors at (x, y) and the length D(x, y) represents the amount of information transmitted by all sensors at (x, y). In addition, ν is an arbitrary smooth scalar valued function.
+The relationship between J and the sensor density ψ may be established once the communication energy consumption is known. For instance, with the communication energy consumption model adopted in [5] and the assumption that sensors have equal amounts of initial energy, we will have
+
+J ∝ ψ2+αrf ,
+
+(3)
+
+in which αrf is the RF attenuation exponent and typically in the range of 2 to 5.
+Note that the arguments of the functions in (1) and (2) are sensor locations in A, not sensor identities. Thus, (1) and (2) describe network operations using the geographic model (e.g., where the information packet should be forwarded to?) instead of the commonly used graph model (e.g., which sensor the information packet should be forwarded to?), and have no scalability problem as the number of sensors increases.
+Ko [4] presents a routing algorithm, DGSI-FEM, which numerically solves D from (2) for the routing direction. DGSIFEM ﬁrst discretizes continuous functions involved in (2) by ﬁnite element method (FEM) [6] and leads to a set of linear equations, and then uses the distributed Gauss-Seidel iteration (DGSI) algorithm to solve the set of linear equations by the Gauss-Seidel iteration (GSI) method.
+However DGSI coordinates sensors to update the values of unknowns in lexicographical order, and some sensors may fail to collect the information regarding solution precision due to the presence of holes (i.e., sensor-less areas in ROI), and thus terminate with fewer iterations, resulting in larger errors. Thus, we propose in this paper ARB-DGSI-FEM algorithm, which not only eliminates the early termination problem, but also strives for the greatest degree of parallelism to reduce the convergence time.
+
+978-1-5386-4646-5/18/$31.00 ©2018 IEEE
+
+436
+
+ICUFN 2018
+
+II. PRELIMINARIES
+
+A. Finite Element Method (FEM)
+
+Equation (2) can be solved numerically by FEM in which
+(2) is locally approximated (posed over small partitions called
+elements of the entire ROI) and a global solution is built
+by combining the local solutions over these elements [6].
+Referring to Fig. 1, we may divide the ROI into equally-spaced
+grids and then use these grid points to form the elements (e.g., the gray hexagon on the x − y plane illustrated in Fig. 2).
+Consider the set of basis functions, µi,j with i, j ∈ G, deﬁned on the A such that µi,j has the following properties:
+ 1 if i = i and j = j, µi,j(xi , yj ) = 0 otherwise,
+
+and
+
+∀(x, y) ∈ A,
+
+µi,j(x, y) = 1.
+
+(4)
+
+i,j ∈G
+
+Here G is the set of grid points in A and (xi , yj ) is the position of i , j . We then approximate Φ, J , and ρ
+respectively by
+
+Φ(x, y) =
+
+Φi,j µi,j (x, y),
+
+(5)
+
+i,j ∈G
+
+J (x, y) =
+
+Ji,j µi,j (x, y),
+
+(6)
+
+i,j ∈G
+
+ρ(x, y) =
+
+ρi,j µi,j (x, y),
+
+(7)
+
+i,j ∈G
+
+in which Φi,j = Φ(xi, yj ), Ji,j = J (xi, yj ), and ρi,j = ρ(xi, yj). By substituting (5), (6), and (7) into (2), we obtain
+the following set of linear equations
+
+∀ i, j ∈ G,
+
+Kii,j,j Φi ,j = gi,j .
+
+(8)
+
+i ,j ∈G
+
+h
+
+h
+f0,2 f0,1 f0,0 f1,0 f2,0
+
+fi,j+1 fi−1,jfi,j fi+1,j
+fi,j−1
+
+Fig. 1. The deﬁnition domain of f (e.g., Φ or D) is divided into equally spaced grids with a grid size h. i, j is the grid point located at the i-th
+column and the j-th row. fi,j is the value of f at i, j . The grid points marked by white circles are not in the ROI, and the grid points marked by squares and black circles are respectively in R[Φ0] and R[Φ1] which are explained in Sec. III.
+
+(xi, yj , µi,j (xi, yj )) y
+
+1
+
+i − 1, j + 1
+
+i, j + 1
+
+i − 1, j
+
+i, j
+
+i + 1, j
+
+0
+
+i, j − 1
+
+i + 1, j − 1
+
+x
+
+Fig. 2. The linear basis function µi,j is a pyramid with the peak at i, j and is non-zero only within the element centered at i, j (i.e., the gray hexagon).
+In addition, (xi, yj ) is the position of i, j .
+
+In this paper, we use the piecewise linear functions over hexagon elements, referring to Fig. 2, as the basis functions. It is not difﬁcult to verify such a set of piecewise linear functions satisﬁes (4). For the sake of brevity, the formulae of Kii,j,j and gi,j are listed in Appendix A.
+After Φi,js are solved from (8), Di,j may be approximated by the following formulae, derived by using (5) to approximate (1):
+
+Di,jx
+
+=
+
+δi+1,j
+
+δi−1,j 2h
+
+Ji,j
+
+Φi+1,j − Φi−1,j
+
+,
+
+Di,jy
+
+=
+
+δi,j+1δi,j−1Ji,j 2h
+
+Φi,j+1 − Φi,j−1
+
+,
+
+in which Di,jx and Di,jy are respectively the x and y components of Di,j. In addition, δi,j = 1 if i, j ∈ G, or 0 otherwise. Once Di,j is computed, its direction can be used as guidance to ﬁnd the next forwarding node.
+
+B. Distributed Gauss-Seidel Iteration (DGSI)
+
+DGSI [7] coordinates sensors to solve (8) via GSI that iteratively updates each Φ in parallel from the recent values of other Φs in an order speciﬁed by OL(i, j) (i.e., Φi,j with smaller OL(i, j) will be updated earlier). That is, Φ(i,kj) are computed sequentially by
+
+Φ(i,kj)
+
+← 
+
+
+
+1 Kii,,jj
+
+gi,j
+
+−
+
+OL (i
+
+,j
+
+Kii,j,j
+)
+
+Φ(ik,)j
+
+−
+
+Kii,j,j Φ(ik,−j 1) ,
+
+OL(i ,j )
+
+<OL (i,j )
+
+>OL (i,j )
+
+(9)
+
+in which OL(i, j) deﬁnes the lexicographical order; that is, OL(i1, j1) < OL(i2, j2) if i1 < i2, or i1 = i2 and j1 < j2.
+We say GSI has gone through one sweep when all Φs update once, and Φ(i,kj) is the Φ value of i, j after the k-th sweep. Referring to Appendix A, Kii,j,j = 0 if i , j = i, j and i , j ∈/ Ni1,j, in which Ni1,j is the set of adjacent grid points of i, j in A. Thus, only Φ(i,kj)−1, Φ(i−k)1,j , Φ(i+k−1,1j), and Φ(i,kj−+11) are needed to compute Φ(i,kj) via (9). In other words, as long as Φ(i,kj)−1 and Φ(i−k)1,j are computed, Φ(i,kj) can be computed.
+
+437
+
+The iteration (9) will continue until Φ(i,kj) − Φ(i,kj−1) ≤ ε for all i, j ∈ G. DGSI adopts a two-phase approach (namely, a forward sweep followed by a backward sweep) to collect and broadcast convergence and termination information. We denote Ni1,,jOL< and Ni1,,jOL> respectively as the sets of the “smaller” and “greater” (in the order speciﬁed by OL) adjacent points of i, j in A, i.e., Ni1,,jOL< = i , j ∈ Ni1,j OL(i , j ) < OL(i, j) and Ni1,,jOL> = i , j ∈ Ni1,j OL(i , j ) > OL(i, j) . In addition, we say i, j is an OL-initiator if Ni1,,jOL< = ∅, or an OL-terminator if Ni1,,jOL> = ∅. Hence, DGSI for i, j 1 will proceed in the following steps after initialization, referring to Fig. 3 for the sequence diagram of DGSI:
+1) Forward sweep: iteration begins from the OL-initiator (e.g., the bottom-left grid point) to the OL-terminator (e.g., the top-right grid point).
+a) waits for Φs and DONEs from all non-terminated grid points in Ni1,,jOL<;
+b) updates Φi,j by (9) and DONEi,j; c) sends Φi,j and DONEi,j to all grid points in
+Ni1,,jOL>; d) terminates if DONEi,j is true.
+2) Backward sweep: iteration begins from the OLterminator back to the OL-initiator.
+a) waits for Φs and PRECISEs from all grid points in Ni1,,jOL>;
+b) updates Φi,j by (9) and PRECISEi,j; c) sends Φi,j and PRECISEi,j to all grid points in
+Ni1,,jOL<.
+The convergence and termination information are propagated via PRECISEi,j and DONEi,j which indicate whether the update changes are small enough and whether the iteration should terminate respectively. i, j will set PRECISEi,j as true if both the following two conditions are satisﬁed:
+1) Φ(i,kj) − Φ(i,kj−1) ≤ ε; 2) ∀ i , j ∈ Ni1,,jOL>, PRECISEi ,j = true.
+Thus, the convergence information is aggregated, via PRECISEs, starting from the OL-terminator in the backward sweep. The PRECISEs collected by the OL-initiator at the end of the backward sweep indicate whether the update changes of all Φs are small enough, and are used to determine the termination by the OL-initiator. That is, i, j will set DONEi,j as true based on the following rules:
+1) i, j is an OL-initiator and PRECISEi,j = true; 2) i, j is not an OL-initiator but ∀ i , j ∈
+Ni1,,jOL<, DONEi ,j = true.
+1In DGSI, a nearby sensor is selected as the grid head for each grid point to compute the value of Φ. For the sake of brevity, we simply describe the operations of grid points without explicitly mentioning that the operations are actually executed by grid heads.
+
+Ni1,,jOL <
+
+i′, j′
+
+i, j
+
+Ni1,,jOL>
+i′′, j′′
+
+Φi′ ,j ′ DONEi′ ,j ′
+
+Forward Sweep
+
+update Φi,j update DONEi,j
+
+Backward Sweep
+update Φi,j update PRECISEi,j
+Φi,j PRECISEi,j
+
+Φi,j DONEi,j
+Φi′′ ,j ′′ PRECISEi′′ ,j ′′
+
+Fig. 3. Sequence diagram for i, j in the iteration of DGSI: for example, in the forward sweep, the grid points in Ni1,,jOL< (i.e., i, j − 1 and i − 1, j ) update and then send their Φs and DONEs to i, j . After updating Φi,j and DONEi,j , i, j sends Φi,j and DONEi,j to the grid points in Ni1,,jOL> (i.e., i + 1, j and i, j + 1 ).
+III. ATOMIC RED-BLACK DISTRIBUTED GAUSS-SEIDEL ROUTING WITH FINITE ELEMENT METHOD (ARB-DGSR-FEM) ALGORITHM
+We have Theorem 1 which states that if i, j has the knowledge of whether Φ(ik,)j − Φ(ik,−j 1) ≤ ε, there must exist a backward path from i , j to i, j . Note that though DGSI described in the previous section uses OL, DGSI may work with different orders and thus the following deﬁnition and theorem do not focus on any speciﬁc order. For the sake of brevity, the proof of Theorem 1 is given in Appendix B.
+Deﬁnition 1. A backward path from is, js to id, jd is an ordered sequence of grid points, P = i0, j0 , i1, j1 , . . . , ip, jp with i0, j0 = is, js and ip, jp = id, jd , such that ik+1, jk+1 ∈ Ni1k,O,jk<. Here the order of a grid point is speciﬁed by O.
+Theorem 1. By the rule that DGSI sets the value of PRECISEi,j, PRECISEi,j = true at the k-th sweep if and only if Φ(i,kj) − Φ(i,kj−1) ≤ ε and Φ(ik,)j − Φ(ik,−j 1) ≤ ε for all i , j s which have a backward path to i, j .
+Note that an OL-initiator is responsible for determining the value of its DONE based on the PRECISEs it collected. However, the OL-initiator may fail to collect the convergence information of the grid points which have no backward path to it due to the presence of holes. Referring to Fig. 4, 0, 0 may terminate the iteration by setting DONE0,0 = true without knowing whether Φs of the grid points enclosed in the darker rectangle region converge, resulting in larger errors. Similarly, 2, 2 may terminate the iteration without knowing whether Φs of the grid points enclosed in the lighter region converge.
+To eliminate this early termination problem, we may deﬁne an iteration order, OG(i, j), based on the shortest path between
+
+438
+
+T1
+
+T2
+
+INTERIM
+
+PRECISE
+
+DONE
+
+8, 5
+
+Fig. 6. Transition diagram of S
+
+2, 2
+0, 0
+Fig. 4. 0, 0 is an OL-initiator since N01,,0OL< = ∅. The directional path from 8, 5 to 0, 0 is a backward path. Due to the presence of the L-shaped hole, there exists the second OL-initiator, 2, 2 . The grid points enclosed in the darker rectangle region have no backward path to 0, 0 , and the grid points enclosed in the lighter region have no backward path to 2, 2 .
+
+876
+
+2, 2
+
+5
+
+01 2 3 4 0, 0
+
+Fig. 5. GG of Fig. 1. The thick path from 2, 2 to 0, 0 is the shortest path and the numbers by the grid points on the path are the OG orders of
+these grid points.
+
+two grid points. Referring to Fig. 5, let GG = (V, E) be a graph such that V is the set of grid points in the ROI and there is an edge connecting i, j and i , j if i, j and i , j are adjacent to each other. Then OG(i, j) is deﬁned as the length of the shortest path from i, j to 0, 0 under GG. It is easy to prove that the shortest path from i, j to 0, 0 is also a backward path, which will guarantee that 0, 0 , the OG-initiator, can collect the convergence information of all grid points. For example, the thick path illustrated in Fig. 5 is a backward path from 2, 2 to 0, 0 with OG, but 2, 2 has no backward path to 0, 0 with OL, as depicted in Fig. 4.
+We say DGSI has gone through one round when all grid points which can update their Φs simultaneously ﬁnish updating their Φs. Then the following theorem states that a complete sweep of DGSI with OG may require up to (max OG + 1) rounds, in which max OG is the length of the longest shortest path to 0, 0 in GG. For the sake of brevity, the proof of
+Theorem 2 is given in Appendix C.
+Theorem 2. In DGSI with OG, if we say 0, 0 updates Φ0,0 at the ﬁrst round of the forward sweep, i, j updates Φi,j at the (OG(i, j) + 1)-th round.
+The parallelism of computing (9) may be enhanced by using the red-black order [8], denoted as ORB(i, j) d=ef (i + j) mod
+
+2. By denoting R[Φ0] and R[Φ1] as the sets of the red grid points and the black grid points respectively as illustrated in Fig. 1,
+i.e., R[Φn] d=ef { i, j ∈ G|ORB(i, j) = n} ,
+
+it is easy to prove that if two different grid points, i, j and i , j , have the same color, Kii,′j,j′ = 0 and Kii′,,jj′ = 0 since i , j ∈/ Ni1,j. Thus all grid points with the same color can
+
+update their Φs simultaneously, and a sweep needs only two
+
+rounds.
+
+However for DGSI with ORB, all the red grid points are ORB-initiators and any two red grid points have no
+
+backward path to each other. Thus, each black grid point has
+
+no backward path to any red grid points except its adjacent
+
+ones; in other words, each red grid point can only collect
+
+convergence information from its adjacent black grid points.
+
+OG works better for convergence but not parallelism, and the other way around for ORB. Thus we propose ARB-DGSIFEM in which Φs are updated using ORB and the convergence information are propagated using OG. In addition, we simplify
+
+the two-phase coordination mechanism by introducing a new state packet, S, to replace PRECISE and DONE used in DGSI. Si,j represents the iteration state of i, j and may be
+
+one of three states, namely INTERIM, PRECISE, and DONE. Fig. 6 depicts the state transition diagram of Si,j in which the
+
+transition conditions T1 and T2 are T1 Φ(i,kj) − Φ(i,kj−1) ≤ ε and ∀ i , j PRECISE; T2 i, j is an OG-initiator or ∀ i , j DONE.
+
+∈ Ni1,,jOG>, Si′,j′ = ∈ Ni1,,jOG<, Si′,j′ =
+
+Referring to Fig. 7 for the sequence diagram, ARB-DGSIFEM for i, j will proceed in the following steps after initialization. Note that the iteration begins from the ORBinitiator (i.e., red grid points) to the ORB-terminator (i.e.,
+black grid points).
+1) waits for Φs and Ss from all non-terminated adjacent grid points;
+2) updates Φi,j by (9) with OL replaced by ORB; 3) updates Si,j based on T1 and T2; 4) sends Φi,j and Si,j to all adjacent grid points; 5) terminates if Si,j = DONE. T1 implies that i, j determines whether Si,j will transit to PRECISE based on the state information from the grid points in Ni1,,jOG>. Similarly, from T2, i, j determines whether Si,j will transit to DONE based on the state information from the grid points in Ni1,,jOG<. Thus, though both Φs and Ss are transmitted together between adjacent grid points, Φs are updated in ORB but the iteration is coordinated similar to DGSI with OG; that is, convergence information (S =
+
+439
+
+Ni1,j
+
+i′, j′
+
+i, j
+
+Φi′ ,j ′ Si′ ,j ′ update Φi,j update Si,j
+Φi,j Si,j
+
+Fig. 7. Sequence diagram for i, j in the iteration of ARB-DGSI-FEM: all
+the grid points in Ni1,j update and then send their Φs and Ss to i, j . After updating Φi,j and Si,j , i, j sends Φi,j and Si,j to the grid points in Ni1,j .
+
+(a) Uniform ψ and ρ
+
+(b) Uniform ψ and nonuniform ρ: the sensors in the gray region generate ten times more information than other sensors.
+
+Fig. 8. Routing directions obtained by ARB-DGSI-FEM: the sink is marked by a triangle and the hole is represented as a black region.
+
+PRECISE) is aggregated starting from the OG-terminator to the OG-initiator, and termination information (S = DONE) is propagated from the OG-initiator to the OG-terminator.
+IV. NUMERICAL RESULTS
+We present two numerical examples to demonstrate the effectiveness of ARB-DGSI-FEM. Each ROI is divided into 19 × 19 grids. The sensors are randomly deployed with the constant density distribution ψ, and generate information based on ρ except for the sink which will consume all the information generated. In addition, J is a constant due to the constant density distribution by (3).
+The routing directions obtained by ARB-DGSI-FEM are depicted as arrows in Fig. 8. The directions indicate that information may be forwarded in a direction which deviates from a straight line to the sink to bypass the holes in advance to avoid the excess energy consumption of the boundary sensors. In addition, as illustrated in Fig. 8(b), the sensors along the top side of the gray region may forward information in the opposite direction to the sink in order to avoid using sensors in the high-ρ region for load balancing.
+Table I presents the comparative performance results for DGSI, DMSR [9], and ARB-DGSI-FEM. Here DMSR allows
+
+TABLE I PARALLELISM AND ERRORS FOR THE ROI ILLUSTRATED IN FIG. 8
+
+Fig. 8(a) sweeps rounds per sweep total rounds relative residual (%) Fig. 8(b) sweeps rounds per sweep total rounds relative residual (%)
+
+DGSI 1893/7885
+38 299,630 1.37 × 10−6
+1887/6943 38
+263,834 5.29 × 10−6
+
+DMSR 1933
+20 38,660 1.48 × 10−6
+2227 18
+40,086 6.54 × 10−6
+
+ARB-DGSI-FEM 1963 2 3,926
+1.55 × 10−6
+2301 2
+4,602 5.86 × 10−6
+
+an arbitrary grid point other than 0, 0 to be assigned as the OL-initiator to minimize the length of the longest backward path for better parallelism. All three algorithms require similar number of sweeps.2 However, ARB-DGSI-FEM can signiﬁcantly improve the performance since ARB-DGSI-FEM has a higher degree of parallelism; ARB-DGSI-FEM requires less than 2% of rounds and thus the convergence time needed by DGSI, or less than 12% of rounds and time needed by DMSR.
+Table I also compares the accuracy of these algorithms. Here the error is measured by the relative residual, deﬁned as KΦ − g / g , in which K, Φ, and g are respectively the matrix forms of Kii,j,j , Φi,j, and gi,j in (8). The relative residual indicates how close to the exact solution of (8) the current Φs are. The results show that the simpler onephase coordination mechanism of ARB-DGSI-FEM does not sacriﬁce much accuracy.
+V. CONCLUSION
+DGSI coordinates sensors to update Φs and propagate convergence information in OL, which may lead to the early termination problem due to the presence of holes. We propose ARB-DGSI-FEM algorithm in which the convergence information is propagated in OG to eliminate the early termination problem and Φs are updated using ORB for the maximum degree of parallelism. Our numerical results reveal that, even with a simpler one-phase coordination mechanism, ARBDGSI-FEM obtains more than 98% savings in the total number of rounds without too much sacriﬁce of accuracy.
+APPENDIX A FORMULAE OF Kii,j,j AND gi,j
+
+K = 1/6 B [J ] + B [J ] i,j
+
+0
+
+0
+
+i,j
+
+i+1,j i,j i+1,j−1
+
+i+1,j−1 i,j i,j−1
+
++ 2B0[J ] i,j−1 + B0[J ] i−1,j
+
+i,j i−1,j
+
+i,j i−1,j+1
+
++ B0[J ] i−1,j+1 + 2B0[J ] , i,j+1
+
+i,j i,j+1
+
+i,j i+1,j
+
+Kii,+j 1,j = −1/6
+
+B0[J ] i,j+1 + B0[J ] i+1,j
+
+i,j i+1,j
+
+i,j i+1,j−1
+
+,
+
+2Note that some grid points may terminate earlier (i.e., less number of sweeps) in DGSI due to the existence of the hole as described in Sec. II-B.
+
+440
+
+Kii,,jj−1 = −1/6
+
+B0[J ] i+1,j−1 + B0[J ] i,j−1
+
+i,j i,j−1
+
+i,j i−1,j
+
+,
+
+Kii,−j 1,j = −1/6
+
+B0[J ] i,j−1 + B0[J ] i−1,j
+
+i,j i−1,j
+
+i,j i−1,j+1
+
+,
+
+Kii,,jj+1 = −1/6
+
+B0[J ] i−1,j+1 + B0[J ] i,j+1
+
+i,j i,j+1
+
+i,j i+1,j
+
+,
+
+Kii,j,j = 0, if i , j = i, j and i , j ∈/ Ni1,j ,
+
+and
+
+gi,j = −h2/24 B1[ρ] i+1,j + B1[ρ] i+1,j−1
+
+i,j i+1,j−1
+
+i,j i,j−1
+
++ B1[ρ] i,j−1 + B1[ρ] i−1,j
+
+i,j i−1,j
+
+i,j i−1,j+1
+
++ B1[ρ] i−1,j+1 + B1[ρ] , i,j+1
+
+i,j i,j+1
+
+i,j i+1,j
+
+in which
+
+B0[f ]
+
+= δ δ i1,j1
+
+i1,j1 i2,j2
+
+fi,j + fi1,j1 + fi2,j2
+
+,
+
+i,j i2 ,j2
+
+B1[f ]
+
+= δ δ i1,j1
+
+i1,j1 i2,j2
+
+2fi,j + fi1,j1 + fi2,j2
+
+.
+
+i,j i2 ,j2
+
+APPENDIX B PROOF OF THEOREM 1
+
+As described in Sec. II-B, i, j will set PRECISEi,j as true at the k-th sweep if the following two conditions are satisﬁed:
+C-1 Φ(i,kj) − Φ(i,kj−1) ≤ ε; C-2 ∀ i , j ∈ Ni1,,jO>, PRECISEi ,j = true. Here the order of a grid point is speciﬁed by O. (⇒)
+Note that C-1 guarantees that Φ(i,kj) − Φ(i,kj−1) ≤ ε. Thus we
+only need to prove that Φ(ik,)j − Φ(ik,−j 1) ≤ ε for all i , j s which have a backward path to i, j , which can be easily
+done by the following lemma.
+
+Lemma 1. Suppose i∗, j∗ has a backward path P to i, j and Φ(i∗k,)j∗ − Φ(i∗k,−j∗1) > ε. If i , j is on P, PRECISEi ,j = false.
+
+Proof. We prove this lemma by induction on the grid points
+
+of P. Let P = i0, j0 , i1, j1 , . . . , ip, jp with i0, j0 = i∗, j∗ and ip, jp = i, j . Obviously, Φ(i∗k,)j∗ − Φ(i∗k,−j∗1) >
+
+ε leads to PRECISEi0,j0 = false by C-1.
+
+Suppose PRECISEin,jn Deﬁnition 1, in+1, jn+1
+
+= false ∈ Ni1n,O,j<n
+
+for 0 or in,
+
+≤ jn
+
+n < p. By
+
+∈
+
+N . 1,O>
+in+1 ,jn+1
+
+Since PRECISEin,jn = false, PRECISEin+1,jn+1 = false by
+
+C-2.
+
+If i , j has a backward path P to i, j and Φ(ik,)j − Φ(ik,−j 1) > ε, the value of PRECISE of each grid
+point, including i, j , on P is false, which contradicts to PRECISEi,j = true. (⇐)
+Suppose PRECISEi,j = false. Since Φ(i,kj) − Φ(i,kj−1) ≤ ε, ∃ i1, j1 ∈ Ni1,,jO>, PRECISEi1,j1 = false by C2. Obviously, i1, j1 , i, j is a backward path from
+
+i1, j1 to i, j . Thus, Φ(i1k,)j1 − Φ(i1k,−j11) ≤ ε, and ∃
+i2, j2 ∈ Ni11,O,j1>, PRECISEi2,j2 = false by C-2. Similarly, i2, j2 , i1, j1 , i, j is a backward path from i2, j2 to i, j . Thus, Φ(i2k,)j2 − Φ(i2k,−j21) ≤ ε, and ∃
+i3, j3 ∈ Ni12,O,j2>, PRECISEi3,j3 = false by C-2. In addition, i3, j3 , i2, j2 , i1, j1 , i, j is a backward path from
+
+i3, j3 to i, j .
+
+We can continue this process until we have a backward path
+
+in, jn , false and
+
+in−1, jn−1 Ni1n,O,j>n =
+
+, . . . , i, j ∅. Since
+
+such that Ni1n,O,j>n =
+
+PRECISEin,jn = ∅, C-2 is not
+
+applicable and thus Φ(ink),jn − Φ(ink−,jn1) > ε by C-1, which
+
+contradicts to that Φ(ink),jn − Φ(ink−,jn1) ≤ ε since there is a backward path from in, jn to i, j .
+
+APPENDIX C PROOF OF THEOREM 2
+
+Note that the shortest path from i, j to 0, 0 is
+
+also a backward path, which is denoted as P =
+
+ip, jp , ip−1, jp−1 , . . . , i0, j0 with ip, jp = i, j and
+
+i0, j0 = 0, 0 . In addition, OG(in, jn) = n by deﬁnition
+
+of OG. We then prove Theorem 2 by induction on the grid
+
+points of P.
+
+It is obvious that 0, 0 updates Φ0,0 at the ﬁrst round
+
+of the forward sweep. Suppose in, jn updates Φin,jn at the (n + 1)-th round. Since DGSI coordinates grid points
+
+to update Φs from smaller OG to larger OG in the forward
+
+sweep, in+1, jn+1 cannot update Φin+1,jn+1 earlier than the
+
+(n + 2)-th round. In addition,
+
+i ,j
+
+∈
+
+N1
+in+1 ,jn+1
+
+such
+
+that
+
+OG(in, jn) = n < OG(i , j ) < OG(in+1, jn+1) = n + 1.
+
+Thus, in+1, jn+1 updates Φin+1,jn+1 at the (n+2)-th round.
+
+REFERENCES
+
+[1] I. F. Akyildiz, W. Su, Y. Sankarasubramaniam, and E. E. Cayirci, “A Survey on Sensor Networks,” IEEE Commun. Mag., vol. 40, no. 8, pp. 102–114, Aug. 2002.
+[2] Y. Yu, R. Govindan, and D. Estrin, “Geographical and Energy Aware Routing: A Recursive Data Dissemination Protocol for Wireless Sensor Networks,” Computer Science Department, UCLA, Technical Report UCLA/CSD-TR-01-0023, May 2001.
+[3] M. Chen, V. C. Leung, S. Mao, and T. Kwon, “Receiver-oriented loadbalancing and reliable routing in wireless sensor networks,” Wireless Communications and Mobile Computing, vol. 9, no. 3, pp. 405–416, 2009.
+[4] R.-S. Ko, “Using Finite Element Method to Solve the Load-Balancing Routing Problem for Massively-Dense Wireless Sensor Networks,” in Proceedings of 2016 International Computer Symposium, Chiayi, Taiwan, Dec. 2016, pp. 204–209.
+[5] F. Zhao and L. Guibas, Wireless Sensor Networks: An Information Processing Approach. San Francisco, CA, USA: Morgan Kaufmann Publishers Inc., 2004.
+[6] T. I. Zohdi, A Finite Element Primer for Beginners: The Basics, ser. SpringerBriefs in Applied Sciences and Technology. New York: Springer, 2014.
+[7] R.-S. Ko, “A distributed routing algorithm for sensor networks derived from macroscopic models,” Computer Networks, vol. 55, no. 1, pp. 314– 329, Jan. 2011.
+[8] Y. Saad, Iterative Methods for Sparse Linear Systems. Philadelphia: Society for Industrial and Applied Mathematics, 2003.
+[9] R.-S. Ko, “A load-balancing routing algorithm for wireless sensor networks based on domain decomposition,” Ad Hoc Networks, vol. 30, pp. 63–83, Jul. 2015.
+
+441
+
+
