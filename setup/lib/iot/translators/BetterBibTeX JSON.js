@@ -11,7 +11,7 @@
 	"configOptions": {
 		"async": true,
 		"getCollections": true,
-		"hash": "ea9b315e3bc1196f0113b989146bd481-5c3636823db12884e3074bf8d79009ea"
+		"hash": "ea9b315e3bc1196f0113b989146bd481-762500f4355c8aa84c419784b0e08e3b"
 	},
 	"displayOptions": {
 		"exportNotes": true,
@@ -19,7 +19,7 @@
 		"keepUpdated": false
 	},
 	"browserSupport": "gcsv",
-	"lastUpdated": "2019-07-12 08:01:52"
+	"lastUpdated": "2019-07-17 15:44:01"
 }
 
 var Translator = {
@@ -1863,7 +1863,12 @@ Translator.doImport = async () => {
         // I do export these but the cannot be imported back
         delete source.relations;
         delete source.citekey;
+        delete source.citationKey;
         delete source.uri;
+        delete source.key;
+        delete source.version;
+        delete source.libraryID;
+        delete source.collections;
         const validFields = itemfields.valid.get(source.itemType);
         if (!validFields)
             throw new Error(`unexpected item type '${source.itemType}'`);
@@ -1935,26 +1940,12 @@ Translator.doExport = () => {
         items: [],
     };
     debug_1.debug('header ready');
-    const validItemFields = new Set([
-        'citekey',
-        'uri',
-        'relations',
-    ]);
     const validAttachmentFields = new Set(['relations', 'uri', 'itemType', 'title', 'path', 'tags', 'dateAdded', 'dateModified', 'seeAlso', 'mimeType']);
     while ((item = Zotero.nextItem())) {
         if (item.itemType === 'attachment')
             continue;
         itemfields.simplifyForExport(item, Translator.options.dropAttachments);
         item.relations = item.relations ? (item.relations['dc:relation'] || []) : [];
-        const validFields = itemfields.valid.get(item.itemType);
-        for (const field of Object.keys(item)) {
-            if (validItemFields.has(field))
-                continue;
-            if (validFields && !validFields.get(field)) {
-                debug_1.debug('bbt json: delete', item.itemType, field, item[field]);
-                delete item[field];
-            }
-        }
         for (const att of item.attachments || []) {
             if (Translator.options.exportFileData && att.saveFile && att.defaultPath) {
                 att.saveFile(att.defaultPath, true);
@@ -1967,8 +1958,10 @@ Translator.doExport = () => {
                 continue; // amazon/googlebooks etc links show up as atachments without a path
             att.relations = att.relations ? (att.relations['dc:relation'] || []) : [];
             for (const field of Object.keys(att)) {
-                if (!validAttachmentFields.has(field))
+                if (!validAttachmentFields.has(field)) {
+                    debug_1.debug('bbt json: delete attachment', field, att[field]);
                     delete att[field];
+                }
             }
         }
         data.items.push(item);
