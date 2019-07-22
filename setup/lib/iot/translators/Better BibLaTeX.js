@@ -18,7 +18,7 @@
 		"useJournalAbbreviation": false,
 		"keepUpdated": false
 	},
-	"lastUpdated": "2019-07-21 13:31:39"
+	"lastUpdated": "2019-07-21 15:48:03"
 }
 
 var Translator = {
