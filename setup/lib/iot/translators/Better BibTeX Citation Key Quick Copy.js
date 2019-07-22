@@ -8,13 +8,13 @@
 	"priority": 100,
 	"inRepository": false,
 	"configOptions": {
-		"hash": "b2cd75ceffae93a878f0444e0134c85a-6ed1e833bf91cf37dd93719b50005ef3"
+		"hash": "6a8c846d1b4ebb9284ffd501144a46b9-d4f95b6edbbfc8eb17bd5860fa6cfd84"
 	},
 	"displayOptions": {
 		"quickCopyMode": ""
 	},
 	"browserSupport": "gcsv",
-	"lastUpdated": "2019-07-17 11:41:06"
+	"lastUpdated": "2019-07-21 13:31:39"
 }
 
 var Translator = {
@@ -87,6 +87,7 @@ var Translator = {
     this.skipField = this.skipFields.reduce((acc, field) => { acc[field] = true; return acc }, {})
     this.preferences.testing = Zotero.getHiddenPref('better-bibtex.testing')
     Zotero.debug('prefs loaded: ' + JSON.stringify(this.preferences, null, 2))
+    Zotero.debug('options loaded: ' + JSON.stringify(this.options, null, 2))
 
     if (stage == 'doExport') {
       this.caching = !(
@@ -8189,8 +8190,9 @@ function template(string) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const format = __webpack_require__(/*! string-template */ "../node_modules/string-template/index.js");
 const exporter_1 = __webpack_require__(/*! ./lib/exporter */ "./lib/exporter.ts");
-function select_by_id(item) {
-    return `zotero://select/items/${item.libraryID}_${item.key}`;
+function select_by_key(item) {
+    const [, kind, lib, key] = item.uri.match(/^http:\/\/zotero\.org\/(users|groups)\/((?:local\/)?[^\/]+)\/items\/(.+)/);
+    return (kind === 'users') ? `zotero://select/library/items/${key}` : `zotero://select/groups/${lib}/items/${key}`;
 }
 function select_by_citekey(item) {
     return `zotero://select/items/@${encodeURIComponent(item.citekey)}`;
@@ -8237,7 +8239,7 @@ const Mode = {
     },
     orgmode(items) {
         for (const item of items) {
-            Zotero.write(`[[${select_by_id(item)}][@${item.citekey}]]`);
+            Zotero.write(`[[${select_by_key(item)}][@${item.citekey}]]`);
         }
     },
     orgmode_citekey(items) {
@@ -8246,7 +8248,7 @@ const Mode = {
         }
     },
     selectLink(items) {
-        Zotero.write(items.map(select_by_id).join('\n'));
+        Zotero.write(items.map(select_by_key).join('\n'));
     },
     selectLink_citekey(items) {
         Zotero.write(items.map(select_by_citekey).join('\n'));

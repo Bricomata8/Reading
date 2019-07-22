@@ -11,7 +11,7 @@
 	"configOptions": {
 		"async": true,
 		"getCollections": true,
-		"hash": "51609fe7fa93796a9b561d4c38fc0639-c3812b4fe8b55f96b6759cec9784d711"
+		"hash": "33283b816c1e2ac0bd3a46c62f34cdc5-baad62202221f162cfb7415219a1de7e"
 	},
 	"displayOptions": {
 		"exportNotes": false,
@@ -20,7 +20,7 @@
 		"keepUpdated": false
 	},
 	"browserSupport": "gcsv",
-	"lastUpdated": "2019-07-17 11:41:06"
+	"lastUpdated": "2019-07-21 13:31:39"
 }
 
 var Translator = {
@@ -93,6 +93,7 @@ var Translator = {
     this.skipField = this.skipFields.reduce((acc, field) => { acc[field] = true; return acc }, {})
     this.preferences.testing = Zotero.getHiddenPref('better-bibtex.testing')
     Zotero.debug('prefs loaded: ' + JSON.stringify(this.preferences, null, 2))
+    Zotero.debug('options loaded: ' + JSON.stringify(this.options, null, 2))
 
     if (stage == 'doExport') {
       this.caching = !(
@@ -11049,10 +11050,12 @@ class ZoteroItem {
         }
         return true;
     }
-    '$date-modified'(value) { return this.item.dateAdded = this.unparse(value); }
-    '$date-added'(value) { return this.item.dateAdded = this.unparse(value); }
-    '$added-at'(value) { return this.item.dateAdded = this.unparse(value); }
-    $timestamp(value) { return this.item.dateAdded = this.unparse(value); }
+    /* TODO: Zotero ignores these on import
+    protected '$date-modified'(value) { return this.item.dateAdded = this.unparse(value) }
+    protected '$date-added'(value) { return this.item.dateAdded = this.unparse(value) }
+    protected '$added-at'(value) { return this.item.dateAdded = this.unparse(value) }
+    protected $timestamp(value) { return this.item.dateAdded = this.unparse(value) }
+    */
     $number(value) {
         value = this.unparse(value);
         for (const field of ['seriesNumber', 'number', 'issue']) {
@@ -12608,6 +12611,7 @@ class Reference {
         return tags.join(',');
     }
     enc_attachments(f) {
+        debug_1.debug('attachments::', Translator.options, f);
         if (!f.value || (f.value.length === 0))
             return null;
         const attachments = [];
@@ -12624,11 +12628,12 @@ class Reference {
             else if (attachment.localPath) {
                 att.path = attachment.localPath;
             }
+            debug_1.debug('attachment::', Translator.options, att);
             if (!att.path)
                 continue; // amazon/googlebooks etc links show up as atachments without a path
             // att.path = att.path.replace(/^storage:/, '')
             att.path = att.path.replace(/(?:\s*[{}]+)+\s*/g, ' ');
-            debug_1.debug('attachment::', Translator.options, att);
+            debug_1.debug('attachment:::', Translator.options, att);
             if (Translator.options.exportFileData) {
                 debug_1.debug('saving attachment::', Translator.options, att);
                 attachment.saveFile(att.path, true);

@@ -10,10 +10,10 @@
 	"inRepository": false,
 	"configOptions": {
 		"getCollections": true,
-		"hash": "9ab92b52dde3fc09651928477e898c59-0ceb75b7b7d3da751443454decb4c208"
+		"hash": "8184f445cf7f03cd4d3c3c5878fa6f98-0ceb75b7b7d3da751443454decb4c208"
 	},
 	"browserSupport": "gcsv",
-	"lastUpdated": "2019-07-12 08:01:52"
+	"lastUpdated": "2019-07-21 13:31:39"
 }
 
 var Translator = {
@@ -86,6 +86,7 @@ var Translator = {
     this.skipField = this.skipFields.reduce((acc, field) => { acc[field] = true; return acc }, {})
     this.preferences.testing = Zotero.getHiddenPref('better-bibtex.testing')
     Zotero.debug('prefs loaded: ' + JSON.stringify(this.preferences, null, 2))
+    Zotero.debug('options loaded: ' + JSON.stringify(this.options, null, 2))
 
     if (stage == 'doExport') {
       this.caching = !(

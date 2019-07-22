@@ -10,7 +10,7 @@
 	"inRepository": false,
 	"configOptions": {
 		"getCollections": true,
-		"hash": "56964354124e5d36ebfbd28431ff921d-f53d504cd776bcb617c8e25edea90a31"
+		"hash": "435a092908b60c3cffbed43512e0ed6e-b3dbfd54102b47fa89df3bbf353856ff"
 	},
 	"displayOptions": {
 		"exportNotes": false,
@@ -18,7 +18,7 @@
 		"useJournalAbbreviation": false,
 		"keepUpdated": false
 	},
-	"lastUpdated": "2019-07-17 11:41:06"
+	"lastUpdated": "2019-07-21 13:31:39"
 }
 
 var Translator = {
@@ -91,6 +91,7 @@ var Translator = {
     this.skipField = this.skipFields.reduce((acc, field) => { acc[field] = true; return acc }, {})
     this.preferences.testing = Zotero.getHiddenPref('better-bibtex.testing')
     Zotero.debug('prefs loaded: ' + JSON.stringify(this.preferences, null, 2))
+    Zotero.debug('options loaded: ' + JSON.stringify(this.options, null, 2))
 
     if (stage == 'doExport') {
       this.caching = !(
@@ -11300,6 +11301,7 @@ class Reference {
         return tags.join(',');
     }
     enc_attachments(f) {
+        debug_1.debug('attachments::', Translator.options, f);
         if (!f.value || (f.value.length === 0))
             return null;
         const attachments = [];
@@ -11316,11 +11318,12 @@ class Reference {
             else if (attachment.localPath) {
                 att.path = attachment.localPath;
             }
+            debug_1.debug('attachment::', Translator.options, att);
             if (!att.path)
                 continue; // amazon/googlebooks etc links show up as atachments without a path
             // att.path = att.path.replace(/^storage:/, '')
             att.path = att.path.replace(/(?:\s*[{}]+)+\s*/g, ' ');
-            debug_1.debug('attachment::', Translator.options, att);
+            debug_1.debug('attachment:::', Translator.options, att);
             if (Translator.options.exportFileData) {
                 debug_1.debug('saving attachment::', Translator.options, att);
                 attachment.saveFile(att.path, true);
