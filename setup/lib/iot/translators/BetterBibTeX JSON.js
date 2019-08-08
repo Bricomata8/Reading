@@ -19,7 +19,7 @@
 		"keepUpdated": false
 	},
 	"browserSupport": "gcsv",
-	"lastUpdated": "2019-07-21 15:48:03"
+	"lastUpdated": "2019-07-23 20:25:58"
 }
 
 var Translator = {

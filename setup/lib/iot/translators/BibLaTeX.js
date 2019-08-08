@@ -460,7 +460,9 @@ function encodeFilePathComponent(value) {
 		var first = true;
 		var citekeys = new Object();
 		var item;
+		var collection;
 		while (item = Zotero.nextItem()) {
+			collection = Zotero.nextCollection();
 			//don't export standalone notes and attachments
 			if (item.itemType == "note" || item.itemType == "attachment") continue;
 
@@ -797,7 +799,9 @@ function encodeFilePathComponent(value) {
 					writeField("file", attachmentString.substr(1));
 				}
 			}
-
+			var tagString = "";
+			tagString+=item.collections;
+			writeField("collection", tagString);
 			Zotero.write("\n}");
 		}
 	}

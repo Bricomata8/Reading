@@ -1,0 +1,468 @@
+2019 IEEE International Conference on Blockchain (Blockchain)
+
+Privacy-preserving and Efﬁcient Multi-keyword Search Over Encrypted Data on Blockchain
+
+Shan Jiang∗, Jiannong Cao∗, Julie A. McCann†, Yanni Yang∗, Yang Liu‡, Xiaoqing Wang‡, Yuming Deng‡ ∗The Hong Kong Polytechnic University, Hong Kong, China
+†Department of Computing, Imperial College London, London, UK ‡Alibaba Group Holding Limited, Hangzhou, China
+{cssjiang, csjcao, csynyang}@comp.polyu.edu.hk, jamm@imperial.ac.uk, {lionel.ly, robin.wxq, yuming.dym}@alibaba-inc.com
+
+Abstract—Recent research has demonstrated searchable blockchains that not only provide reliable search over encrypted distributed storage systems but ensure privacy is preserved. Yet, current solutions focus on single-keyword search over encrypted data on the blockchain. To extend such approaches to multi-keyword scenarios, they essentially perform a singlekeyword search for multiple times and take the intersection of the results. However, such extensions suffer from privacy and efﬁciency issues. In particular, the service peers, which process the search requests, will be aware of the intermediate results, which include the data associated with each of the encrypted keywords. Moreover, these multiple traversals incur long delays in performing the search requests one after another with an extra cost in calculating the intersection of multiple sets. Finally, the service peers will charge the data owner a lot for writing the vast intermediate results to the smart contract. In this paper, we propose a bloom ﬁlter-enabled multi-keyword search protocol with enhanced efﬁciency as well as privacy preservation. In the protocol, a low-frequency keyword selected by a bloom ﬁlter will be used to ﬁlter the database when performing a multi-keyword search operation. Because the keyword is of low frequency, the majority of the data will be excluded from the result, which reduces the computational cost signiﬁcantly. Moreover, we propose to use pseudorandom tags to facilitate completing each search operation in only one round. In this way, no intermediate results are generated, and the privacy is preserved. Finally, we implement the protocol in a local simulated blockchain network and conduct extensive experiments. The results indicate that our multi-keyword search protocol outperforms the traditional method with an average of 14.67% less time delay and 59.96% less ﬁnancial cost.
+Index Terms—Blockchain, symmetric searchable encryption, smart contract
+I. INTRODUCTION
+Nowadays, enterprises tend to store their data in data centers rather than locally due to the increasing demands for storage and computation resource [1]. Because there can be sensitive information, e.g., trade-union membership and health-related records, and even the data center and be malicious, the data is typically encrypted before outsourcing. The encryption, in turn, hinders data utilization, e.g., frequent search operations. Therefore, we need to bring out the technology of searchable symmetric encryption (SSE).
+SSE is a technique enabling searching over encrypted data, in which the data owners encrypt not only the data but the search requests as well [2]. By this means, the data center
+
+knows nearly nothing about the data. However, the data center is assumed to be technically curious but honest in this ﬁeld [3]. In practice, the data center has the potential to be malicious and deviate from the predeﬁned protocol, e.g., to return only part of the result to save computational resources. Hence, reliability issues arise.
+To deal with the reliability issue, the research community has proposed veriﬁable searchable encryption, in which the data center attaches some ﬂag bits to the result [4]. Upon receiving the result from the data center, the data owners can decode the ﬂag bits to verify the correctness of the result. However, it requires noticeable computational resources for the data owners to decode the ﬂag bits [5]. It is preferable to outsource as many computational tasks as possible to the end devices, especially those with limited battery.
+Recently, blockchain technology [6] [7] shows its potential to solve the reliability issue. In these schemes, the blockchain, a distributed ledger maintained by a trustless peer-to-peer network, serves as the data center. The encrypted data with indexes, which is stored in the blockchain and smart contract [8], is used to implement the functions of data storage and data search. Since all the operations are completed by all the nodes in the network, the correctness of the result can be guaranteed as long as the majority of the nodes are honest [9].
+Existing blockchain-based searchable encryption schemes [10] [11] focus only on single-keyword search. They can be extended to multi-keyword scenarios by performing a singlekeyword search for multiple times and taking the intersection of the results. However, such extensions suffer from privacy and efﬁciency issues. In particular, the intermediate results, i.e., the data associated with each individual keyword, will be exposed to the service peers. Such data leakage raises the privacy issue. Moreover, the service peers have to handle the single-keyword search requests one after another. Since some keywords can appear in the majority or even all the data, the computational cost to handle such keywords multiple times seems a substantial burden. The large amount of intermediate results also leads to a signiﬁcant ﬁnancial cost since they are written to the smart contract by the service peers. After the results for all the keywords are calculated, the service peers have to calculate the intersection of the results, which demands an extra computational cost.
+
+978-1-7281-4693-5/19/$31.00 ©2019 IEEE
+
+405
+
+DOI 10.1109/Blockchain.2019.00062
+
+In this paper, we design a privacy-preserving and efﬁcient data management system with the functions of database setup, dynamic update, and multi-keyword search. The original database to be outsourced is deﬁned as a set of identiﬁerkeyword pairs. That is, there are several keywords associated with each of the identiﬁers. After setting the database up, the data owner can add or delete some identiﬁer-keyword pairs dynamically. Meanwhile, the data owner can query all the identiﬁers that are associated with a set of keywords. The data center is a blockchain network composed of multiple service peers which rent out their computational resources to earn monetary rewards. Inside the blockchain, smart contracts are deployed to fulﬁll the data services. Because smart contracts are automated programs executed by all the service peers, the data services can be provided with reliability. Furthermore, SSE is employed in smart contracts to preserve privacy. Finally, we propose a bloom ﬁlter-enabled multi-keyword search protocol, which reduces the time delay and ﬁnancial cost remarkably. Next, we discuss the challenges in designing our system and the proposed approaches to overcome them.
+The ﬁrst challenge is to set up an encrypted database without violating the cost limit rule in smart contracts [12]. That is, the service peers contribute their computational resources to maintain the state of the smart contracts. Such work is not free since each operation in the smart contract, e.g., adding two numbers and storage to the local disks, takes certain costs. To guarantee the validity of a smart contract, the cost for a single transaction is bounded, which is called the cost limit rule. In the setup phase, a large number of encrypted data is outsourced to the service peers. In particular, for each identiﬁer-keyword pair, a reversed and encrypted keyword-identiﬁer pair and a tag to support multi-keyword search will be generated in our algorithm. To prevent the setup operation from violating the cost limit rule, we devise a way to estimate the number of bytes that will be generated for each identiﬁer-keyword pair and calculate the number of encrypted data that can be contained in a single transaction. Then, we slice the encrypted database based on the calculation to comply with the cost limit rule. Finally, the encrypted keyword-identiﬁer pairs and the tags are randomly shufﬂed to prevent data leakage.
+The second challenge lies in designing a time- and ﬁnanceefﬁcient protocol for multi-keyword search. As discussed previously, the existing approaches are inefﬁcient in terms of time delay and ﬁnancial cost due to the large number of intermediate results. In this paper, we design our multi-keyword search protocol based on the insight that the appearance times of the majority of the keywords are low in the database. First, we generate a tag for each identiﬁer-keyword pair in the setup phase. Meanwhile, we build a bloom ﬁlter to record all the high-frequency keywords in the database. In the multikeyword search phase, we use the bloom ﬁlter to ﬁnd a lowfrequency keyword from the search request and use it to ﬁlter the database. Note that most of the keywords will be excluded from the result since the selected keyword is of low frequency. Finally, we use the tag of each identiﬁer-keyword pair to check whether each candidate identiﬁer meets the search request.
+
+II. PRIVACY-PRESERVING AND EFFICIENT DATA MANAGEMENT VIA BLOCKCHAIN
+A. System Overview
+There are two actors in the blockchain-based data management system, i.e., service peer and data owner. The service peers are individual nodes in the blockchain network who are renting out computational resources to earn monetary rewards. Data owners are the service requesters who want to outsource their data and later enjoy content update and search services.
+There are four kinds of actions that can happen between the two actors, i.e., setup, addition, deletion, and search. The formal deﬁnition of each action is described as follows.
+• Setup. The data owner outsources a database W = {(idi, wi)|i = 1, 2, · · · , l}, a list of l identiﬁer-keyword pairs to the service peers. Each idi ∈ {0, 1}μ is a string of certain length while each wi ∈ {0, 1}∗ is a string of uncertain length. In the later sections, we will use l, m, and n to notate the number of identiﬁer-keyword pairs, keywords, and identiﬁers respectively.
+• Addition. The data owner adds a set of identiﬁer-keyword pairs {id, Wa} to the database W , where Wa is a set of keywords.
+• Deletion. The data owner deletes a set of identiﬁerkeyword pairs {id, Wd} from the database W , where Wa is a set of keywords.
+• Search. The data owner sends Ws = {w1, w2, · · · , wk} to the service peers to ﬁnd out all the identiﬁers ids such that there exists w ∈ Ws and (id, w) ∈ W .
+
+data owner read result
+
+blockchain network
+encrypted data and operations
+
+write data
+
+confirm transactions
+
+smart contract
+
+blockchain
+
+Fig. 1. System Overview
+
+The ﬂowchart of the actions is demonstrated in Fig. 1. When the data owners perform the operations of setup, addition, deletion, or search, they will send one or more transactions containing the encrypted data and operations to the service peers. The service peers process the transactions and pack the transactions into the blockchain. After the transaction is conﬁrmed into the blockchain, the service peers will perform the operations which write data to the smart contract. Finally, the data owners can get the results according to the state of the smart contract.
+We design privacy-preserving and reliable protocols to fulﬁll the four actions described in the following subsections1. Be-
+1The protocols of addition and deletion are omitted due to page limit.
+
+406
+
+Algorithm 1 Initialization
+Service Peers on Initializing the Smart Contract:
+1: Allocate a dictionary Dori 2: Allocate two sets Sdel and Stag 3: Allocate two lists F lag and Result 4: Set balance to be B, the money deposited by data owner
+fore the illustration of the four actions, we ﬁrst demonstrate the initialization of the smart contract as shown in Alg. 1. The smart contract stores ﬁve variables, a dictionary Dori, two sets two sets Sdel and Stag, and two lists F lag and Result for future usage, in which Dori is to store encrypted keywordidentiﬁer pairs, Sdel and F lag are to support dynamic update of the database, Stag is to support multi-keyword search, and Result is used for storage of the search result. Finally, the balance of the smart contract is set to be B, which is the money deposited by the data owner. The operations cannot cost more than B in the future.
+B. Database Setup
+After initializing the smart contract, the data owner can set the database up as shown in Alg. 2. The data owner aims to store a set of identiﬁer-keyword pairs. First, the data owner generates four secret keys K, K+, K−, and KT . The four secret keys are all of size λ, which is an adjustable security parameter. Then, for each keyword w, derives two keys K1 and K2 are derived from a predeﬁned pseudorandom function (PRF) [13] F and the secret key K. The key K1 is to derive pseudorandom labels for the keywords while the key K2 is to encrypt the identiﬁers. Using the keyword w, we can get all the identiﬁers that are associated with w, which is notated as a set Ww. Afterward, we iterate the identiﬁers id over Ww. For each id, the PRF F is applied to a counter c using the key K1 to generate a pseudorandom label l. Meanwhile, we use K2 to encrypt id using K2 and get the encrypted identiﬁer d. Then, we add the keyword-identiﬁer pair (l, d) to a list L. To summarize, we reverse each identiﬁer-keyword pair to an encrypted keyword-identiﬁer pair and store the result in a list L. Besides this, we generate a unique tag for each identiﬁer-keyword pair (id, w) by applying the PRF F over w and id sequentially using the secret key KT . The tags are accumulated into the list Ltag. Note that the tags are used for the multi-keyword search.
+The data owner has to send the database to the service peers after encryption. However, the encrypted database has to be sliced before sending due to the cost limit rule in the smart contract. Generally, each operation in smart contract takes a speciﬁc cost, and there is a cost limit for each transaction sent to the smart contract. As a result, the number of data that can be attached for each transaction is limited. In our protocol, the data generated for each identiﬁer-keyword pair is designed to be bounded, i.e., a keyword-identiﬁer pair and a tag. The size of the keyword-identiﬁer pair and the tag will be ﬁxed, e.g., 512 bits and 256 bits respectively, if the PRF F is ﬁxed, e.g., HMAC-SHA256 [14].
+
+Algorithm 2 Setup
+
+Data Owner on Setting W up:
+
+1: K ← {0, 1}λ 2: K+ ← {0, 1}λ 3: K− ← {0, 1}λ
+4: KT ← {0, 1}λ
+
+5: Allocate two lists L and Ltag 6: Allocate two local dictionaries Dcount and Dkey 7: count ← 0
+
+8: for each keyword w ∈ W do
+
+9: K1||K2 ← F (K, w) 10: KwT ← F (KT , w)
+11: c ← 0
+
+12: for each id ∈ Ww do
+
+13:
+
+l ← F (K1, c)
+
+14:
+
+d ← Enc(K2, id)
+
+15:
+
+c ← c+1
+
+16:
+
+tag ← F (KwT , id)
+
+17:
+
+Append (l, d) to L
+
+18:
+
+Append tag to Ltag
+
+19:
+
+if count ≥ δ then
+
+20:
+
+Shufﬂe L and Ltag randomly
+
+21:
+
+Send (SETUP, L, Ltag) to the service peer
+
+22:
+
+count ← 0
+
+23:
+
+Empty L and Ltag
+
+24:
+
+end if
+
+25: end for
+
+26: cw ← Get(Dkey, w) 27: if cw = ⊥ then cw ← 0 end if
+
+28: Set(Dkey, w, cw + c) 29: end for
+
+30: Sort all the keywords w ∈ W according to Get(Dkey, w) in descending order to get a list of keywords Ws
+31: Allocate a list bf of α 0/1 bits initialized to be all 0
+
+32: for each keyword w in the ﬁrst β percentage of Ws do 33: bf ← (H(w) | bf )
+
+34: end for
+
+35: Send (SETUP, L, Ltag) to the service peer 36: Store K, K+, K−, KT , bf , and Dcount locally
+
+Service Peers on Receiving (SETUP, L, Ltag):
+
+37: Add all the elements (li, di) in L to the dictionary Dori with l as the key and d as the value
+
+38: Add all the elements in Ltag to the set Stag
+
+As a result, we can calculate the maximum number δ of
+identiﬁer-keyword pairs that can be handled in one transaction.
+Assume that the PRF F digests message into δf bits and the number of bits that can be stored in a single transaction to be δt. Then, the value of δ should be δt/(3δf ) . In this paper, at most 10KB can be stored in a transaction and HMAC-SHA256 is used as the PRF. As a result, δt equals 80, 000, δf equals 256, and δ is calculated to be 104. When the counter reaches δ, we shufﬂe the lists L and Ltag, and send a transaction of setup containing them to the service peer. The reason for shufﬂing
+
+407
+
+L and Ltag is to prevent the service peers from inferring any information related to the data. For example, L and Ltag are in the same order with regard to each identiﬁer-keyword pair. After sending each setup transaction, the counter will be reset to be 0 and that lists L and Ltag will be emptied. Note that there are additional operations related to the bloom ﬁlter bf , which will be explained in the later subsections.
+From the perspective of the service peers, they are receiving several transactions of setup together with two lists L and Ltag. For each transaction, they enumerate the elements (li, di) in the list L and add it into the dictionary Dori with li as the key and di as the vale. Afterward, they store all the elements in Ltag to the set Stag in the smart contract. We can see that the data is stored in the smart contract with unordered data structures, i.e., dictionary and set. Therefore, the setup protocol is immune to the order of the transactions received, which is a notable feature.
+C. Multi-keyword Search
+In the above subsections, we demonstrate the protocols of setup, addition, and deletion, which enables dynamic, reliable, and privacy-preserving storage and update of the data. In this subsection, we demonstrate the protocol for multi-keyword search upon the encrypted database.
+To begin with our approach, we introduce the way to build the bloom ﬁlter which includes the keywords that frequently appear in the database. In Alg. 2, we create a dictionary Dkey to count the appearance time of each keyword, where the appearance time of a keyword w is deﬁned to be:
+F (w, W ) = |{(idi, w)|(idi, w) ∈ W }|
+A keyword is deﬁned to be high-frequency in a database W if it is in the ﬁrst β percentage when sorting {w|w ∈ W } in non-increasing order according to the appearance times. A keyword is deﬁned to be low-frequency in W if it is not highfrequency in W .
+For each high-frequency keyword w in W , we use a hash function H to hash w into an α-bit 0/1 string H(w) and apply bitwise OR operation to bf using H(w). In this way, bf is a bloom ﬁlter containing all the keywords of high frequency. Note that α and β are parameters that should be ﬁne-tuned to make the bloom ﬁlter efﬁcient. A large value of α increases the storage burden for the data owner while decreases the false positive rate when judging whether a keyword of high frequency. On the other hand, a large value of β increases the false positive rate while reduces the cost if true positive. In this paper, we set α and β to be 8, 000 and 10% respectively, which is enough to handle a database of up to 9.1M identiﬁerkeyword pairs.
+After setting the bloom ﬁlter up, the data owner can use it to ﬁnd an arbitrary low-frequency keyword among the k keywords in the search request. If the hash value of a keyword does not equal to the result of applying bitwise AN D operation to itself with bf , then the keyword must be lowfrequency. If such a low-frequency keyword is found, we swap it with the ﬁrst keyword in the multi-keyword search request;
+
+Algorithm 3 Search
+
+Data Owner on Searching (w1, w2, · · · , wk) upon W :
+
+1: for k ← 1 to k do
+
+2: h ← H(wi)
+
+3: if (h & bf ) = h then
+
+4:
+
+Swap w1 and wi
+
+5:
+
+Break
+
+6: end if
+
+7: end for
+
+8: K1||K2 ← F (K, w1)
+
+9: K1+||K2+ ← F (K+, w1)
+
+10: K1− ← F (K−, w1)
+
+11: 12:
+
+for i Send
+
+←(SE2AtRoCkHd, Ko 1K, KiT 2←, KF1+(,KKT2+,,wKi)1−e,nKd2Tf,o·r·
+
+·
+
+, KkT )
+
+to
+
+the service peer
+
+Service Peers on Receiving (SEARCH, K1, K2, K1+, K2+, K1−, K2T , · · · , KkT ):
+
+13: res ← ∅
+
+14: for c ← 0 to ∞ do
+
+15: l ← F (K1, c)
+
+16: d ← Get(Dori, l)
+
+17: if d = ⊥ then Break end if
+
+18: res ← res ∪ {Dec(K2, d)}
+
+19: end for
+
+20: for c ← 0 to ∞ do 21: l ← F (K1+, c) 22: d ← Get(Dori, l)
+
+23: if d = ⊥ then Break end if 24: res ← res ∪ {Dec(K2+, d)} 25: end for
+
+26: for each id ∈ res do
+
+27: delid ← F (K1−, id) 28: if delid ∈ Sdel then res ← res \ {id}
+
+29: else for i ← 2 to k do
+
+30:
+
+if F (KiT , id) ∈/ Stag then
+
+31:
+
+res ← res \ {id}
+
+32:
+
+Break
+
+33:
+
+end if
+
+34: end for end if 35: end for 36: Result ← res
+
+otherwise, there is no low-frequency keyword among the k keywords, and the ﬁrst keyword will remain high-frequency.
+Note that we will not make the ﬁrst keyword to be high-
+frequency if it is low-frequency before the operation since no
+true negative judgment happens a bloom ﬁlter.
+Now, it comes to the phase of generating encrypted search
+request by the data owner. The data owner will take the secret keys K, K+, and K− to generate three pseudorandom labels K1, K1+, and K1− and two symmetric keys K2 and K2+ for the ﬁrst keyword w1. Meanwhile, a tag will be generated for each keyword ki, where i ranges from 2 to k, using the secret key KT . In this way, an encrypted search request containing
+
+408
+
+three pseudorandom labels, two symmetric keys, and k − 1 tags will be generated and sent to the service peers.
+On receiving a search request from the data owner, the service peers will start with the ﬁrst keyword and get a set of candidate identiﬁers. In particular, they traverse Dori in the smart contract using the pseudorandom K1 and K1+ in sequence. Then, the service peers accumulate all the counters that exist in the key ﬁeld of Dori after encryption using K1 or K1+. Afterward, the service peers add the identiﬁers after decryption corresponding to each of the accumulated counters using the corresponding symmetric key. Finally, we deal with the deletion set and the other k − 1 keywords at the same time. For each of the identiﬁers id after decryption, we check whether the encrypted result of id using the pseudorandom deletion label K1− is in the set of Sdel and whether any of the k − 1 tags after applying PRF F to id is not in the tag list Stag. If any of the two conditions hold, id will be excluded from the result.
+Finally, we analyze the time delay and ﬁnancial cost for the traditional method and our method. In the traditional method, it takes O(l) and generates O(n) identiﬁers for each singlekeyword search request. Then, it takes an extra O(k · n · log n) time to calculate the intersection of k sets, each of which is of size O(n). Since the writing operations dominate the ﬁnancial cost for a smart contract [15], we approximate the ﬁnancial cost as the number of identiﬁers in the intermediate and ﬁnal results. Hence, the time delay and ﬁnancial overhead are O(k · l + k · n · log n) and O(k · n) respectively. In terms of our method, it takes O(l) to use the ﬁrst keyword to ﬁlter the database. Then, β · n identiﬁers will be generated and veriﬁed through k − 1 tags, which takes O(k · β · n) time. Therefore, the time overhead for our approach is O(l + k · β · n). In the experiments, we ﬁgure that β can be as small as 10%, which reduce the time complexity remarkably. The ﬁnancial cost overhead is O(n) since only the ﬁnal result will be written to the smart contract.
+III. EXPERIMENTAL RESULT
+We implement the operations of database setup, dynamic update, and multi-keyword search in python 2.7 with the PRF implemented by HMAC-SHA256 in the PYCRYPTODOME package and the bloom ﬁlter implemented by the PYBLOOM package [16]. We run both the data owner and the service peers on laptops running Ubuntu 16.04.5 with 16GB RAM and two Intel i7-6500U cores. The service peers form a local simulated blockchain network, accept the request from the data owner, and run the smart contract. To focus on the performance of our protocol, we set the block generation time to be 0, which means the inﬂuence of the complex network topology is not taken into consideration.
+After setting up the experimental environment, we conduct extensive experiments on the Eron email dataset [17], which consists of 517K emails. The original database is generated from the dataset as follows. Each email is treated as a new identiﬁer id, and each word after lowercasing in the email is treated as a keyword associated with id. By this means, we
+
+get a database consisting of 517K identiﬁers, 622K distinct keywords, and 9.1M identiﬁer-keyword pairs.
+A. Single-keyword Search
+
+Search time in seconds Search time per identifier in seconds
+
+16
+
+0.11
+
+0.10 14
+0.09
+
+12
+
+0.08
+
+0.07 10
+0.06
+
+8
+
+0.05
+
+0.04 6
+0.03
+
+4
+
+0.02
+
+0
+
+100
+
+200
+
+300
+
+400
+
+500
+
+0
+
+100
+
+200
+
+300
+
+400
+
+500
+
+Number of identifiers in the result
+
+Number of identifiers in the result
+
+(a) Search time v.s. #identifiers
+
+(a) Search time per identifier v.s. #identifiers
+
+Fig. 2. Single-keyword search
+
+In the single-keyword search operation, the time consumption at the data owner side can be neglected since only several operations of symmetric encryption are involved. At the service peer side, it needs to traverse the dictionary Dori twice and write the data to the local state. We conduct experiments on searching keywords with various appearance times. The result is shown in Fig. 2. We can see that 5.12s is needed when there is no matched identiﬁer, which is the time to traverse the dictionary Dori. Moreover, it takes 15.10s when all the identiﬁers are associated with the keyword. The search time per identiﬁer decreases as the number of identiﬁers in the result increases. The reason is that a large number of identiﬁers can average the time to traverse the dictionary.
+B. Multi-keyword Search
+
+Search time in seconds Number of stored identifiers (x105)
+
+20.0
+
+19.5
+
+19.0
+
+18.5
+
+18.0
+
+17.5
+
+Trad. method
+
+17.0
+
+Our method
+
+16.5
+
+16.0
+
+15.5
+
+15.0
+
+2
+
+3
+
+4
+
+5
+
+6
+
+7
+
+Number of keywords in search request
+
+(a) Search time v.s. #keywords
+
+3.0
+
+2.5
+
+2.0
+
+Trad. method
+
+1.5
+
+Our method
+
+1.0
+
+0.5
+
+0
+
+2
+
+3
+
+4
+
+5
+
+6
+
+7
+
+Number of keywords in search request
+
+(b) #stored identifiers v.s. #keywords
+
+Fig. 3. Time evaluation for multi-keyword search
+
+We conduct experiments for multi-keyword search over traditional method and our method for the number of keywords ranging from 2 to 7. The traditional method, or the intersection method, is to apply single-keyword search multiple times and take the intersection of the results as the ﬁnal result. In our method, we set β to be 10 since no more than 0.05% keywords appears in at least 10% identiﬁers after analysis. We run the experiments for 50 times and the comparison results in terms of time and ﬁnancial overhead are shown in Fig. 3. Note that
+
+409
+
+extreme cases, e.g., all the keywords are of high frequencies, are included in the experiments because the keywords are randomly generated.
+In terms of time overhead, the intersection method is signiﬁcantly affected by the number of keywords since the intersections of more sets should be calculated when the number of keywords increases. For our method, the time to execute a multi-keyword search does not vary too much as the number of keywords increases. The reason is that there will be few candidate identiﬁers after ﬁltering the database using the ﬁrst keyword. Moreover, only one operation of tag comparison will be added to the computational burden in case of one more keyword. On average, our method outperforms the intersection method by 14.67% in terms of time efﬁciency.
+In terms of ﬁnancial overhead, the major ﬁnancial cost for search operation lies in data storage because data storage dominates the cost compared to other operations. Therefore, we treat the number of identiﬁers that are written to the state of the smart contract as the ﬁnancial cost. For the intersection method, the number of stored identiﬁers increases about 60% when the number of keywords increases from 2 to 5 and remains nearly unchanged for 5 and more keywords. The reason is that there will be few identiﬁers with the same 5 or more keywords. The ﬁnancial cost of our method decreases when the number of keywords increases since we call the smart contract and write the result only once. Besides, the number of eligible identiﬁers decreases when the number of ﬁltering keywords increase. On average, our method outperforms the intersection method by 59.96% concerning ﬁnancial cost.
+IV. RELATED WORK
+Searchable symmetric encryption is a technique to enable privacy-preserving and secure search over encrypted data between client and server [2]. The research community has been devoted this area for enabling dynamic operations [18], supporting boolean queries [3], and extending to graph database [19]. However, none of these research works considers dishonest servers. Veriﬁable searchable encryption has the same target as SSE while considering the dishonest servers. The researchers enable the client-side veriﬁcation by introducing veriﬁable hash table [5]. Nevertheless, the client is assumed to be honest in their works. Moreover, the client takes nonnegligible efforts to verify the results from the servers. In recent years, the research community introduces blockchain to searchable encryption to solve the dishonesty issues of both the client and server [9] [10] [11] [20]. However, they focus on the ﬁnancial fairness between the miners in blockchain and the clients and suffer from privacy and efﬁciency issues when extended to multi-keyword search.
+V. CONCLUSION
+In this paper, we propose a blockchain-based data management system with functions of privacy-preserving and efﬁcient database setup, dynamic update and multi-keyword search. The technique to divide the encrypted database into several
+
+pieces in the protocols is general for other blockchain appli-
+cations. The key contribution lies in enabling multi-keyword
+search over encrypted database on blockchain and improving
+its efﬁciency in terms of time delay and ﬁnancial cost. To do
+so, we propose to use a bloom ﬁlter to ﬁnd out a low-frequency
+keyword and ﬁlter the encrypted database using the keyword,
+which signiﬁcantly narrows down the searching space. The
+future work can be tuning the parameters in the bloom ﬁlter
+to further enhance efﬁciency.
+VI. ACKNOWLEDGMENT
+This work is supported by Alibaba Innovative Research
+(AIR) Program with project number H-ZG6N and Hong
+Kong RGC Research Impact Fund (RIF) with project number
+R5034-18.
+REFERENCES
+[1] B. Hayes, “Cloud computing,” Communications of the ACM, vol. 51, no. 7, pp. 9–11, 2008.
+[2] D. X. Song, D. Wagner, and A. Perrig, “Practical techniques for searches on encrypted data,” in IEEE S&P, 2000, pp. 44–55.
+[3] S. Kamara and T. Moataz, “Boolean searchable symmetric encryption with worst-case sub-linear complexity,” in Springer EUROCRYPT, 2017, pp. 94–124.
+[4] X. Liu, G. Yang, Y. Mu, and R. Deng, “Multi-user veriﬁable searchable symmetric encryption for cloud storage,” IEEE Transactions on Dependable and Secure Computing (TDSC), 2018.
+[5] R. Bost, “ oϕoς: Forward secure searchable encryption,” in ACM CCS, 2016, pp. 1143–1154.
+[6] S. Nakamoto et al., “Bitcoin: A peer-to-peer electronic cash system,” Bitcoin Project White Paper, pp. 1–9, 2008.
+[7] S. Jiang, J. Cao, H. Wu, Y. Yang, M. Ma, and J. He, “Blochie: a blockchain-based platform for healthcare information exchange,” in IEEE SMARTCOMP, 2018, pp. 49–56.
+[8] G. Wood et al., “Ethereum: A secure decentralised generalised transaction ledger,” Ethereum Project Yellow Paper, vol. 151, pp. 1–32, 2014.
+[9] S. Hu, C. Cai, Q. Wang, C. Wang, X. Luo, and K. Ren, “Searching an encrypted cloud meets blockchain: A decentralized, reliable and fair realization,” in IEEE INFOCOM, 2018, pp. 792–800.
+[10] Y. Zhang, R. Deng, X. Liu, and D. Zheng, “Outsourcing service fair payment based on blockchain and its applications in cloud computing,” IEEE Transactions on Services Computing (TSC), 2018.
+[11] C. Cai, J. Weng, X. Yuan, and C. Wang, “Enabling reliable keyword search in encrypted decentralized storage with fairness,” IEEE Transactions on Dependable and Secure Computing (TDSC), 2018.
+[12] N. Atzei, M. Bartoletti, and T. Cimoli, “A survey of attacks on ethereum smart contracts (sok),” in Springer POST, 2017, pp. 164–186.
+[13] O. Goldreich, S. Goldwasser, and S. Micali, “How to construct random functions,” Journal of the ACM (JACM), vol. 33, no. 4, pp. 792–807, 1986.
+[14] H. Krawczyk, M. Bellare, and R. Canetti, “Hmac: Keyed-hashing for message authentication,” RFC, vol. 2104, pp. 1–11, 1997.
+[15] X. Li, P. Jiang, T. Chen, X. Luo, and Q. Wen, “A survey on the security of blockchain systems,” Future Generation Computer Systems (FGCS), 2017.
+[16] P. S. Almeida, C. Baquero, N. Preguic¸a, and D. Hutchison, “Scalable bloom ﬁlters,” Information Processing Letters, vol. 101, no. 6, pp. 255– 261, 2007.
+[17] B. Klimt and Y. Yang, “The enron corpus: A new dataset for email classiﬁcation research,” in Springer ECML, 2004, pp. 217–226.
+[18] S. Kamara, C. Papamanthou, and T. Roeder, “Dynamic searchable symmetric encryption,” in ACM CCS, 2012, pp. 965–976.
+[19] X. Meng, S. Kamara, K. Nissim, and G. Kollios, “Grecs: Graph encryption for approximate shortest distance queries,” in ACM CCS, 2015, pp. 504–517.
+[20] L. Chen, W.-K. Lee, C.-C. Chang, K.-K. R. Choo, and N. Zhang, “Blockchain based searchable encryption for electronic health record sharing,” Future Generation Computer Systems (FGCS), 2019.
+
+410
+
+
