@@ -8,13 +8,13 @@
 	"priority": 100,
 	"inRepository": false,
 	"configOptions": {
-		"hash": "335b5a20e8496da9655a9b4b178e9535-be4de93098e45b13ec42986fe5a07408"
+		"hash": "6a8c846d1b4ebb9284ffd501144a46b9-d4f95b6edbbfc8eb17bd5860fa6cfd84"
 	},
 	"displayOptions": {
 		"quickCopyMode": ""
 	},
 	"browserSupport": "gcsv",
-	"lastUpdated": "2019-05-28 09:00:23"
+	"lastUpdated": "2019-07-23 20:25:58"
 }
 
 var Translator = {
@@ -24,7 +24,7 @@ var Translator = {
   BetterCSL: false,
   header: ZOTERO_TRANSLATOR_INFO,
   // header: < %- JSON.stringify(header) % >,
-  preferences: {"DOIandURL":"both","ascii":"","asciiBibLaTeX":false,"asciiBibTeX":true,"autoAbbrev":false,"autoAbbrevStyle":"","autoExport":"immediate","autoExportDelay":1,"autoExportIdleWait":10,"autoExportPrimeExportCacheBatch":4,"autoExportPrimeExportCacheDelay":100,"autoExportPrimeExportCacheThreshold":0,"autoExportTooLong":10,"autoPin":false,"auxImport":false,"biblatexExtendedDateFormat":true,"biblatexExtendedNameFormat":false,"bibtexParticleNoOp":false,"bibtexURL":"off","cacheFlushInterval":5,"citeCommand":"cite","citekeyFold":true,"citekeyFormat":"​[auth:lower][shorttitle3_3][year]","citeprocNoteCitekey":false,"csquotes":"","exportBibTeXStrings":"off","git":"config","importBibTeXStrings":true,"itemObserverDelay":100,"jabrefFormat":0,"keyConflictPolicy":"keep","keyScope":"library","kuroshiro":false,"lockedInit":false,"parseParticles":true,"postscript":"","qualityReport":false,"quickCopyMode":"latex","quickCopyPandocBrackets":false,"rawLaTag":"#LaTeX","relativeFilePaths":false,"scrubDatabase":false,"skipFields":"","skipWords":"a,ab,aboard,about,above,across,after,against,al,along,amid,among,an,and,anti,around,as,at,before,behind,below,beneath,beside,besides,between,beyond,but,by,d,da,das,de,del,dell,dello,dei,degli,della,dell,delle,dem,den,der,des,despite,die,do,down,du,during,ein,eine,einem,einen,einer,eines,el,en,et,except,for,from,gli,i,il,in,inside,into,is,l,la,las,le,les,like,lo,los,near,nor,of,off,on,onto,or,over,past,per,plus,round,save,since,so,some,sur,than,the,through,to,toward,towards,un,una,unas,under,underneath,une,unlike,uno,unos,until,up,upon,versus,via,von,while,with,within,without,yet,zu,zum","sorted":false,"strings":"","suppressBraceProtection":false,"suppressTitleCase":false,"warnBulkModify":10},
+  preferences: {"DOIandURL":"both","ascii":"","asciiBibLaTeX":false,"asciiBibTeX":true,"autoAbbrev":false,"autoAbbrevStyle":"","autoExport":"immediate","autoExportDelay":1,"autoExportIdleWait":10,"autoExportPrimeExportCacheBatch":4,"autoExportPrimeExportCacheDelay":100,"autoExportPrimeExportCacheThreshold":0,"autoExportTooLong":10,"autoPin":false,"auxImport":false,"biblatexExtendedDateFormat":true,"biblatexExtendedNameFormat":false,"bibtexParticleNoOp":false,"bibtexURL":"off","cacheFlushInterval":5,"citeCommand":"cite","citekeyFold":true,"citekeyFormat":"​[auth:lower][shorttitle3_3][year]","citeprocNoteCitekey":false,"csquotes":"","exportBibTeXStrings":"off","git":"config","importBibTeXStrings":true,"itemObserverDelay":100,"jabrefFormat":0,"keyConflictPolicy":"keep","keyScope":"library","kuroshiro":false,"lockedInit":false,"mapMath":"","mapText":"","mapUnicode":"conservative","parseParticles":true,"postscript":"","qualityReport":false,"quickCopyMode":"latex","quickCopyPandocBrackets":false,"rawLaTag":"#LaTeX","relativeFilePaths":false,"scrubDatabase":false,"skipFields":"","skipWords":"a,ab,aboard,about,above,across,after,against,al,along,amid,among,an,and,anti,around,as,at,before,behind,below,beneath,beside,besides,between,beyond,but,by,d,da,das,de,del,dell,dello,dei,degli,della,dell,delle,dem,den,der,des,despite,die,do,down,du,during,ein,eine,einem,einen,einer,eines,el,en,et,except,for,from,gli,i,il,in,inside,into,is,l,la,las,le,les,like,lo,los,near,nor,of,off,on,onto,or,over,past,per,plus,round,save,since,so,some,sur,than,the,through,to,toward,towards,un,una,unas,under,underneath,une,unlike,uno,unos,until,up,upon,versus,via,von,while,with,within,without,yet,zu,zum","sorted":false,"strings":"","suppressBraceProtection":false,"suppressTitleCase":false,"warnBulkModify":10},
   options: {"quickCopyMode":""},
 
   stringCompare: (new Intl.Collator('en')).compare,
@@ -83,10 +83,11 @@ var Translator = {
       this.preferences[pref] = value
     }
     // special handling
-    this.preferences.skipWords = this.preferences.skipWords.toLowerCase().trim().split(/\s*,\s*/).filter(function(s) { return s })
-    this.preferences.skipFields = this.preferences.skipFields.toLowerCase().trim().split(/\s*,\s*/).filter(function(s) { return s })
+    this.skipFields = this.preferences.skipFields.toLowerCase().trim().split(/\s*,\s*/).filter(function(s) { return s })
+    this.skipField = this.skipFields.reduce((acc, field) => { acc[field] = true; return acc }, {})
     this.preferences.testing = Zotero.getHiddenPref('better-bibtex.testing')
     Zotero.debug('prefs loaded: ' + JSON.stringify(this.preferences, null, 2))
+    Zotero.debug('options loaded: ' + JSON.stringify(this.options, null, 2))
 
     if (stage == 'doExport') {
       this.caching = !(
@@ -8189,12 +8190,12 @@ function template(string) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const format = __webpack_require__(/*! string-template */ "../node_modules/string-template/index.js");
 const exporter_1 = __webpack_require__(/*! ./lib/exporter */ "./lib/exporter.ts");
-function select_link(item, mode) {
-    switch (mode) {
-        case 'id': return item.libraryID > 1 ? `zotero://select/items/${item.libraryID}_${item.key}` : `zotero://select/items/${item.key}`;
-        case 'citekey': return `zotero://select/items/@${encodeURIComponent(item.citekey)}`;
-        default: throw new Error(`Unsupported link mode ${mode}`);
-    }
+function select_by_key(item) {
+    const [, kind, lib, key] = item.uri.match(/^http:\/\/zotero\.org\/(users|groups)\/((?:local\/)?[^\/]+)\/items\/(.+)/);
+    return (kind === 'users') ? `zotero://select/library/items/${key}` : `zotero://select/groups/${lib}/items/${key}`;
+}
+function select_by_citekey(item) {
+    return `zotero://select/items/@${encodeURIComponent(item.citekey)}`;
 }
 const Mode = {
     gitbook(items) {
@@ -8238,19 +8239,19 @@ const Mode = {
     },
     orgmode(items) {
         for (const item of items) {
-            Zotero.write(`[[${select_link(item, 'id')}][@${item.citekey}]]`);
+            Zotero.write(`[[${select_by_key(item)}][@${item.citekey}]]`);
         }
     },
     orgmode_citekey(items) {
         for (const item of items) {
-            Zotero.write(`[[${select_link(item, 'citekey')}][@${item.citekey}]]`);
+            Zotero.write(`[[${select_by_citekey(item)}][@${item.citekey}]]`);
         }
     },
     selectLink(items) {
-        Zotero.write(items.map(item => select_link(item, 'id')).join('\n'));
+        Zotero.write(items.map(select_by_key).join('\n'));
     },
     selectLink_citekey(items) {
-        Zotero.write(items.map(item => select_link(item, 'citekey')).join('\n'));
+        Zotero.write(items.map(select_by_citekey).join('\n'));
     },
     rtfScan(items) {
         const reference = items.map(item => {
@@ -8454,6 +8455,7 @@ exports.Exporter = new class {
         this.preamble = { DeclarePrefChars: '' };
         this.jabref = new jabref_1.JabRef();
         this.strings = {};
+        this.packages = {};
     }
     prepare_strings() {
         if (!Translator.BetterTeX || !Translator.preferences.strings)
@@ -8505,6 +8507,11 @@ exports.Exporter = new class {
                         this.preamble.DeclarePrefChars += cached.metadata.DeclarePrefChars;
                     if (cached.metadata.noopsort)
                         this.preamble.noopsort = true;
+                    if (cached.metadata.packages) {
+                        for (const pkg of cached.metadata.packages) {
+                            this.packages[pkg] = true;
+                        }
+                    }
                 }
                 continue;
             }
@@ -8533,6 +8540,14 @@ exports.Exporter = new class {
         if (preamble.length > 0) {
             preamble = preamble.map(cmd => `"${cmd} "`);
             Zotero.write(`@preamble{ ${preamble.join(' \n # ')} }\n`);
+        }
+        if (Translator.preferences.qualityReport) {
+            const packages = Object.keys(this.packages);
+            if (packages.length)
+                Zotero.write('\n%Required packages:\n');
+            for (const pkg of packages) {
+                Zotero.write(`% * ${pkg}\n`);
+            }
         }
     }
 };

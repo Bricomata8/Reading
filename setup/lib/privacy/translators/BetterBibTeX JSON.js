@@ -11,14 +11,15 @@
 	"configOptions": {
 		"async": true,
 		"getCollections": true,
-		"hash": "04d92027a1e88b688db8db2c42cee1bb-d9525b9cd18b860be2ce0b44821c1c5a"
+		"hash": "df4dcb57e3cc2d0df75a757a8e82cb4b-762500f4355c8aa84c419784b0e08e3b"
 	},
 	"displayOptions": {
 		"exportNotes": true,
-		"exportFileData": false
+		"exportFileData": false,
+		"keepUpdated": false
 	},
 	"browserSupport": "gcsv",
-	"lastUpdated": "2019-05-28 09:00:23"
+	"lastUpdated": "2019-07-23 20:25:58"
 }
 
 var Translator = {
@@ -28,8 +29,8 @@ var Translator = {
   BetterCSL: false,
   header: ZOTERO_TRANSLATOR_INFO,
   // header: < %- JSON.stringify(header) % >,
-  preferences: {"DOIandURL":"both","ascii":"","asciiBibLaTeX":false,"asciiBibTeX":true,"autoAbbrev":false,"autoAbbrevStyle":"","autoExport":"immediate","autoExportDelay":1,"autoExportIdleWait":10,"autoExportPrimeExportCacheBatch":4,"autoExportPrimeExportCacheDelay":100,"autoExportPrimeExportCacheThreshold":0,"autoExportTooLong":10,"autoPin":false,"auxImport":false,"biblatexExtendedDateFormat":true,"biblatexExtendedNameFormat":false,"bibtexParticleNoOp":false,"bibtexURL":"off","cacheFlushInterval":5,"citeCommand":"cite","citekeyFold":true,"citekeyFormat":"​[auth:lower][shorttitle3_3][year]","citeprocNoteCitekey":false,"csquotes":"","exportBibTeXStrings":"off","git":"config","importBibTeXStrings":true,"itemObserverDelay":100,"jabrefFormat":0,"keyConflictPolicy":"keep","keyScope":"library","kuroshiro":false,"lockedInit":false,"parseParticles":true,"postscript":"","qualityReport":false,"quickCopyMode":"latex","quickCopyPandocBrackets":false,"rawLaTag":"#LaTeX","relativeFilePaths":false,"scrubDatabase":false,"skipFields":"","skipWords":"a,ab,aboard,about,above,across,after,against,al,along,amid,among,an,and,anti,around,as,at,before,behind,below,beneath,beside,besides,between,beyond,but,by,d,da,das,de,del,dell,dello,dei,degli,della,dell,delle,dem,den,der,des,despite,die,do,down,du,during,ein,eine,einem,einen,einer,eines,el,en,et,except,for,from,gli,i,il,in,inside,into,is,l,la,las,le,les,like,lo,los,near,nor,of,off,on,onto,or,over,past,per,plus,round,save,since,so,some,sur,than,the,through,to,toward,towards,un,una,unas,under,underneath,une,unlike,uno,unos,until,up,upon,versus,via,von,while,with,within,without,yet,zu,zum","sorted":false,"strings":"","suppressBraceProtection":false,"suppressTitleCase":false,"warnBulkModify":10},
-  options: {"exportFileData":false,"exportNotes":true},
+  preferences: {"DOIandURL":"both","ascii":"","asciiBibLaTeX":false,"asciiBibTeX":true,"autoAbbrev":false,"autoAbbrevStyle":"","autoExport":"immediate","autoExportDelay":1,"autoExportIdleWait":10,"autoExportPrimeExportCacheBatch":4,"autoExportPrimeExportCacheDelay":100,"autoExportPrimeExportCacheThreshold":0,"autoExportTooLong":10,"autoPin":false,"auxImport":false,"biblatexExtendedDateFormat":true,"biblatexExtendedNameFormat":false,"bibtexParticleNoOp":false,"bibtexURL":"off","cacheFlushInterval":5,"citeCommand":"cite","citekeyFold":true,"citekeyFormat":"​[auth:lower][shorttitle3_3][year]","citeprocNoteCitekey":false,"csquotes":"","exportBibTeXStrings":"off","git":"config","importBibTeXStrings":true,"itemObserverDelay":100,"jabrefFormat":0,"keyConflictPolicy":"keep","keyScope":"library","kuroshiro":false,"lockedInit":false,"mapMath":"","mapText":"","mapUnicode":"conservative","parseParticles":true,"postscript":"","qualityReport":false,"quickCopyMode":"latex","quickCopyPandocBrackets":false,"rawLaTag":"#LaTeX","relativeFilePaths":false,"scrubDatabase":false,"skipFields":"","skipWords":"a,ab,aboard,about,above,across,after,against,al,along,amid,among,an,and,anti,around,as,at,before,behind,below,beneath,beside,besides,between,beyond,but,by,d,da,das,de,del,dell,dello,dei,degli,della,dell,delle,dem,den,der,des,despite,die,do,down,du,during,ein,eine,einem,einen,einer,eines,el,en,et,except,for,from,gli,i,il,in,inside,into,is,l,la,las,le,les,like,lo,los,near,nor,of,off,on,onto,or,over,past,per,plus,round,save,since,so,some,sur,than,the,through,to,toward,towards,un,una,unas,under,underneath,une,unlike,uno,unos,until,up,upon,versus,via,von,while,with,within,without,yet,zu,zum","sorted":false,"strings":"","suppressBraceProtection":false,"suppressTitleCase":false,"warnBulkModify":10},
+  options: {"exportFileData":false,"exportNotes":true,"keepUpdated":false},
 
   stringCompare: (new Intl.Collator('en')).compare,
 
@@ -87,10 +88,11 @@ var Translator = {
       this.preferences[pref] = value
     }
     // special handling
-    this.preferences.skipWords = this.preferences.skipWords.toLowerCase().trim().split(/\s*,\s*/).filter(function(s) { return s })
-    this.preferences.skipFields = this.preferences.skipFields.toLowerCase().trim().split(/\s*,\s*/).filter(function(s) { return s })
+    this.skipFields = this.preferences.skipFields.toLowerCase().trim().split(/\s*,\s*/).filter(function(s) { return s })
+    this.skipField = this.skipFields.reduce((acc, field) => { acc[field] = true; return acc }, {})
     this.preferences.testing = Zotero.getHiddenPref('better-bibtex.testing')
     Zotero.debug('prefs loaded: ' + JSON.stringify(this.preferences, null, 2))
+    Zotero.debug('options loaded: ' + JSON.stringify(this.options, null, 2))
 
     if (stage == 'doExport') {
       this.caching = !(
@@ -1862,7 +1864,12 @@ Translator.doImport = async () => {
         // I do export these but the cannot be imported back
         delete source.relations;
         delete source.citekey;
+        delete source.citationKey;
         delete source.uri;
+        delete source.key;
+        delete source.version;
+        delete source.libraryID;
+        delete source.collections;
         const validFields = itemfields.valid.get(source.itemType);
         if (!validFields)
             throw new Error(`unexpected item type '${source.itemType}'`);
@@ -1934,36 +1941,30 @@ Translator.doExport = () => {
         items: [],
     };
     debug_1.debug('header ready');
-    const validItemFields = new Set([
-        'citekey',
-        'uri',
-        'relations',
-    ]);
     const validAttachmentFields = new Set(['relations', 'uri', 'itemType', 'title', 'path', 'tags', 'dateAdded', 'dateModified', 'seeAlso', 'mimeType']);
     while ((item = Zotero.nextItem())) {
         if (item.itemType === 'attachment')
             continue;
         itemfields.simplifyForExport(item, Translator.options.dropAttachments);
         item.relations = item.relations ? (item.relations['dc:relation'] || []) : [];
-        const validFields = itemfields.valid.get(item.itemType);
-        for (const field of Object.keys(item)) {
-            if (validItemFields.has(field))
-                continue;
-            if (validFields && !validFields.get(field)) {
-                debug_1.debug('bbt json: delete', item.itemType, field, item[field]);
-                delete item[field];
-            }
-        }
         for (const att of item.attachments || []) {
-            att.path = att.localpath;
+            if (Translator.options.exportFileData && att.saveFile && att.defaultPath) {
+                att.saveFile(att.defaultPath, true);
+                att.path = att.defaultPath;
+            }
+            else if (att.localPath) {
+                att.path = att.localPath;
+            }
+            if (!att.path)
+                continue; // amazon/googlebooks etc links show up as atachments without a path
+            att.relations = att.relations ? (att.relations['dc:relation'] || []) : [];
             for (const field of Object.keys(att)) {
-                att.relations = att.relations ? (att.relations['dc:relation'] || []) : [];
-                if (!validAttachmentFields.has(field))
+                if (!validAttachmentFields.has(field)) {
+                    debug_1.debug('bbt json: delete attachment', field, att[field]);
                     delete att[field];
+                }
             }
         }
-        if (item.relations)
-            debug_1.debug('adding item', item);
         data.items.push(item);
     }
     debug_1.debug('data ready');
