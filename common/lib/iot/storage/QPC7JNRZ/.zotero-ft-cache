@@ -1,0 +1,232 @@
+
+All About LoRa and LoRaWAN
+
+Electronics and Wireless communication solutions. This blog mainly talks about LoRa physical layer solutions.
+Pages
+
+    Profiling a C code
+    What is Discrete Convolution?
+    Bandwidth, Spectrum and Data rate
+    Wire Behavior at High Frequencies
+    LoRa vs LoRaWAN
+    LoRa: Symbol Generation
+    Matlab Code to Generate LoRa Symbols
+    LoRa: Orthogonality
+    LoRa Decoding
+    Matlab codes for LoRa Decoding
+    How does LoRaWAN Adaptive Data Rate work?
+    LoRaWAN MAC Commands
+    LoRa/LoRaWAN Important Tables
+    LoRa: Performance analysis
+    LoRa: SF performance comparison
+    How to buy LoRa Matlab Codes?
+    Detection Theory Notes
+
+How does LoRaWAN Adaptive Data Rate work?
+How do LoRaWAN nodes change their data rates? What are the commands for that? Here is the simple and detailed explanation for it.
+
+Let's first talk about the commands for ADR   (Adaptive Data Rate) . 
+In LoRaWAN MAC Layer there are total four different commands for ADR. 
+2 of them are MAC commands.
+
+Here are they:
+
+> ADR  
+          This is 1 bit long. Node set this bit to ask the gateway to control it's data rate.
+         ADR = 1 => Network will control the data rate of the node
+         ADR = 0 => Network will not control the data rate of the node no matter what the DR or transmit power is.
+
+> ADRACKReq
+          In order to validate that the network is receiving the uplink messages, nodes periodically transmit  ADRACKReq  message. This is 1 bit long. 
+         ADRACKReq = 1 => Network should respond in ADR_ACK_DELAY time to confirm that it is receiving the uplink messages
+         ADRACKReq = 0 => Otherwise
+
+>  LinkADRReq
+         This is 4 bytes long MAC command transmitted by network to request node to change it's transmit parameters. 
+
+- Data Rate and Transmitted power are regional specific and pre stored tables. 
+- ChMask stand for Channel Mask. The channel which should be used for next uplink transmissions.
+- ChMaskCtrl - This is used to control the interpretation of ChMask
+- NbReq - Number of transmissions for all unconfirmed uplink messages. 
+
+
+
+
+
+
+
+
+
+
+
+
+
+>  LinkADRAns
+        This is 1 byte long MAC command transmitted by nodes in the response of LinkADRReq command.
+
+       If the status bit is 0 then that command is discarded or if it is 1 then it is successfully set.
+
+
+Now Let's see how does it work.
+
+       Remember  Network only increase the Data Rate and Nodes only decrease the Data Rate .  
+
+        First the end-device set the ADR bit to '1' in uplink message. Once the network detect this it starts collecting the max SNR of received signals and keep record of last 20 received signals. If the ADR becomes zero it deletes the table and collect the data again if it becomes 1.  
+        After 20 received signal data it computes SNR margin. 
+
+SNRmargin = SNRmax - requiredSNR - margin
+
+where
+           SNRmax = max. SNR of 20 received signals
+           margin = 10 by default 
+and  
+            requiredSNR = 
+
+
+
+
+
+
+
+
+
+
+
+
+
+Now from SNRmargin no. of steps are calculated
+
+Nstep = round(SNRmargin/3)
+
+>   If Nstep < 0 then transmitted power is incremented in each step by 03 until max. transmitted power is reached (Tx max = 14 dBm)
+
+> If Nstep > 0 first DR is incremented in each step until it reaches DR5 and then transmitted power is decremented until it reaches min. transmitted power (Tx min = 2 dBm)   
+And after it network put all these information in  LinkADRReq  MAC command in next downlink message and request end-node to change it's transmitted parameters.  
+
+         You can see network can only ask for transmitted power increment, it never ask for DR decrements.
+
+
+Now let's see what happens at node side.
+
+          When the end-device set the  ADR   bit to 1 it also periodically validates that the network is receiving uplink messages. Whenever the end-device sends a frame it increments frame counter (not for repeated transmission). Whenever the frame counter increments it also increments ADR_ACK_CNT counter.  If ADR_ACK_CNT reaches to ADR_ACK_LIMIT (= 64 frames for EU) it sets the  ADRACKReq  bit to 1 to ask the network whether it is receiving the uplink messages or not. The network is supposed to answer (it can be any kind of downlink message) within ADR_ACK_DELAY ( = 32 frames for EU) time. 
+         As soon as the node receives the downlink message it reset the ADR_ACK_CNT counter to zero.
+         If the end-device doesn't receive the downlink message within the ADR_ACK_DELAY time it  decrease it's data rate step by step. 
+
+        Remember the change in Data Rate will reflect from next uplink message. Data Rates of downlink messages (receiver window 01 and 02) are always fixed and controlled by nodes. Data Rates of receiver windows are function of uplink data rates.  
+
+
+
+
+
+
+
+
+
+
+
+
+
+Email This BlogThis! Share to Twitter Share to Facebook Share to Pinterest
+9 comments:
+
+    Pranay Mutukuloju 16 March 2017 at 17:29
+
+    nice work
+    Reply Delete
+    Replies
+        Reply
+    Rrrr 27 April 2017 at 23:31
+
+    Hi,
+    due to in LoRaWAN documents ADR algorithm is not defined, may I ask you teh source of the formulas you have used ?
+    Thanks
+    Reply Delete
+    Replies
+        sakshama ghoslya 28 April 2017 at 00:36
+
+        Hi,
+        Everything is given either in LoRaWAN documents or semtech hardware documents, you will have to extract everything from there.
+        Delete
+        Replies
+            Reply
+        Reply
+    Adarsh 27 May 2017 at 18:42
+
+    Hello, Sakshama,
+
+    Great explanation. I am trying to implement a LoRa network so have been reading up as much as I can about it.
+
+    Is ADRACKReq useful in case of confirmed uplinks? because i will be receiving regular ACKs for every Tx. Wouldn't this make ADRACKReq redundant? Or is ADRACKReq is the only way of confirming if network server is receiving my packets?
+    Reply Delete
+    Replies
+        Reply
+    praveen kumar 27 June 2017 at 14:25
+
+    Hello sir, i wanted to know whether u can connect multiple node to a single gateway without changing the SF and BW?
+    Reply Delete
+    Replies
+        sakshama ghoslya 27 June 2017 at 14:43
+
+        Signals with same SF and BW transmitted at same time will be non-orthogonal and therefore they will collide. That's why we have limit on max. number of nodes connected to single gateway. Read Orthogonality of LoRa: http://sakshamaghoslya.blogspot.in/p/lora_6.html
+        Delete
+        Replies
+            Reply
+        Reply
+    Zulfiqar Ali 11 August 2017 at 11:39
+
+    Awesome
+    Reply Delete
+    Replies
+        Reply
+    Anthony Hinsinger 5 December 2017 at 20:37
+
+    @sakshama, thanks for theses great documents ! There is something i've not clearly understand. If a Lora node never send confirmed message (so no ACK coming down) and no downlink messages are sent, Is ADR working ? I mean, can the gateway send LinkADRReq command to the node ?
+    Reply Delete
+    Replies
+        Reply
+    Bruno Junior 1 April 2019 at 22:21
+
+    Hi Sakshama. Thanks for this whole website of yours. It is so hard to get straight answers from this technology. Like you said in one of your replies. "Everything is given either in LoRaWAN documents or semtech hardware documents, you will have to extract everything from there." Very true.
+    Reply Delete
+    Replies
+        Reply
+
+Add comment
+Load more...
+
+Home
+Subscribe to: Posts (Atom)
+Total Pageviews
+1 1 1 3 7 9
+Pages
+
+    Profiling a C code
+    LoRa vs LoRaWAN
+    LoRa: Symbol Generation
+    Matlab Code to Generate LoRa Symbols
+    LoRa: Orthogonality
+    LoRa Decoding
+    Matlab codes for LoRa Decoding
+    LoRa/LoRaWAN Important Tables
+    LoRaWAN MAC Commands
+    LoRa: Performance analysis
+    LoRa: SF performance comparison
+    How does LoRaWAN Adaptive Data Rate work?
+    How to buy LoRa Matlab Codes?
+    Bandwidth, Spectrum and Data rate
+    Wire Behavior at High Frequencies
+    What is Discrete Convolution?
+    Home
+    Detection Theory Notes
+
+My photo
+
+Sakshama Ghoslya
+
+View my complete profile
+View sakshama ghoslya's profile on LinkedIn
+
+	
+	
+Educational. Ethereal theme. Powered by Blogger .
+Ce site utilise des cookies provenant de Google pour fournir ses services et analyser le trafic. Votre adresse IP et votre user-agent, ainsi que des statistiques relatives aux performances et à la sécurité, sont transmis à Google afin d'assurer un service de qualité, de générer des statistiques d'utilisation, et de détecter et de résoudre les problèmes d'abus. En savoir plus OK

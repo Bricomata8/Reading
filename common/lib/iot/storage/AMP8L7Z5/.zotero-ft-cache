@@ -1,0 +1,419 @@
+Impact of Spreading Factor Imperfect Orthogonality in LoRa Communications
+Daniele Croce1,2(B), Michele Gucciardo1, Ilenia Tinnirello1, Domenico Garlisi1,2, and Stefano Mangione1
+1 DEIM, Universit`a di Palermo, viale delle scienze ed. 9, 90128 Palermo, Italy {daniele.croce,michele.gucciardo,ilenia.tinnirello, domenico.garlisi,stefano.mangione}@unipa.it
+2 CNIT Consortium, Viale G.P. Usberti, 181/A, 43124 Parma, Italy
+Abstract. In this paper we study the impact of imperfect-orthogonality in LoRa spreading factors (SFs) in simulation and real-world experiments. First, we analyze LoRa modulation numerically and show that collisions between packets of diﬀerent SFs can indeed cause packet loss if the interference power received is strong enough. Second, we validate such ﬁndings using commercial devices, conﬁrming our numerical results. Third, we modiﬁed and extended LoRaSim, an open-source LoRa simulator, to measure the impact of inter-SF collisions and fading (which was not taken into account previously in the simulator). Our results show that non-orthogonality of the SFs can deteriorate signiﬁcantly the performance especially of higher SFs (10 to 12) and that fading has virtually no impact when multiple gateways are available in space diversity.
+1 Introduction
+In recent years, we have assisted to an impressive proliferation of wireless technologies and mobile-generated traﬃc, which is now the highest portion of the total internet traﬃc and will continue to grow with the emergence of Internetof-Things (IoT) applications [1]. Such a proliferation has been characterized by an high-density deployment of base stations (based on heterogeneous technologies, such as 4G cellular base stations and WiFi Access Points), as well as by high-density wireless devices, not limited to traditional user terminals. Indeed, with the advent of IoT applications, many smart objects, such as domestic appliances, cameras, monitoring sensors, etc., are equipped with a wireless technology. Understanding how wireless networks would respond to the increasing capacity demand is therefore of crucial importance. However, high-density deployments of wireless networks are diﬃcult to study in real testbeds or installations, especially when we can expect that hundreds or even thousands of mobile devices (not limited to traditional user terminals, but including smart objects and sensors) are simultaneously active in the same environment.
+This work has been partially supported by EU funded research project symbIoTe, H2020-ICT-2015 grant agreement number 688156.
+c Springer International Publishing AG 2017 A. Piva et al. (Eds.): TIWDC 2017, CCIS 766, pp. 165–179, 2017. DOI: 10.1007/978-3-319-67639-5 13
+
+166 D. Croce et al.
+In this paper we consider the emerging LoRa technology, which represents a critical example of wireless technology working with high-density devices. Indeed, LoRa technology has been conceived for Low Power Wide Area Networks (LPWAN), characterized by low data rate requirements per single device, large cells and heterogeneous application domains, which may lead to extremely high numbers of devices coexisting in the same cell. For this reason, LoRa provides diﬀerent possibilities to orthogonalize transmissions as much as possible – Carrier Frequency (CF), Spreading Factor (SF), Bandwidth (BW), Coding Rate (CR) – and provide simultaneous collision free communications. However, despite the robustness of the LoRa PHY [2] patented by Semtech, in WAN scenarios where multiple gateways can be installed, the scalability of this technology is still under investigation [3]. Current studies are mostly based on simulation results [4] and assume that the utilization of multiple transmission channels and spreading factors lead to a system that can be considered as the simple superposition of independent (single channel, single spreading factor) sub-systems. This is actually a strong simpliﬁcation, especially because the spreading factors adopted by LoRa are pseudo-orthogonal [5] and therefore, in near-far conditions, collisions can prevent the correct reception of the overlapping transmissions using diﬀerent spreading factors.
+For characterizing these phenomena, in this paper (i) we analyze LoRa chirp modulation both numerically and experimentally, showing that collisions between packets of diﬀerent SFs can indeed cause packet loss if the interference received is strong enough; (ii) we quantify the power threshold for which such loss occurs, for all combinations of SFs; (iii) we modiﬁed and extended LoRaSim [6], an open-source LoRa simulator presented in [3], to measure the impact of both inter-SF collisions and fading (which was also not taken into account in previous works). First, we analyzed numerically LoRa modulation (based on chirp spread spectrum) and LoRa access mechanism (based on aloha and duty cycle enforcement), including simple models for traﬃc sources and physical channels, and we developed a software receiver, able to process a signal trace received by a well known USRP software-deﬁned-radio (SDR) platform. Second, we designed and implemented a traﬃc generator for LoRa-based networks (to be run on a second USRP platform) to generate, in a controlled and repeatable manner, a combined radio signal given by the super-position of multiple LoRa signals, generated by diﬀerent devices operating in the same cell, as they would be seen by a LoRa gateway when colliding. We use these ﬁrst two elements to prove that if a collision occurs between packets of diﬀerent SF, both packets are correctly received only when the diﬀerence in received power is below a certain threshold (which we quantify for each combination of SFs), otherwise only the packet with highest RSSI is correctly received. Third, to measure the impact caused by this non-orthogonality, we modiﬁed and extended the LoRaSim simulator to include such phenomena and model log-normal fading.
+Our experimental results show that non-orthogonality of the SFs can deteriorate signiﬁcantly the performance of LoRa communications, especially of higher SFs (10 to 12) where packets last longer and are thus more
+
+Impact of Spreading Factor Imperfect Orthogonality 167
+vulnerable to collisions. With multiple neighboring cells, this phenomenon is further exacerbated and, in some scenarios, high SFs can experience severe losses. In the same scenarios, when considering the SFs perfectly orthogonal, the capacity is signiﬁcantly overestimated, as the measured losses are almost halved. Finally, we demonstrate that in multi-gateway or multi-cell topologies fading has virtually no impact on performance, because antenna diversity gives more chances to receive the same packet on diﬀerent gateways.
+2 Related Work
+Since LoRa is quite a recent technology, relatively few works have already been published on its performance. Speciﬁcally, [7] focus on LoRa applications and PHY, while in [8] some test-bed and simulation results are presented but with a low number of devices. In [9] authors model LoRaWAN performance analytically in a scenario with high number of devices and propose solutions to improve its performance.
+Most of the current studies are based on simulation results. Authors in [3] implemented and used the LoRaSim simulator [6] to investigate the capacity limits of LoRa networks. They showed that a typical deployment can support only 120 nodes per 3.8 ha, although performance can be improved with multiple gateways. The paper in [5] compared the performance of LoRa and ultra narrowband (Sigfox-like) networks, showing that ultra narrowband has a larger coverage but LoRa networks are less sensitive to interference. Finally, authors in [10] presented details on the patented LoRa PHY and introduced gr-lora, an open source SDR-based implementation of LoRa PHY.
+All of these works, however, assume that the SFs adopted by LoRa are perfectly orthogonal, thus simplifying the analysis and consequently the network capacity. Instead, in this paper we show that, due to the imperfect orthogonality of the SFs, inter-SF collisions can prevent the correct reception of the transmissions with serious impact on LoRa performances. To the best of our knowledge, we are the ﬁrst to demonstrate and quantify this performance degradation.
+3 LoRaWAN Networks and Protocols
+In this section we brieﬂy describe the LoRaWAN network architecture and MAC/PHY protocols, in order to present the main features that aﬀect the network capacity. LoRaWAN is a protocol speciﬁcation built on top of the LoRa PHY technology, a PHY layer patented by Semtech that works on ISM bands (namely, at 868 MHz with 3 default channels in Europe) with a limited duty cycle allowed to each device [11]. The typical LoRaWAN network consists of enddevices (sensors or actuators), multiple gateways which forward packets coming from the wireless medium to a backhaul interface, and a logically centralized server which analyzes information collected by all the devices and optimizes the network conﬁguration.
+
+168 D. Croce et al.
+
+MHDR
+
+MAC COMMAND / MAC PAYLOAD
+
+MIC
+
+Preamble
+
+PHDR
+
+PHDR_CRC
+
+CR = 4/8
+
+MAC PAYLOAD
+
+PHYPayload
+
+CRC
+
+CR = CodingRate
+
+FHDR
+
+FPort
+
+FRMPayload
+
+DevAddr
+
+FCtrl
+
+FCnt
+
+FOpts
+
+Fig. 1. LoRa frame structure.
+
+Diﬀerently from traditional cellular networks, end-devices are not associated to a particular gateway to have access to the network. Gateways serve simply as link layer relayers and forward all the packets received from end-devices to the network server, by adding information regarding the reception quality. Thus, in general, the same packet can be forwarded by multiple gateways and the central server is responsible of detecting duplicate packets and choosing the appropriate gateway for transmitting downlink packets (if any).
+Gateways are usually equipped with multiple transceivers for receiving simultaneously on multiple (conﬁgurable) frequency channels, while end devices can dynamically select one transmission channel, among a set of available ones, at each transmission attempt. Some channels are reserved for data transmission, one channel is reserved for gateway’s responses, while some other channels are usually served for control information and in particular for transmitting network joining requests from end devices.
+LoRaWAN provides an open source MAC layer that is based on a simple Aloha protocol, in order to minimize the complexity and the energy consumption of the devices. End devices do not perform carrier sense; moreover, they listen to the medium for receiving packets only in special time windows after uplink transmissions (class A devices), or at regular time intervals (class B devices). Only class C devices have continuously active receivers. Frames can be acknowledged or not. In the acknowledged mode, the modulation format can be automatically adapted as function of the number of retransmissions (for increasing or decreasing robustness).
+Figure 1 summarizes the structure of a LoRaWAN frame. The frame starts with a preamble, which is used for synchronization and for deﬁning the modulation format (speciﬁcally, the spreading factor used for modulating the frame, as clariﬁed in the following sub-section). The preamble is followed by a PHY Header and a Header CRC, whose total length is 20 bits encoded with the most reliable code rate of 4/8. The PHY header contains information such as payload length and whether the optional payload CRC is included or not in the frame. The MAC header is one byte only; it deﬁnes the protocol version and message type,
+
+Impact of Spreading Factor Imperfect Orthogonality 169
+
+Fig. 2. Modulating signal with SF = 9 for one basic upchirp and three symbols: 128, 256 and 384.
+
+i.e., whether it is a data or a management frame, whether it is transmitted in uplink or downlink, whether it shall be acknowledged. Finally, the Frame header contains network-level information, such as the device address (composed of a network identiﬁer and device-speciﬁc identiﬁer given upon association), network control information about the conﬁguration of the uplink data rate parameters, a sequence number, and frame optional data for commands. A port number is used for distinguishing ﬂows between gateways and end devices, including ﬂows containing MAC commands for the conﬁguration of devices.
+
+3.1 LoRa Modulation
+LoRa modulation is derived from Chirp Spread Spectrum (CSS), which makes use of chirp signals, i.e. frequency-modulated signals obtained when the modulating signal varies linearly in the range [f0, f1] (upchirp) or [f1, f0] (downchirp) in a symbol time T . Binary modulations, mapping 0/1 information bits in upchirps/downchirps, have been demonstrated to be very robust against in-band or out-band interference [2]. LoRa employs a M-ary modulation scheme based on chirps, in which symbols are obtained by considering diﬀerent circular shifts of the basic upchirp signal. The temporal shifts, characterizing each symbol, are slotted into multiples of time Tchip = 1/BW , called chip, being BW = f1 − f0 the bandwidth of the signal. It results that the modulating signal for a generic n-th LoRa symbol can be expressed as:
+
+f (t) = f1 − n · k · Tchip + k · t for 0 t n · Tchip
+
+f0 + k · t
+
+for n · Tchip < t T
+
+where k = (f1 − f0)/T is the slope of the frequency variations. The total number of symbols (coding SF information bits) is chosen equal to 2SF , where SF is
+
+170 D. Croce et al.
+
+Fig. 3. An example of combined signal, obtained by the sum of two modulated chirps with SF = 9 (blue line) and SF = 8 (red line), and correlation results with the basic upchirp with SF = 9. (Color ﬁgure online)
+
+called spreading factor. The symbol duration T required for representing any possible shift is 2SF · Tchip = 2SF /BW . It follows that, for a ﬁxed bandwidth, the symbol period increases with SF , enlarging the temporal occupancy of the signal. Figure 2 shows the modulating signal used for a basic upchirp and three examples of circular shifts obtained for SF = 9: the symbol time is 512 Tchip, while the three exemplary shifts code the symbols 128, 256 and 384.
+The preamble of any LoRa frame is obtained by sending a sequence of at least ten upchirps, followed by two downchirps. Payload data are then sent by using the M-ary modulation symbols. LoRa provides three BW settings (125, 250 or 500 KHz) and seven diﬀerent SF values (from 6 to 12). In general, a larger bandwidth translates in a data rate increase and a receiver sensitivity deterioration. Conversely, higher spreading factors can be used for improving the link robustness at the cost of a lower data rate.
+An interesting feature of LoRa modulation is the pseudo-orthogonality of signals modulated under diﬀerent spreading factors. This feature can be exploited for enabling multiple concurrent transmissions that can be easily separated by the receiver thanks to the fact that the cross-energy between two signals, say s1(t) and s2(t), modulated with diﬀerent spreading factors is almost zero regardless of the starting of the symbol times:
+
+T
+
+Es1,s2 (τ ) =
+
+s1(t) · s2(t − τ )∗dt 0
+
+0
+
+where T is the symbol period of the signal with the highest spreading factor. An example of signal separation is illustrated in Fig. 3, where one signal modulated
+
+Impact of Spreading Factor Imperfect Orthogonality 171
+with SF = 9, representing symbol 256 (blue line), is overlapped to two symbols modulated with SF = 8 (red line). For sake of presentation, in the ﬁgure, the symbol times of the two signals start at the same time. For receiving the signal modulated with SF = 9 it is enough to correlate the overlapped signal with the relevant SF = 9 upchirp signal. The middle plot of the ﬁgure shows the correlation results (i.e. the variation of the cross-energy between the overlapped signal and the upchirp signal at diﬀerent temporal shifts). The ﬁgure clearly highlights two peaks when the upchirp signal is shifted of 256 and 256 + 29 chip times Tchip: indeed, in these positions the similarity of the sum signal with the basic upchirp at SF = 9 is high because the upchirp overlaps with one of the two piecewise chirps of the symbol modulated with SF = 9. Conversely, in the other positions, the correlation is almost zero as the symbol modulated with SF = 8 and the upchirp are almost orthogonal to the basic upchirp.
+Note that the separation mechanism works as long as the amplitudes of the overlapping signals are comparable or belong to a given range. The bottom plot of Fig. 3 shows the correlation results when the signal modulated with SF = 8 has an amplitude 20 times higher than the amplitude of the symbol at SF = 9. In this case, correlation peaks due to cross-energy can occur in positions diﬀerent from the symbol time (e.g. around 512 Tchip) and demodulation errors can occur.
+4 Analysis of LoRa Collisions
+Goal of this section is quantifying how the power ratio between a reference signal and an overlapping interfering signal can aﬀect the demodulation results, even when the interfering signal is transmitted with a spreading factor diﬀerent from the desired signal one. To this purpose, we consider both simulation results, based on a MATLAB implementation of a multi-channel LoRa demodulator, and experimental results, based on a commercial LoRa receiver and a USRP used as an artiﬁcial synthesizer of LoRa overlapped signals.
+4.1 MATLAB Simulation Results
+We implemented a LoRa demodulator in MATLAB based on the parallel correlation of the received signal with a bank of upchirp signals modulated with diﬀerent spreading factors (from SF = 7 to SF = 12). For identifying the transmission symbol, we observed that for circular shifts lower then an half of the symbol period (i.e. for the ﬁrst half of all the possible symbols), the ﬁrst correlation peak has a smaller amplitude than the second one. This is due to the fact that the ﬁrst piecewise chirp overlaps with the reference upchirp for a lower duration that the second one. On the contrary, for symbols shifted of more than T /2, the ﬁrst peak has a bigger amplitude than the second one. We exploited this property for implementing a decision logic based on the identiﬁcation of the highest correlation peak. In brief, the MATLAB demodulator works as follows: (i) cross-correlating the received signal and the reference upchirp at the selected
+
+172 D. Croce et al.
+
+100
+
+100
+
+100
+
+Packet Error Rate Packet Error Rate Packet Error Rate
+
+10-1 10-2
+
+SF=6 SF=7 SF=8 SF=9 SF=10 SF=11 SF=12
+
+10-3 -30
+
+-20
+
+-10
+
+0
+
+SINR (SF=6)
+
+10-1
+
+SF=6
+
+10-2
+
+SF=7 SF=8
+
+SF=9
+
+SF=10
+
+SF=11
+
+SF=12
+
+10-3
+
+-30
+
+-20
+
+-10
+
+0
+
+SINR (SF=9)
+
+10-1 10-2 10-3
+-30
+
+-20
+
+-10
+
+SINR (SF=12)
+
+SF=6 SF=7 SF=8 SF=9 SF=10 SF=11 SF=12
+0
+
+Fig. 4. PER of three diﬀerent spreading factors in function of the SIR.
+
+spreading factor; (ii) looking for two (related) correlation peaks within the symbol periods, whose distance is T ; (iii) choosing the highest peak for quantifying the symbol shift.
+We also implemented another demodulation solution, proposed in [12,13], which works by multiplying the received signal with the basic downchirp signal in order to obtain two piecewise signals at a ﬁxed frequency fi and fi + BW (whose value fi is proportional to the circular shift of the symbol), by downsampling the resulting signal with a sampling rate equal to the bandwidth of the signal for creating an alias of the signal fi + BW at frequency fi and by ﬁnally performing an FFT on the signal for identifying fi.
+We performed a number of simulations for testing the MATLAB implementations of LoRa demodulator in case of reception of two overlapping signals modulated with diﬀerent spreading factors. Our goal is identifying a Signal to Interference Ratio (SIR) threshold under which the correct demodulation of the desired signal is aﬀected by errors. In each simulation run, we created an overlapped signal by summing one random symbol modulated with a reference spreading factor SFref with a number of random interfering symbols modulated with a diﬀerent spreading factor SFint. For each run we can distinguish two cases: if SFref > SFint then the reference symbol is combined with more than one interfering symbol (e.g. for SFref = 12 and SFint = 10, the number of interfering symbols N overlapping with the reference signal is equal to 4). Conversely, if SFref < SFint, the same interfering symbol is overlapped to multiple symbols of the reference signal. The amplitude Aint of the interferer signal is set to one, whereas the amplitude Aref of the reference is multiplied with a tunable value leading to diﬀerent SIR values:
+Aint = 10−SIR/10 · Aref
+The resulting combined signal has been then processed by the MATLAB demodulators, in absence of noise on the channel and assuming perfect synchronization of the symbols. The results achieved with the two implementations (correlation- and FFT-based) are comparable both in terms of symbol demodulation performance and complexity. In the following, we only show results for the correlation-based demodulator.
+
+Impact of Spreading Factor Imperfect Orthogonality 173
+
+Table 1. SIR thresholds of correct demodulation for the diﬀerent SFs in Matlab simulations.
+
+PSFPrePf PPSPFiPPnt 6
+
+6 7 8 9 10 11 12 0 -4.5 -6 -7.5 -9 -9 -10.5
+
+7 -6 0 -7.5 -9 -9 -12 -12
+
+8 -10.5 -10.5 0 -9 -12 -12 -15
+
+9 -13.5 -13.5 -13.5 0 -13.5 -15 -15
+
+10 -16.5 -16.5 -16.5 -16.5 0 -15 -18
+
+11 -19.5 -19.5 -19.5 -19.5 -19.5 0 -18
+
+12 -22.5 -22.5 -22.5 -22.5 -22.5 -22.5 0
+
+A Packet Error Rate (PER) statistic has been generated comparing the demodulated symbols with the modulated ones. For each simulation run, we randomly generated 100 packets of 10 Bytes each with SFref against a correspondingly number of symbols with SFint (increased or decreased by appropriate powers of 2 to cover the SFref symbol length), and varied the SIR values from −30 dB to +6 dB with steps of 1.5 dB. Figure 4 shows the results of these simulations for three diﬀerent SFref values as an example. The curves in the ﬁgures represents the error probability for one selected SFref against all the possible SFint obtained with our MATLAB demodulator. Similar results have been obtained with the other implementation. From the ﬁgure, it can be easily recognized that for each SFref it exists a minimum SIR threshold below which the success probability starts degrading (high PER). Furthermore, the smaller the interfering spreading factor, the higher the SIR must be to have an acceptable PER.
+Table 1 summarizes the SIR thresholds considering a PER of 1%. In the table, we also consider the case when the interfering signal has the same spreading factor of the reference signal. As also documented in the Semtech speciﬁcations, LoRa modulations achieves very high probability of capture eﬀects even with low SIR values (approximately 0 dB for the diﬀerent spreading factors in our simulations, versus 6 dB speciﬁed in [14]). In other words, it is very likely that in case of collisions between two signals modulated with the same spreading factor, the strongest signal can be correctly demodulated.
+4.2 USRP Experiments
+For validating the thresholds found with the Matlab simulator, we performed a number of experiments on real LoRa links in case of continuous collisions of the packets. To this purpose we used a Semtech SX1272 transceiver, controlled by an Arduino Yun, for sending packets (with a 19 byte payload) modulated with all the possible spreading factors and a USRP B210 for recording the traces. After this preliminary phase, we manipulated the traces extracting exactly one packet
+
+174 D. Croce et al.
+Fig. 5. An example of collision between SFref = 12 (the darker chirps) and SFint = 10 (the brighter chirps) with SIR = −4 dB.
+for each SFref and adding a variable silence period to it as inter-packet delay. This operation gave us the necessary ﬂexibility for combining traces at diﬀerent spreading factors through Gnuradio and send them over the air via the USRP. Using two ﬁle source blocks, we loaded continuously one trace at SFref and one trace at SFint. The delay between packets at diﬀerent spreading factors was set in order to achieve the condition of continuous collision. Figure 5 shows an example of overlapping symbols modulated with SFref = 12, SFint = 10 and with a SIR = −4 dB. We then: (i) modiﬁed the amplitude of the interferer packets according to the desired SIR level through a multiplier block; (ii) summed the two traces with a sum block; (iii) sent the combined signal over the air through an USRP block. Then, the combined signal sent by the USRP was received by the SX1272 transceiver which logged, through an Arduino LoRa library, the packets received correctly. Finally the packet success probability was calculated. The results of the experiments are summarized in Table 2, for the same subset of reference and interfering spreading factors presented in the previous subsection. Comparing this table with Table 1, it can be observed that the thresholds for correct demodulation are higher with the real transceiver.
+5 Simulation-Based Capacity Results
+To measure the impact caused by the non-orthogonal SFs, we modiﬁed and extended the LoRaSim simulator [6] to include such phenomena. LoRaSim is a Python-based discrete event simulator implemented with SimPy [15] by the authors of [3] (which we warmly thank for publishing the source code). It allows nodes to be placed in a 2-dimensional space with up to 24 LoRa gateways which act as sinks for the data retrieval (uplink communication only). The parameters that can be deﬁned are: Transmit Power (TP), Carrier Frequency (CF), Spreading Factor (SF), Bandwidth (BW) and Coding Rate (CR). The node’s
+
+Impact of Spreading Factor Imperfect Orthogonality 175
+Table 2. SIR thresholds of correct demodulation for diﬀerent SFs with SX1272 transceiver.
+PSFPrePf PPSPFiPPnt 7 8 9 10 11 12 7 na na na na na na 8 -6 na na na na na 9 -7 -7 na na na na 10 -9 -9 -9 na na na 11 -13 -13 -13 -13 na na 12 -16 -16 -16 -16 -16 na
+behaviour is described by the average packet transmission rate λ and packet payload B (with ﬁxed preamble of 8 symbols). Finally, the gateways can receive multiple signals with diﬀerent SF and BW combinations.
+We modiﬁed LoRaSim so that if a collision occurs between packets of diﬀerent SF, both packets are correctly received only when the diﬀerence in received power is below a certain threshold (in the experiments we set a conservative threshold of 6 dB for all collisions), otherwise only the packet with highest RSSI is received and the other discarded1. We also extended the simulator to account for lognormal fading which was not implemented yet. As we will show, fading has very limited impact on LoRa communications when packets can be received by several gateways, while it can aﬀect the reception of the packets when there is only one gateway in visibility. Unless diﬀerently noted, the transmission parameters used by the nodes are the following: TP = 14 dBm, CF = 868 MHz, BW = 500 kHz, CR = 4/5 and B = 20 Bytes.
+For comparison purposes, we use the same metric used in [3] to evaluate the performance of LoRa networks, namely the Data Extraction Rate (DER), deﬁned as the quota of packets correctly received by at least one gateway over a period of time. Indeed, in LoRa deployments all messages are received by the backend system, independently of the ﬁnal destination of the packet, i.e. each transmitted message should be received by at least one base station. Thus, the achievable DER depends on the position, number and behaviour of LoRa nodes and gateways, and its values vary between 0 and 1, with 1 representing an optimal LoRa deployment.
+5.1 Single Cell
+The ﬁrst set of experiments aims to asses the impact of the non-orthogonality of LoRa’s SFs. To this purpose, Fig. 6 shows the DER for 1000 nodes in a single isolated cell, with 1, 4 and 16 gateways respectively. The 7 SFs are uniformly assigned to the nodes (i.e. each SF is assigned to 1000/7 nodes), although for
+1 We omit the case of collisions between packets of diﬀerent BW for the sake of simplicity.
+
+176 D. Croce et al.
+
+Data Extraction Rate
+
+1 0.95
+0.9 0.85
+0.8 0.75
+0.7 0.65
+0.6 0.55
+0.5
+
+SF 6 SF 8 SF 10 SF 12
+103
+
+102
+
+101
+
+1/ (s)
+
+(a) 1 base station.
+
+Data Extraction Rate
+
+1 0.95
+0.9 0.85
+0.8 0.75
+0.7 0.65
+0.6 0.55
+0.5 100
+
+SF 6 SF 8 SF 10 SF 12
+103
+
+102
+
+101
+
+1/ (s)
+
+(b) 4 base stations.
+
+1
+
+0.95
+
+0.9
+
+Data Extraction Rate
+
+0.85
+
+0.8
+
+0.75
+
+0.7
+
+0.65
+
+0.6
+
+SF 6
+
+SF 8
+
+0.55
+
+SF 10 SF 12
+
+0.5
+
+100
+
+103
+
+102
+
+101
+
+100
+
+1/ (s)
+
+(c) 16 base stations.
+
+Data Extraction Rate
+
+Fig. 6. Capacity of a single LoRa cell with one or more gateways.
+
+1
+
+1
+
+1
+
+Data Extraction Rate
+
+Data Extraction Rate
+
+0.9
+
+0.9
+
+0.9
+
+0.8
+0.7
+0.6
+0.5 0
+
+SF6 (orthog) SF8 (orthog) SF10 (orthog) SF12 (orthog) SF 6 SF 8 SF 10 SF 12
+500
+
+1000 Nodes
+
+1500
+
+0.8
+
+0.7
+
+0.6
+
+2000
+
+0.5 0
+
+SF 6 SF 8 SF 10 SF 12
+500
+
+1000 Nodes
+
+1500
+
+0.8
+
+0.7
+
+0.6
+
+0.5
+
+2000
+
+0
+
+SF 6 SF 8 SF 10 SF 12
+500
+
+1000 Nodes
+
+1500
+
+2000
+
+(a) 1 cell.
+
+(b) 4 cells.
+
+(c) 16 cells.
+
+Fig. 7. LoRa performance in a single isolated cell and with multiple adjacent cells (one gateway per cell).
+
+easiness of presentation in the ﬁgure we show only a subset of the SFs, namely nodes using SFs 6, 8, 10 and 12. Finally, the dashed lines correspond to the results obtained by considering the SFs as perfectly orthogonal.
+From the ﬁgure, it is clear that the impact of non orthogonality is limited when the traﬃc rate of the nodes is low (higher values of 1/λ). However, the performance deteriorates quickly as collisions appear, especially for high SF (10– 12) where packets last longer and are thus more vulnerable. As demonstrated in [3], when there are more gateways the capacity increases thanks to antenna diversity, mitigating the impact of collisions both between packets with same SF or diﬀerent SFs. However, this comes at the cost of installing several base stations to cover the same area, which might not always be economically feasible.
+5.2 Multiple Cells
+A second set of experiments aims to assess the impact of non-orthogonal SFs in presence of multiple adjacent LoRa cells. Figure 7 shows the performance of LoRa in a single isolated cell and in a grid composed of 4 and 16 adjacent cells – one gateway per cell. In these experiments we set the nodes rate to a ﬁxed λ = 1/90(s−1) and increase the number of nodes in each cell, up to 2000 nodes per cell. Again, the dashed lines correspond to the results obtained by considering the SFs as perfectly orthogonal, while the solid lines represents the performance
+
+Impact of Spreading Factor Imperfect Orthogonality 177
+Fig. 8. Performance in presence of log-normal fading for a single isolated cell and with multiple adjacent cells (one gateway per cell).
+taking into account inter-SF collisions. Figure 7 shows that such collisions deeply aﬀect the performance of the highest SFs, especially when the number of adjacent cells increases. For example, with 16 cells, SF 12 experiences 30% of DER loss already with 500 nodes, while if we consider the SFs as orthogonal, the DER loss is almost halved.
+5.3 Impact of Fading Up to now, in the simulations we considered only collisions between nodes, ignoring the impact of fading. We thus extended the LoRaSim simulator to include such phenomena, with a log-normal model of increasing σ = 0, 6, 10 dB. Figure 8 shows the performance of LoRa with the joint eﬀect of inter-SF collisions and fading, again in a single and multi-cell topology with 4 and 16 adjacent cells respectively. Interestingly, while fading has a certain impact on the single cell scenario, with multiple cells fading has virtually no impact on performance. This is due to antenna diversity which gives more chances to receive the same packet on diﬀerent gateways, compensating the probability of being lost on one link because of fading.
+5.4 Network Planning Hints The above results are particularly important for network operators to correctly plan the parameters of their LoRa networks. In particular, our results suggest that increasing the SF might not always be a good solution to improve performance in presence of congestion or to compensate fading channels. Indeed, despite being more robust to noise, our results show that higher SFs are more vulnerable to inter-SF collisions and that fading becomes negligible in presence of multiple base stations. Instead, it could be more eﬀective to use a low SF in order to lower the chances of packet collisions.
+As a rule of thumb, since the length of each chirp doubles every time the SF increases, it could be suﬃcient to half the number of nodes in the next higher SF, so to balance the doubled time-on-air of the corresponding packets. In Fig. 9
+
+178 D. Croce et al.
+Fig. 9. Capacity of a single LoRa cell with one or more gateways, nodes distributed according to spreading factors.
+we run the same experiments of the ones in Fig. 6, although distributing the SF proportionally as we just explained. The ﬁgure shows that the performance is now similar for all SFs, with slightly reduced capacity for the nodes with lower SFs (SF 6 supports now 27 times more nodes than SF 12) but a much higher capacity for the higher SFs.
+Finally, it should be noted that in real deployments network planning is more complex because performance is aﬀected by the transmit power of the nodes and on the distance from the gateway (respectively, uniform and random in our experiments).
+6 Conclusion
+In this paper we have shown that, because of imperfect orthogonality between diﬀerent spreading factors, a LoRa network cell cannot be studied as a simple super-position of independent networks working on independent channels. Although parallel reception of multiple overlapping frames is generally possible, when the power of the interfering signal signiﬁcantly overcomes the reference signal, the correct demodulation of the reference signal can be prevented. This can happen in typical near-far conditions, when the interfering signal is much closer to the gateway than the reference signal, or when multiple interfering signals are simultaneously active. Deploying multiple gateways can mitigate the capacity loss due to this phenomena, because each gateway experiences a diﬀerent SIR value. Moreover, it also mitigates the probability of bad channel conditions for the reference signal due to fading.
+Implications of imperfect orthogonality between diﬀerent spreading factors for network planning are still under investigation. For example, allocating higher spreading factors, characterized by lower receiver sensitivities, to far users could not necessarily improve their link capacity in case of congested networks. Indeed, higher spreading factors could be more prone to collisions due to longer transmission times.
+
+Impact of Spreading Factor Imperfect Orthogonality 179
+References
+1. Worldwide connected devices forecast. www.statista.com 2. Semtech: LoRa Modulation Basics. AN1200.22, Revision 2, May 2015. www.
+semtech.com 3. Bor, M.C., Roedig, U., Voigt, T., Alonso, J.M.: Do LoRa low-power wide-area
+networks scale? In: Proceedings of MSWiM 2016, pp. 59–67 (2016) 4. Reynders, B., Pollin, S.: Chirp spread spectrum as a modulation technique for long
+range communication. In: SCVT 2016, Mons, pp. 1–5 (2016) 5. Reynders, B., Meert, W., Pollin, S.: Range and coexistence analysis of long range
+unlicensed communication. In: ICT 2016, Thessaloniki, pp. 1–6 (2016) 6. http://www.lancaster.ac.uk/scc/sites/lora/ 7. Vangelista, L., Zanella, A., Zorzi, M.: Long-range IoT technologies: the
+TM
+dawn of LoRa . In: Atanasovski, V., Leon-Garcia, A. (eds.) FABULOUS 2015. LNICSSITE, vol. 159, pp. 51–58. Springer, Cham (2015). doi:10.1007/ 978-3-319-27072-2 7 8. Augustin, A., Yi, J., Clausen, T., Townsley, W.: A study of LoRa: long range & low power networks for the Internet of Things. Senors 16(9), 1466 (2016) 9. Bankov, D., Khorov, E., Lyakhov, A.: On the limits of LoRaWAN channel access. In: 2016 International Conference on Engineering and Telecommunication (EnT), Moscow, pp. 10–14 (2016) 10. Knight, M., Seeber, B.: Decoding LoRa: realizing a modern LPWAN with SDR. In: Proceedings of the GNU Radio Conference, [S.l.], v. 1, n. 1, September 2016 11. Sornin, N., Luis, M., Eirich, T., Kramp, T., Hersent, O.: Lorawan speciﬁcation v1.0, Technical report, LoRa Alliance, Technical report (2015) 12. Bernard, O., Seller, A., Sornin, N.: Low power long range transmitter. European Patent Application EP 2763321 A1 by Semtech Corporation (2014) 13. Goursaud, C., Gorce, J.M.: Dedicated networks for IoT: PHY/MAC state of the art and challenges. In: EAI Endorsed Transactions on Internet of Things (2015) 14. Semtech Corporation: LoRa SX1272/73 transceiver datasheet (2015) 15. SimPy event discrete simulation for Python. https://simpy.readthedocs.io
+

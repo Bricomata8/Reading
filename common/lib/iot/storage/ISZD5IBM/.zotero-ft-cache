@@ -1,0 +1,2004 @@
+Zippy: On-Demand Network Flooding
+Felix Sutton, Bernhard Buchli, Jan Beutel and Lothar Thiele
+Computer Engineering and Networks Laboratory ETH Zurich, Switzerland
+{fsutton, bbuchli, beutel, thiele}@tik.ee.ethz.ch
+
+ABSTRACT
+In this paper, we tackle the challenge of rapidly disseminating rare events through a multi-hop network, while achieving unprecedented energy-eﬃciency. Contrary to state-of-theart approaches, we circumvent the undesirable trade-oﬀs associated with low-power duty-cycled protocols and backscatter technologies, and demonstrate a paradigm shift in lowpower protocol design. We present Zippy, an on-demand ﬂooding technique that provides robust asynchronous network wake-up, ﬁne-grained per-hop synchronization and eﬃcient data dissemination by leveraging low-complexity transmitter and receiver hardware. We are the ﬁrst to demonstrate the on-demand ﬂooding of rare events through a multihop network with end-to-end latencies of tens of milliseconds, while dissipating less than 10 microwatts during periods of inactivity. We present a prototype implementation of our proposed approach using a wireless sensor platform constructed from commercially available components. We extensively evaluate Zippy’s performance in a laboratory setting and in an indoor testbed.
+Categories and Subject Descriptors
+C.2.1 [Computer-Communication Networks]: Network Architecture and Design—wireless communication
+General Terms
+Design, Experimentation, Performance
+Keywords
+Asynchronous rendezvous; on-demand; network ﬂooding; time synchronization; wake-up radio; wake-up receiver; on-oﬀ keying; wireless sensor networks; cyber-physical systems
+1. INTRODUCTION
+Motivation. The past decade of wireless sensor network research has produced a plethora of robust and energy eﬃcient protocols for disseminating periodic events through a
+Permission to make digital or hard copies of all or part of this work for personal or classroom use is granted without fee provided that copies are not made or distributed for proﬁt or commercial advantage and that copies bear this notice and the full citation on the ﬁrst page. Copyrights for components of this work owned by others than ACM must be honored. Abstracting with credit is permitted. To copy otherwise, or republish, to post on servers or to redistribute to lists, requires prior speciﬁc permission and/or a fee. Request permissions from Permissions@acm.org. SenSys’15, November 1–4, 2015, Seoul, South Korea.
+c 2015 ACM. ISBN 978-1-4503-3631-4/15/11 ...$15.00.
+DOI: http://dx.doi.org/10.1145/2809695.2809705.
+
+network of resource-constrained motes arranged in a multihop topology. However, there are many real-world applications, such as industrial automation [13], structural health monitoring [19], medical alert systems [35], surveillance systems [43], and environmental monitoring [12], where events are not periodic, but occur only on rare occasions. Under this premise, state-of-the-art duty-cycled protocols are faced with an undesirable design trade-oﬀ between mote lifetime and end-to-end latency, and state-of-the-art backscatter technologies are limited by either the availability of infrastructure or low communication range. In this paper, we demonstrate a paradigm shift in low-power protocol design, where the aforementioned trade-oﬀs are circumvented, thus enabling the rapid dissemination of rare events through a multi-hop network with unprecedented energy-eﬃciency. Challenge. The key challenge is the dissemination of a rare event through a multi-hop network that is both rapid, i.e., with low end-to-end latency, and energy eﬃcient, i.e., maximizes mote lifetime.
+In order to exemplify the design trade-oﬀs encountered when applying state-of-the-art techniques, we consider a concrete application scenario, whereby resource-constrained wireless gas sensors must rapidly alert a sink if the measured gas concentration exceeds a safe level. One approach is to apply a synchronous protocol, such as Glossy [8], to rapidly ﬂood the event through the network to a sink. However, since the periodicity of the radio activity is directly linked to the end-to-end latency of the event, all motes in the multi-hop network must expend signiﬁcant energy in order to achieve a low reporting latency of the event.
+An alternative is to employ a Low-Power Listening [34] or Low-Power Probing [27] protocol. However, as demonstrated in [7], these duty-cycled protocols and their variants suﬀer the same undesirable design trade-oﬀ. That is, the need for low end-to-end latency increases the radio activity at each mote in the network, thereby reducing mote lifetime.
+Yet another alternative is to employ backscatter technology where a dedicated [44] or ambient [24] high-power infrastructure provides motes with a medium for communication. However, such techniques are limited in their support for multi-hop connectivity as either the high-power infrastructure must be generated, ambient infrastructure may not always be available, or the achievable per-hop communication range is insuﬃcient. Proposed Approach. We present Zippy, a novel ﬂooding technique that circumvents the aforementioned design trade-oﬀs by leveraging low-complexity transmitter and receiver hardware. We exploit the ultra-low power dissipation
+
+45
+
+and unique timing properties of low-complexity radio hardware to perform on-demand ﬂooding of rare events featuring end-to-end latencies on the order of milliseconds, while dissipating less than 10 microwatts during periods of inactivity. This level of energy eﬃciency makes it possible to support rare event dissemination for multiple years with low-capacity coin cell batteries.
+Zippy combines four extensible components, which facilitate its adoption to a wide range of application domains. First, a robust asynchronous network wake-up ensures that all motes in the multi-hop network are awoken from a deep sleep state. Second, a novel neighborhood synchronization component achieves an average per-hop synchronization as low as 34µs. Third, an eﬃcient bit-level data propagation component supports the dissemination of event packets with near constant end-to-end latency. Finally, a carrier frequency randomization component ensures that the destructive interference associated with concurrent transmissions are mitigated during a Zippy ﬂood. Contributions. In this paper, we make the following contributions: • We present a robust scheme for performing on-demand
+wake-up of a multi-hop network using low-complexity radio hardware. • We introduce a novel technique for per-hop synchronization and ﬂooding of an event packet through a multi-hop network. • We introduce the design of an ultra-low power wireless sensor platform supporting Zippy, while dissipating less than 10 microwatts during periods of inactivity. • We detail a prototype implementation of Zippy, and extensively evaluate its performance both with controlled laboratory experiments and within an indoor testbed. The paper is structured as follows: Sec. 2 presents ondemand rendezvous using low-complexity radio hardware. Sec. 3 presents an overview of Zippy, followed by a detailed design and analysis of its operation in Sec. 4. A prototype implementation of Zippy and its extensive evaluation is provided in Sec. 5. Finally, we conclude with a discussion of related work in Sec. 6, and a summary of conclusions in Sec. 7.
+2. ASYNCHRONOUS RENDEZVOUS
+Zippy exploits an asynchronous rendezvous mechanism to facilitate on-demand network ﬂooding. In this section, we study how a mote can achieve on-demand rendezvous with its one-hop neighbors using low-complexity radio hardware.
+2.1 Background
+One of the fundamental challenges of low-power wireless communication is how to support energy-eﬃcient packet exchange between single-hop neighbors, while minimizing the energy consumed due to idle listening. Given two arbitrary wireless motes within range, packet exchange is only facilitated when both motes have their radios turned on at the same time, which is termed a rendezvous [23]. If a mote does not know when its neighbor wants to send a packet, it must expend energy by powering its wireless receiver in anticipation of packet exchange. This behavior is termed idle listening [5], and is a signiﬁcant source of energy waste due to the high power dissipation of commonly used receivers.
+Wireless sensor network research has primarily addressed the problem of idle listening in the time domain [39]. That
+
+is, by duty cycling the radio at the appropriate time, rendezvous between one-hop neighbors is supported, while also reducing the mote’s average energy consumption. However, under such duty-cycled schemes, there exists a fundamental trade-oﬀ between energy eﬃciency and how often the motes rendezvous. Either the radio duty-cycle is increased to achieve a high rendezvous rate at the cost of higher energy consumption, or the radio duty-cycle is decreased to reduce energy consumption at the cost of a low rendezvous rate. In the case where on-demand rendezvous is desired, e.g., to rapidly exchange a rare event, a design decision must be made between the energy eﬃciency of the mote, and the latency for the packet exchange.
+An alternative approach is to address the problem of idle listening in the power domain. Instead of duty cycling the radio hardware, the power dissipation of the radio is such that it becomes feasible to have it always turned on. There are two variants of this approach, based on the dependency on infrastructure, or not.
+Backscatter technologies are an infrastructure-based approach, where a high-power signal source, i.e., either dedicated in the case of RFID tags [44] or ambient in the case of ambient backscatter [24], provides a medium in which passive RFID tags or backscatter-enabled devices can communicate by reﬂecting the incident signal. Whilst there has been signiﬁcant advancements of this novel communication scheme [30], the infrastructure for dedicated backscatter consumes signiﬁcant energy resources, while realistic signal powers of ambient sources, e.g., from TV transmissions, are likely to constrain indoor non-line-of-sight communication links to only a few meters.
+In this paper, we turn our attention to an infrastructureless power domain solution to idle listening. Speciﬁcally, we use low-complexity receivers to decode transmissions from low-complexity transmitters. In contrast to backscatter technologies, the receiver is an always-on active circuit speciﬁcally designed for ultra-low power operation, while the transmitter is only used when there is data to transmit.
+This particular approach has been proposed in the literature [14] more than a decade ago, with the low-complexity receivers referred to as wake-up radios or wake-up receivers. However, recent advances in ultra-low power electronics and the commercial availability of components have made it feasible to achieve always-on idle listening while dissipating on the order of a few microwatts. This is in stark contrast to the order of tens of milliwatts dissipated by commodity radio hardware typically integrated into wireless sensor platforms.
+We next present how such ultra-low power receiver structures are realized in practice.
+2.2 Asynchronous Mote Architecture
+The key to achieving ultra-low power on-demand rendezvous lies in the complexity of the radio hardware and the modulation scheme. Embracing low-complexity digital modulation schemes, such as On-Oﬀ Keying (OOK), drastically simpliﬁes the receiver and transmitter circuitry, i.e., by reducing the number and speciﬁcity of components, which leads to a signiﬁcant reduction in power dissipation. In particular, ultra-low power receiver designs, i.e., exhibiting submicrowatt power dissipation, have been demonstrated in the literature for the acoustic [41], radio frequency [33], and optical [18] spectra.
+
+46
+
+B1 B2
+
+...
+
+B6
+
+C
+
+...
+
+Participant B2 Participant B6
+
+Participant C
+
+OOK Receiver Active @ ~10µW
+
+OOK Transmitter Active @ ~30mW
+
+MCU
+
+OOK Transmitter
+OOK Receiver
+
+OOK Transmitter
+OOK Receiver
+
+MCU
+
+Figure 1: ProOpOKosed mote archOiOtK ecture with a micro-
+
+controllMeCrU (MCU), Transmitter OOK Variable tranTrasnsmmitteirtteMrC,U and always-on
+
+ultra-low power OOK receiver. OOK Receiver
+
+Attenuator
+
+OOK Receiver
+
+Initiator
+
+Wake-up Preamble
+TWAKE
+
+(k+1)Tx
+
+S
+
+Y N
+
+Tb
+
+C
+
+time
+
+(i) Tpreamble Asynchronous
+
+NTsyenctwork WTDaATkA e-up
+
+(ii) Neighborhood Synchronization
+
+(iii) Data Propagation
+
+Participant
+
+DATA
+
+Tsw1
+Wake-up Preamble
+
+Initiator A
+
+T(siwv2) Carrier Frequency Randomization
+
+Tx
+
+S Y
+
+N
+
+C
+
+time
+
+T0,1
+
+1-bit
+
+0-bit
+
+S
+
+Preamble
+
+Y N
+
+. . . TX TX . . . OFF OFF . . .
+
+C
+
+DATA
+
+Analog Input
+
+Logic Analyzer
+
+Digital
+
+Data Propagation Neighborhood Synchronization ADsAyTnAchronous Network Wake-up
+
+Output
+
+1-bit
+
+0-bit
+
+Figure 2: Example OOK signal at the input to the Initiator A
+
+Wake-up Preamble
+
+S
+
+Y N
+
+. . . TX TX . . . OFF OFF . . .
+
+C
+
+Participant OOKBTransmitter TI CC110L
+
+Preamble
+GPIO SPI
+
+50Ω
+
+OOK Receiver
+
+PasPsiavertiOciOpaKnt Demodulator
+
+CWReackeei-vuepr
+AS3930
+
+DATA
+
+MDicATrAocontroller
+MSP430FR5969
+Preamble
+GPIO SPI
+
+OOK Receiver Active @ ~10µW
+
+S
+
+Y N
+
+. . . RX TX . . . RX RX . . .
+
+C
+
+S
+
+Y N
+
+...
+
+RX RX . . . RX RX . . .
+
+C
+
+OOK Transmitter Active @ ~45mW
+
+receiver and its corrDeATAsponding demodulated output.
+
+Participant B
+
+Wake-up Preamble
+
+S
+
+Y N
+
+. . . RX TX . . . RX RX . . .
+
+C
+
+In this paper, we focus on low-complexity radio hard- DATA DATA
+
+witaalremfoordPutarhlticaieptaniItoSnCMscrhaedmioef.reFPWqreauiakmeg-ebu.lpen1cyilbluasNCSYntd.r. a. utRXesRisXn.tg. h. teRXhReXm.O.o. tOe Kardchigi--
+
+Figure 3: OOOK Rveecerivveriew of Zippy in an example 2-hop
+
+ntoeASSDtlia3dctewa9r3i0so12s5rkeHEkDnzemvteeA,lcoStpoeKr iwRnechaeivAeetGrCeretPhatsshriveoeEnuveilgonpehiDZte0 teitcathorteormmulotti-ehohpasnaetrwaorreke. vent
+
+Address
+
+Frequency
+
+Co(rdirsaeblelda) tor
+
+Detector
+
+tecture assumed throughout this OOK Receiver Active @ ~10µW paper, where each OOK Transmitter Active @ ~30mW mote consists of a microcontroller (MCU) provisioned with an
+
+3. OVERVIEW OF ZIPPY
+
+OOK transmitter and an always-on OOK receiver. An RF
+
+1-bit
+
+0-bit
+
+1-bit
+
+switch
+
+contInritioatolrled
+
+by
+
+the TX
+
+MCU
+TX
+
+selects TX
+
+the
+TX
+
+RF . . .
+
+path
+
+from
+
+the antenna to either the input of the receiver, or the out-
+
+In this section, we present an overview of Zippy, the ﬁrst protocol to demonstrate the feasibility of on-demand multihop ﬂooding using low-complexity radio hardware. Fig. 3 ex-
+
+put of the transmDATiAtter. λTTb he OOK transmitter is designed
+
+such that Piatrtiscipanpt ower disT0s,1ipation is less than that of typi-
+
+RX
+
+TX
+
+RX
+
+RX
+
+RX
+
+TX
+
+cal transceivers used for higTbher-complexity digital modula-
+
+tions, e.g., the MADATAX7044 features a current drain of 14 mA
+
+compared
+
+to the Participant
+
+CC430
+
+which T1,2
+
+RX
+
+RX
+
+dRXraiRnX s
+
+2RX9 mRXA
+
+with
+
+identical
+
+output transmission power. The OOK receiver is designed
+
+such that its power dissipation is on the order of microwatts,
+
+i.e., several orders of magnitude below typical transceivers,
+
+thereby allowing always-on operation.
+
+On-Oﬀ Keying is attributed as being the simplest of digi-
+
+tal modulation schemes, where a 1 bit is represented by the
+
+empliﬁes the operation of Zippy, where an initiator, mote A,
+
+1-bit
+
+0-bit
+
+1-bit
+
+disseminates a rare event through a 2-hop network consist-
+
+ing of IpniatiartotriAcipant motesTXB aTnXd C. We nextTXbrieﬂTXy de.sc. r. ibe
+
+1 the1 fun0ctio1n of0 Zip1py’s0 fou1r extensible components.
+
+AsynchronousDANTA etworλTkb Wake-up. The initiator commencPeasrticaipaZnt iBppy ﬂood byT0,1transmitting a preamble, i.e., a sequence of 1 bits, using RiXts loTwX -comRXplexRXity ORXOK TtXransmit-
+
+ter. Since the OOK receiver Tab t mote B is always on, the
+
+recepTtb ion ofTb theDApTAreamble will assert the receiver’s DATA line, qPaawrtiacipkainnt Cg its MCU froTm1,2 deep sleep. Mote B will then
+
+proceed to transmit a preaRXmbleRXso tRoX wakRXe-upRXits nReXighbor,
+
+presence of a carrier frequency over a bit period Tb, while a 0 bit is represented by the absence of a carrier frequency
+
+mote C. The relaying of the preamble continues until all motes in the network are awake, and as a consequence, all
+
+over a bit period Tb. Fig. 2 illustrates an example OOKmodulated bit sequence, both in its analog representation
+
+motes achieve coarse-grained time synchronization, i.e., on the order of milliseconds, to their nearest one-hop neighbors.
+
+observed at the antenna of the OOK receiver, and its digital
+
+Neighborhood Synchronization. Shortly after the com-
+
+representation after decoding. The OOK receiver provides
+
+pletion of the preamble transmission, the initiator transmits
+
+a single digital output, a DATA line, which is interfaced di-
+
+a single OOK 1 bit, termed the synchronization bit. Once
+
+rectly to the attached MCU for processing, which will be
+
+the receiver of mote B detects the beginning of this bit,
+
+discussed next.
+
+i.e., by the rising edge of the receiver’s DATA line, the mote
+
+As illustrated in Fig. 2, the OOK receiver manipulates the
+
+immediately transmits a synchronization bit. The same pro-
+
+digital level of the DATA line according to the envelope of
+
+cess occurs at mote C. The time delay between the beginning
+
+the received OOK signal. Since the mote’s MCU observes the state of the DATA line, it can perform two important
+
+of the synchronization bit transmission, and the instant it is detected at the MCU providbe0 s ﬁnbe1-grained perb-0hop bt1ime
+
+functions, namely, (i) facilitate asynchronous rendezvous by the detection of the ﬁrst rising edge of the DATA line, and
+
+synchronization, i.e., on the orTdX er ofTXtens of microTXsTeXcToXnTXdTsX. TX Data PropagatIniitoiantor. AAll motes now leverage the per-hop
+
+(ii) decode an OOK modulated bit sequence by sampling the state of the DATA line within each bit period Tb. As discussed in Sec. 3, these two functions provided by the OOK
+
+time synchronization in order to propagate a packet through
+
+the network coded using
+
+awriPteahrpticeipbtaiinttt i-olenBveclodgera,RnXwuTXiltahrRitXtyhT.Xe
+
+The pacRkX eTXt is TX RXeTnX -TX length of the code
+
+receiver are pivotal to the operation of Zippy. Despite the superior power-eﬃciency of low-complexity
+
+equal to the maximum hop coRXuRnXtTXoRfX RtXhTXe networRkX.RX In the TX RX RX TX considered examParpticliepa,nteaCch bit of the packet is represented
+
+OOK receivers, they exhibit well-known practical limita-
+
+by two sub-bits, i.e., a 1 is transmitted as 11 and a 0 is
+
+tions, as surveyed in [6]. We systematically evaluate the
+
+transmitted as 00. The initiatRoX rRX tRXraRXnRsXmRXits all paRXcRkXeRtX RsXuRbX -RX
+
+two most important limitations in Sec. 5. We next describe how asynchronous rendezvous using low-
+
+bits, while eachPaprtaicirptanict ipDant uses its OOK receiver to decode each sub-bit in sequence. If a sub-b(ait) is decoded as a 1(b,) the
+
+complexity radio hardware is applied to a multi-hop net-
+
+participant switcheOsOKtRoecietivserOAcOtiveK@ ~t1r0aµWnsmittOeOrKaTrnandsmtitrtear Ancstimve @its~45mW
+
+work, while supporting tight per-hop time synchronization
+
+any remaining 1 sub-bits, thereby propagating each bit to
+
+and energy eﬃcient bit-level data dissemination.
+
+its neighbors.
+
+47
+
+...
+.
+
+Participant B6
+
+Participant C Participant B1
+C
+P
+
+Carrier Frequency Randomization. It is evident that transmissions during a Zippy ﬂood will overlap. As shown
+
+InitiatorB1 B2
+
+...
+
+BP6reamble
+
+(k+P1a)rTticxipant B1
+
+S Y
+
+Participant B2
+
+N C
+
+Tb
+
+Participant C time
+
+P
+
+in [40], the packet reception rate reduces as the number of concurrent transmissions increases. Furthermore, since we use low-complexity OOOOKK receivers, we are not able to lever-
+
+C TWAKE
+
+Tpreamble
+
+Participant
+Tsync
+
+B6
+
+TDATA
+
+age the capture Teﬀraencstm[i2tte0r], which is associated with high-
+
+complexity receivers. Although itMiCs Ushown in [2] that OOK receivers may be deOsiOgnKed to exhibit the capture eﬀect, the additional hardwaRreecineicvreerases the total power dissipation of
+
+Participant
+
+DATA
+
+Tsw1
+
+Preamble
+
+Tx
+
+Tsw2
+S Y N
+
+the receiver, potentially negating the beneﬁts of using it for asynchronous rendezvous. Therefore, during the execution
+
+OOK Transmitter
+
+C
+TraOnTsO0m,K1itter
+
+time
+
+of all aforementioned components of Zippy, we mitigate the impact of ovPearrltaicpippainntg OOK transmissions by randomizing the carrier frequency used to represent OOK 1 bits.
+
+MCU
+
+MCU
+
+Figure 4R:eOcOeTiKveirming diagram for Zippy’s asyRneOccOeihKverr onous
+
+network wake-up and neighborhood synchroniza-
+
+While OthOeKmote architecture assumed throughout this pa-
+
+tion.
+
+per taTrgraentsmtihtterultra-low power and low-complexity bound-
+
+Initiator
+
+Participant
+
+Variable Attenuator
+
+aries of the radio sub-syMsCteUm design space, we do not restrict
+the adopOtiOonK of Zippy’s four extensible components into existing mReocteisvearnd/or protocols. On the contrary, the fun-
+
+damental components of Zippy may be combined to create
+
+innovative mote architectures and/or energy eﬃcient exten-
+
+ogic Analyzer sions to established protocols. For example, asynchronous
+
+network wake-up and carrier frequency randomization pro-
+
+vide a widely applicable and robust multi-hop wake-up ser-
+
+vice, while a state-of-the-art ﬂooding protocol may beneﬁt Dfraotma Pthroepiangtaegtiroantion of asynchronous network wake-up, d Synchronizantieoinghborhood synchronization and carrier frequency random-
+
+ization components in order to reduce the energy footprint
+
+of disseminating1r-baitre events0.-bit
+
+S
+4. DNY ESI. .G. NTXATXND. . .AONFF AOFFLY. .S. IS
+We Cnext present the design and analysis of Zippy’s four
+
+extensible components. Where applicable, we characterize
+
+certain properties of the OOK receiver so to aid in the design
+
+and anaSlysis of each component.
+
+mble
+
+4.1 ANCY sy.n. c. hRrXoTnXou. .s. NReXtRwX o.r.k. Wake-up
+
+DATA
+Preamble
+
+A precondition work is to ensure
+
+for communicating with all motes in a they are all turned on and listening,
+
+niD.eAet.T-,A
+
+the mote’s MCU is active with a radio interface conﬁgured
+
+S
+
+icnomrepcleeixvNCYietym.O.oO.deK.RXrWeRcXietihv.e.trh.ientRaeXsgsRriXasttea.dn.ci.ne
+
+of an always-on loweach mote, the action
+
+of remotely waking-up a mote is achieved by the transmis-
+
+sion of a preamble, i.e., a ﬁxed-length sequence of 1 bits. As
+
+ve @ ~10µW introduOcOedK TinranSsemc.itt2er, Atchteivea@lwa~y3s0-monW ultra-low power OOK
+
+receiver will detect the beginning of the preamble, activate
+
+its DATA line, and bring the attached MCU out of deep
+
+sleep using appropriate interrupt processing.
+
+It follows that the fastest way to facilitate mote wake-up
+
+t
+
+0-btithroughout a1n-bitentire multi-hop network is to simply relay
+
+TX
+
+the preamTbXle alonTXg each.h.op. . That is, as soon as the DATA
+
+line is asserted by the OOK receiver, the attached MCU
+
+awakes from deep sleep, and proceeds to transmit the pream-
+
+Tb
+
+ble. The duration of the preamble Tpreamble must therefore be longer than the time taken for the OOK receiver to de-
+
+tect the preamble and assert its DATA line. Fig. 4 illustrates
+
+TX RX the dReXtailedRXtimingTXrelations between initiator and partici-
+
+pant motes. In order to determine a suitable duration of
+
+Tb
+
+the preamble, we must measure the delay TW AKE from the
+
+beginning of the initiator’s preamble transmission until the
+
+rising edge of the participant’s DATA line. This timing char-
+
+1,2
+
+acteristic is dependent on two factors: the OOK receiver
+
+OOK Transmitter
+
+OOK Transmitter
+
+MCU
+
+OOK Receiver
+
+Variable Attenuator
+
+OOK Receiver
+
+MCU
+
+OOK Transmitter
+TI CCLo1gi1c 0AnLalyzer
+
+GPIO SPI
+
+50Ω
+FyansiAgiassuylnyroczehfOreotr5nOho.:ueKs ENORextOwpeNoceKrekirgeWhiimbravokereeehc-ourneopitdvaSelyrncs’hserotDnuizpAatiTofnDAoartalPtinrhopeeaguta1tis-ibomMiitnniiMgcnSrgaPo40ac-lb3onito0gaFnilRct-5r9o6l9ler
+
+PDaettbsmhhoseiUusioIvnntspditeiidiamnautopgOorlianentOrghtotAeuKhprneerdxoppeprreeerriaditmmiPeeraeesbalnWDRmloAeRtbTAfAaeleaFlSlteckhsn3eceee9goit3-vtnuOu0hedp.OpirtiKlilounrssetrcianeDtiNCSYAveoTedrArdi.en.ur.sFetTGSXoidPgPTXg.IItOi5hv.,r.eo.wuaOeFgFlmohOFFwoeuea. .rt-.
+
+S
+
+sure the time taken forPretahmeblereceiver to aNYsse.r.t. iRtXsTXDA. .T. ARX RlXine. .,.
+
+T , Participant
+W AKE
+
+aBcross
+
+the
+
+operating
+
+range
+
+of
+
+Cthe
+
+receiver
+
+as
+
+con-
+
+trolled by a variable attenDuATAator. A logic analyzer is used to measure the time between the start of tShe preamble trans-
+mPisarstiicoipnantatCthe initiatorO’sOPMKreaCmRUblee, caenidvetrheNCY r.i.s.inRgX ReXd.g.e. oRXfRXth.e. .
+DATA line at the participant’s OOK receiver. Fig. 6 plots the dAisSt3ri9b3u0t1io2On5OkKoHRfzeTcAeWivSeArKAKcRtiEveec@aesi~v1te0hµrWe chanPnaseOslOiKavetTrtaEennsnmvuiettaelortAipocetniveDi@est~ve3ac0tmro-Wr ied suScDhliacteatr hat theEDnienvteeplcotupoert signalApGoCwer to the OOK receZiv0 er is between −31 dBm and −51 dBm.
+
+TWTAhInCKAeitoid(aErdidrstaroebrlereledaa)Asstcosurrlotsss
+
+itnhFdDreeeiqctoeuaceptntoeceryr1aa-btitivoenrayl
+
+TX
+
+TX
+
+sta0-bbit le time range of the
+TX
+
+1-dbitistribution for recTeXiver.. .T. his is
+
+primarily due to the Automatic Gain Control (AGC) stage
+
+integrated in the OOK receiver detailed in Sec. 5.1. The
+
+AGC continuoDuATsAly adjusλTtbs a variable-gain ampliﬁer to en-
+
+surPearttichipaantt Blow input sigTn0,1als are able to be successfully de-
+
+RX
+
+TX
+
+RX
+
+RX
+
+RX
+
+TX
+
+coded. Based on these experimental results, the preamble
+
+must be at least as long as tThbe maximum observed TW AKE,
+
+i.e., Tpreamble >DATA370 µs. OPanrtciceipantthCe DATA line
+
+iTs1,2asserted
+
+at
+
+a
+
+participant’s
+
+MCU,
+
+RX
+
+RX
+
+RX
+
+RX
+
+RX
+
+RX
+
+the transmission of a preamble commences. The time taken
+
+to start the data radio transmission, Tsw1, is determined
+
+by the start-up time of the transmitter, and the software
+
+execution time needed to conﬁgure the hardware and ap-
+
+propriately ﬁll the transmit buﬀer. This software delay can
+
+be made approximately constant, e.g., the implementation
+
+detailed in Sec. 5.1 exhibits a Tsw1 of approximately 350 µs.
+
+At the end of the asynchronous network wake-up, the
+
+MCU of each wireless mote is awake, and has coarse-grained
+
+1 time s1ynchron0ization t1o their n0earest n1eighbor0. Speciﬁ1cally, the per-hop synchronization, Tsync, is given by (1), where
+
+Tprop is the propagation delay of the carrier signal.
+
+X RX RXhardwRaXre andRXthe RFRXpropagation eﬀects. We next analyze
+
+Tsync ≥ TW AKE + Tsw1 + Tprop
+
+(1)
+
+48
+
+Tb
+
+Tb
+
+q
+
+TDATA[µs]
+
+TWAKE [µs]
+
+400
+300
+200
+100
+0 −51 −49 −47 −45 −43 −41 −39 −37 −35 −33 −31 OOK Receiver Input Level [dBm]
+Figure 6: Delay to trigger the rising edge of the DATA line with respect to the receiver’s input signal level.
+60
+50
+40
+30
+20
+10
+0 −51 −49 −47 −45 −43 −41 −39 −37 −35 −33 −31 OOK Receiver Input Level [dBm]
+Figure 7: Delay to assert the DATA line in response to a neighbor’s transmission of a 1 bit.
+Based on the aforementioned characterization of the OOK receiver, the per-hop synchronization will be on the order of a millisecond. We next investigate how the per-hop time synchronization can be improved by further leveraging the timing properties of the low-complexity OOK receiver.
+4.2 Neighborhood Synchronization
+Since per-hop time synchronization is a prerequisite for rapid data dissemination through a multi-hop network, we aim to improve the per-hop time synchronization achieved by the asynchronous network wake-up. We take advantage of the fact that low-complexity OOK receivers decode on a bit-level, as opposed to a byte-wise or packet-wise reception oﬀered by high-complexity receivers, e.g., 802.15.4 compatible receivers. As introduced in Sec. 2, the OOK receiver provides a digital DATA line that represents the envelope of a received OOK signal. We now leverage the time it takes for the DATA line to assert, TDAT A, given that a neighboring mote has transmitted a 1 bit, in order to tightly synchronize motes to their neighbors. As indicated in Fig. 4, the delay TDAT A is expected to be smaller than TW AKE since the receiver’s AGC has settled to a steady state after the reception of the preamble.
+Using the experimental setup illustrated in Fig. 5, we measure the time between the beginning of a 1 bit transmission from the initiator, until the rising edge of the participants DATA line using a logic analyzer. The time separating the preamble and the 1 bit transmissions is chosen to be longer than the receiver’s AGC settling time. Fig. 7 illustrates the box plot of the delay TDAT A, as the OOK receiver’s input signal level varies between −31 dBm and −51 dBm. We observe a statistically stable delay with an average of approximately 13µs for low and medium signal strengths. The average increases by a factor of three as the input signal power approaches the receiver’s sensitivity level of −52 dBm, as evaluated in Sec. 5.1.1.
+We leverage this advantageous timing property of the OOK receiver to achieve per-hop synchronization on the order of tens of microseconds. As illustrated in Fig. 4, once the asyn-
+
+chronous network wake-up is complete, the initiator transmits a synchronization bit, i.e., a single 1 bit of duration Tb, using its OOK transmitter. The participant’s OOK receiver will detect this bit, and assert its DATA line after an elapsed time of TDAT A. The participant’s MCU then begins to transmit a synchronization bit using its OOK transmitter. The time to switch on the OOK transmitter, Tsw2, is a combination of hardware and software delays which are considered constant.
+The relaying of the synchronization bit continues throughout the multi-hop network. In an ideal RF propagation environment, the time between the start of the synchronization bit transmission at hop i, and the start of the synchronization bit transmission at hop i + 1 is at least Ti,i+1 seconds, as given by (2). The constant Tprop represents the carrier signal propagation time, which is considered negligible.
+
+Ti,i+1 ≥ Tdata + Tsw2 + Tprop
+
+(2)
+
+The aforementioned neighborhood synchronization scheme has two caveats that necessitate further discussion. Firstly, once a participant has completed its carrier burst transmission, it must wait a minimum of Tx seconds before turning on its receiver in preparation for the relaying of the synchronization bit. If the receiver is turned on too early, the DATA line will activate in response to a neighbors preamble transmission, causing erroneous synchronization. Therefore, each participant must wait at least Tx = max(TW AKE) + Tsw1 seconds before reacting to the rising edge of its receiver’s DATA line.
+Secondly, the initiator must ensure that the synchronization bit is not transmitted before all motes within the multihop network have completed their preamble transmissions. Therefore, the initiator must know in advance the maximum number of hops the ﬂood must propagate through. This poses no real practical limitation, as the maximum expected hop count can be estimated at the deployment time of the network. It follows that given a multi-hop network of k hops, the initiator must wait at least (k + 1)Tx seconds before transmitting the synchronization bit.
+We show experimentally in Sec. 5 that a mean per-hop synchronization as low as 34µs is achievable in a 2-hop network, while only taking on the order of milliseconds to complete the Zippy ﬂood.
+
+4.3 Data Propagation
+We next leverage the per-hop time synchronization in order to rapidly propagate a ﬁxed length packet through a given multi-hop network. Since the OOK receiver provides bit-level granularity, we consider the bit-level propagation of a packet between single-hop participants.
+The simplest method to propagate a bit through a multihop network is to transmit the bit as soon as it is received. This scheme is exempliﬁed in Fig. 8(a), where the initiator transmits bit b0, participant mote B receives the bit and transmits it in the next available bit period. This bit-level relaying continues throughout the multi-hop topology. Under this scheme, the initiator must know in advance the maximum hop count k of the network in order to determine when it can transmit the next bit b1.
+We therefore impose a structure where each bit consists of k sub-bits, where k is the maximum hop count of the network. All participant motes maintain a local counter j, which is initialized to zero. The counter represents the sub-
+
+49
+
+Initiator A
+
+b0
+
+b1
+
+TX
+
+TX
+
+b0
+
+b1
+
+TX TX TX TX TX TX
+
+Participant B
+
+RX TX
+
+RX TX
+
+RX TX TX RX TX TX
+
+Participant C
+
+RX RX TX RX RX TX
+
+RX RX TX RX RX TX
+
+Participant D
+
+RX RX RX RX RX RX
+
+RX RX RX RX RX RX
+
+(a) OOK Receiver Active @ ~10µW
+
+(b) OOK Transmitter Active @ ~45mW
+
+Figure 8: Bit-level propagation schemes using k = 3 sub-bits (a) without, and (b) with repetition.
+
+bit, i.e., between 0 and k − 1, currently decoded by the participant. The counter is incremented by the participant at the end of each symbol boundary according to the following sequence:
+
+j = (j + 1) mod k ∀j ∈ [0, k − 1]
+
+(3)
+
+Once the sub-bit has been decoded, i.e., the DATA line has
+
+been sampled and is deemed as either a 0 or a 1, the par-
+
+ticipant makes a decision on how to propagate the sub-bit
+
+based on the value of the counter j. If a sub-bit is decoded
+
+as a 0, the participant continues to listen for the next sub-
+
+bit. However, if a sub-bit is decoded as a 1, the participant
+
+will transmit a 1 during the next sub-bit if its counter value
+
+satisﬁes j < k − 1. This behavior is illustrated in Fig. 8(a),
+
+where mote B decodes a 1 during sub-bit j = 0, and there-
+
+fore transmits a 1 in the next sub-bit. Similarly, mote C de-
+
+codes a 1 during sub-bit j = 1, and transmits a 1 in the next
+
+sub-bit. This scheme of bit-level data propagation ensures that all participants up to the kth hop have an opportunity
+
+to receive each bit transmitted by the initiator.
+
+The reliability of this scheme can be further improved by
+
+(i) incorporating a repetition code for the initiator and al-
+
+lowing participants to transmit during empty sub-bits, and
+
+(ii) performing a majority vote sub-bit decoding at all par-
+
+ticipants. We next detail these two techniques, which are
+
+both incorporated into Zippy.
+
+As illustrated in Fig. 8(b), the initiator of a Zippy ﬂood
+
+employs a k-repetition code, whereby a single bit is trans-
+
+mitted repeated k − 1 times. In order to leverage the trans-
+
+mission of the additional sub-bits from the initiator, each
+
+participant may propagate all remaining 1 sub-bits. That is, if a participant decodes the jth sub-bit as a 1, the re-
+
+maining k − j − 1 sub-bits are then transmitted as 1 bits.
+
+To exemplify the propagation scheme employed by Zippy,
+
+consider the example illustrated in Fig. 9, where initiator A
+
+transmits the ﬁrst bit out of three, assuming a maximum
+
+hop count of k = 2. Participant B will receive the ﬁrst sub-
+
+bit as a 1, and then transmit during the remaining sub-bit,
+
+whereas participant C decodes the ﬁrst sub-bit as a 0, and
+
+therefore refrains from transmission, and instead decodes
+
+the second sub-bit as a 1. This described scheme gives par-
+
+ticipants residing up to k − 1 hops away from the initiator
+
+more than one chance at successfully decoding each bit.
+
+Majority vote decoding, a scheme originally proposed in
+
+[37], is performed at each participant by sampling the DATA
+
+line of its OOK receiver n times per bit period Tb, where
+
+n is a positive odd integer. The sub-bit is decoded as a
+
+1 if the DATA line was sampled high at least
+
+n 2
+
+times,
+
+otherwise, the sub-bit is decoded as 0. Fig. 9 illustrates
+
+Initiator A
+
+1-bit
+
+0-bit
+
+1-bit
+
+TX
+
+TX
+
+TX
+
+TX
+
+...
+
+Participant B
+
+DATA
+
+Participant C
+
+DATA
+
+λTb T0,1
+
+RX
+
+TX
+
+RX
+
+RX
+
+RX
+
+TX
+
+Tb
+
+T1,2
+
+RX
+
+RX
+
+RX
+
+RX
+
+RX
+
+RX
+
+Figure 9: Bit-level propagation employed by Zippy with n = 3 majority vote sub-bit decoding.
+
+the timing diagram for majority vote sub-bit decoding, with
+
+each
+
+sample
+
+per
+
+sub-bit
+
+separated
+
+by
+
+λTb,
+
+where
+
+λ
+
+=
+
+1 n+1
+
+.
+
+In order for the majority vote sub-bit decoding to function
+
+as intended, the sampling of the DATA line must not extend
+
+past the sub-bit boundary. This is prevented by ensuring
+
+the sub-bit period Tb is long enough, given the maximum
+
+per-hop synchronization delay Ti,i+1 experienced through-
+
+out the multi-hop network. This is analytically described
+
+by selecting the sub-bit period Tb such that the following
+
+inequality holds:
+
+Tb
+
+>
+
+Ti,i+1 λ
+
+∀i ∈ [0, k − 1]
+
+(4)
+
+It is evident that Zippy’s data propagation is inherently biased toward 1 bits, since a 0 bit requires all k sub-bits to be decoded as 0, while a 1 bit requires only one of the k subbits to be decoded as 1. While this asymmetry may lead to packet corruption due to erroneous 1 bit propagation, Zippy leverages tight per-hop synchronization for aligning sub-bit boundaries, and majority sub-bit decoding for improved packet reception as evaluated in Sec. 4.4.
+An important property of Zippy’s data propagation scheme is that the end-to-end latency of a ﬂood at each mote differs only by the small per-hop synchronization delays Ti,i+1. Speciﬁcally, the minimum end-to-end latency L0,h from the beginning of the initiator transmission until the participant at hop count h decodes the Ndata bit packet, is given by:
+
+h−1
+L0,h ≥ Tpreamble +(k+1)Tx + Ti,i+1 +(kNdata +1)Tb (5)
+i=0
+
+We can therefore conclude that the theoretical minimum end-to-end latency L0,h increases linearly with the maximum hop count k, and with the number of packet bits Ndata.
+
+4.4 Carrier Frequency Randomization
+We have so far only considered the operation of Zippy in a network of motes arranged in a line topology. We now extend its design to more realistic wireless networks where each hop may contain several participating motes.
+The main challenge in extending Zippy into a dense network is interference. For example, when two motes simultaneously transmit an OOK-modulated 1 bit, the corresponding sinusoidal signals may constructively or destructively interfere at the antenna of the OOK receiver residing at the next hop. If the interference is constructive, then the receiver will decode the bit successfully without any adverse side eﬀects. However, if the interference is destructive, the received signal level may be too low to be detected.
+During a Zippy ﬂood, destructive interference is undesirable as all aforementioned components may be aﬀected.
+
+50
+
+Participant C
+
+3
+
+C
+
+Participant B1
+
+1
+
+1
+
+0
+
+1
+
+0
+
+1
+
+0
+
+1
+
+B1 B2
+
+...
+
+B6
+
+C
+
+Participant B1 Participant B2
+Participant B6
+(a)
+
+...
+
+Participant C
+
+Tb
+
+Tb
+
+q
+
+Figure 10: Example OOK transmission incorporating carrier frequency randomization with q = 4.
+
+For example, destructive interference may result in a missed preamble reception, erroneous per-hop synchronization due to the late reception of the synchronization bit, or packet corruption due to erroneous decoding of sub-bits.
+One solution to this problem is to avoid the interference by employing a collision avoidance mechanism, e.g., Clear Channel Assessment (CCA) with random back-oﬀ. However, there are two severe problems that arise, making such mechanisms infeasible for Zippy. Firstly, the use of a random back-oﬀ would induce long delays between the relaying of each preamble. This will make it impossible to tightly bound the delay Tx, which is used by the initiator and all participants to correctly sequence the synchronization bit. Secondly, the induced delays of relaying the synchronization bit will drastically extend the per-hop synchronization bounds Ti,i+1, leading to an excessively long OOK bit period Tb in order to satisfy inequality (4) derived in Sec. 4.3.
+Therefore, rather than trying to avoid collisions, Zippy embraces overlapping transmissions, but mitigates their effects by randomizing the carrier frequency used to generate OOK 1 sub-bits. Instead of transmitting each OOK 1 sub-bit using a single carrier frequency of duration Tb, each sub-bit is transmitted using a random sequence of q > 1 carrier frequencies, as depicted in Fig. 10. Since each mote randomly selects a diﬀerent set of carrier frequencies per sub-bit, the probability of destructive interference during the entire sub-bit reduces.
+In particular, each mote selects a carrier frequency f = fc + β∆, at least q times per sub-bit period Tb, where fc is the center carrier frequency, β is a discrete random variable uniformly distributed over a set of integers of size M ≥ 2, and ∆ is a minimum frequency oﬀset. The parametrization of q, M , and ∆ are dependent on the hardware of the OOK receiver, OOK transmitter, and the MCU used to control the two devices. Based on the developed prototype detailed in Sec. 5.1, together with extensive practical experiments, we support carrier frequency randomization with q = 8 random frequencies per sub-bit, with M = 4 random frequencies to choose from, centered about fc = 446.8 MHz, with each having a minimum oﬀset of ∆ = 135.41 kHz.
+We next experimentally evaluate the eﬀectiveness of carrier frequency randomization based on the aforementioned parameterization using the cabled setup as illustrated in Fig. 11(a). Using a 6-way RF power combiner, we combine the simultaneous transmissions of up to six participants, with the resultant signal cabled to an independent participant for decoding using its OOK receiver. An external signal generator is used to trigger the transmission of a randomly generated 32-bit packet from each of the attached participants. All participants share the same random
+
+5 samples per sub-bit 100
+
+PRR [%]
+
+MCU
+
+50 OOK Transmitter
+
+0 OOK
+
+1
+
+Receiver
+
+100
+
+RCaonndsTtoarmanOntizsOCemaKdirtCrteiearrrrFierer qFureMeqnCucUeyncy
+
+2
+
+3
+
+4
+
+5OOK
+
+6
+
+Receiver
+
+3 samples per sub-bit
+
+PRR [%]
+
+50 OOK Transmitter
+
+OOK Transmitter
+
+MCU
+
+Variable
+
+MCU
+
+0 OOK
+
+Attenuator
+
+OOK
+
+Receiver 1
+
+2
+
+3 Receive4r
+
+5
+
+6
+
+1 sample per sub-bit 100
+Logic Analyzer
+
+50
+
+PRR [%]
+
+0
+
+1
+
+2
+
+3 Data P4 ropagation5
+
+6
+
+Neighborhood SyNncuhmrboenrizoaf tOioOnK Transmitters
+
+Asynchronous Network Wake-up
+
+(b)
+
+1-bit
+
+0-bit
+
+Figure 11: InistiaetotrupA, and
+
+(Waak)e-uLp ogical (bP)rearmeblseults of
+
+eavnadluapNCSYthiny.gs. i. ccTaaX lrTXrei.ex.r.pfOeFrFreOiFqFmu. e.e.nntcayl
+
+randomization and majority vote sub-bit decoding.
+
+DATA
+
+Partisociepuaesndt t,reaBnnssumriinssgiotnh.ePWErpeaaakamecc-buhklpeeptairstiidciepnatnictaNCSYrladn.u.d.roiRnmXglTXyeas. ce. .hleRcsXtimRsX iut.ls.t.aonwencarrier frequency using a unique seed. An embedded CRC-8
+
+within each packet isDAuTAsed to calculate the packet reception
+
+rate Partitciipoannt
+
+(PRR), with enCabled, and
+
+andPWwreaakimet-bhulpeout
+
+S
+carrieNYr
+
+.f.r.eqRuX eRXnc.y. .
+
+rRaXnRdX o.m. . iza-
+
+with and without mC ajority vote sub-bit de-
+
+coding. A total of a 1000 packets are generated for each test
+
+OOK Receiver Active @ ~10µW
+
+OOK Transmitter Active @ ~30mW
+
+conﬁguration. The transmission power of all participants is
+
+ﬁxed at −30 dBm. Shielded SMA cables interconnect all RF
+
+devices so to remove non-deterministic propagation eﬀects.
+
+The results of the1-beit xperime0n-bitt are illu1s-tbirt ated in Fig. 11(b).
+
+AInsitiaetoxrpected, a 10TX0% PTXRR is achievedTX for TaX sing. l.e. transmit-
+
+ter, irrespective of the carrier frequency and majority decod-
+
+ing
+
+conﬁguration. DATA
+
+AλsTb the
+
+number
+
+of
+
+simultaneous
+
+transmit-
+
+Ptaerrticsipaisnt increased, thT0e,1 PRR drastically reduces when using a
+
+constant carrier frReXquenTXcy. TRXhis ReXﬀectRXis slTiXghtly mitigated
+
+by increasing the numbTebr of samples per sub-bit from 1 to
+5. In the case of only two simultaneous transmitters, we obDATA
+Psaerrticvipeadnt a slight reduTc1t,2ion of PRR when using a randomized carrier frequency. SRinX ce iRtX is aRrXandRoXm pRrXocesRsX, we would ex-
+
+pect the occasional bit error due to destructive interference.
+
+Nevertheless, the PRR remains higher than that achieved
+
+using a constant carrier frequency. In summary, carrier fre-
+
+quency randomization achieves almost 100% PRR with up
+
+to six simultaneous transmitters, thus making it a robust
+
+mechanism for Zippy to operate in dense networks.
+
+5. EXPERIMENTAL EVALUATION
+In this section, we present the design of a custom wireless sensor platform for the evaluation of Zippy. We ﬁrst present the platform design, evaluate the sensitivity and false wakeup rate of its OOK receiver, and measure its total power
+
+Particip Particip Particip
+O
+DATA
+
+51
+
+Participant C
+
+Participant D
+(a)
+OOK Receiver Active @ ~10µW
+
+(b)
+
+(c)
+
+OOK Transmitter Active @ ~30mW
+
+MCU
+bit OFF . . . X RX . . . X RX . . . @ ~30mW
+
+Initiator Participant
+
+Preamble TWAKE
+
+(k+1)Tx
+Tpreamble Tsync
+
+DATA
+
+Tsw1
+
+Preamble
+
+Tx
+
+S
+
+Y N
+
+Tb
+
+C
+
+time
+
+TDATA
+
+Tsw2
+
+S Y N C
+T0,1
+
+time
+
+(a)
+
+OOK Transmitter
+CC110L
+50Ω
+
+OOK Receiver
+
+Passive OOK Demodulator
+
+Wake-up Receiver
+AS3930
+
+DATA
+
+GPIO SPI
+Microcontroller
+MSP430FR5969
+GPIO SPI
+
+(b)
+
+Figure 12: Prototype O(aO)K aRnecdeivberlock diagram (b) of a
+
+wireless senAsSo39r30p12l5akHtzfAoSrK mRecesiveur ppoParsstivienEgnvelZopiepDepteyctorﬂooding.
+
+DATA
+
+Data Slicer
+
+Envelope Detector
+
+AGC
+
+Z0
+
+dissipation. We then evaluate the performance of Zippy in
+
+Address
+
+Frequency
+
+a
+
+controlled
+
+laboratory setting Co(rdirsaeblelda) tor
+
+Detector
+
+and
+
+in
+
+an
+
+indoor
+
+testbed.
+
+5.1 Prototype Wireless Sensor Platform
+A prototype wireless sensor platform supporting Zippy is shown in Fig. 12(a), with its block diagram depicted in Fig. 12(b). The platform consists of a 16-bit MSP430FR5969 MCU interfaced to a CC110L transceiver, and an ultra-low power OOK receiver based on the AS3930 receiver. The antenna of the platform is connected to an ADG904 RF switch, which is controlled by the MCU. The antenna path can be fed into the OOK transmitter, the OOK receiver, or a 50Ω resistor. The components of the platform were selected ba1sed o1n the0ir ult1ra-low0 qui1escent0 supp1 ly current or ultra-low current drain during deep sleep mode. OOK Receiver. The receiver is an adaptation of [11], where the impedance matching circuitry has been tuned for the 434 MHz ISM frequency band. The receiver consists of a passive OOK demodulator coupled with a commercially available AS3930 ASK receiver. We leveraged the WAKE line from the AS3T9b30 to indTibcate the reception of a preamble, while the DATA qline is used for detecting the synchronization bit and decoding packets. The OOK receiver supports a maximum data rate of 8.192 kbps, and features an ultra-low current drain of 2.7 µA measured at 3.0 V. OOK Transmitter. In order to design a ﬂexible wireless sensor platform for future research opportunities, we incorporated a multi-purpose wireless transceiver instead of a dedicated OOK transmitter module. Carrier frequency randomization is supported on the CC110L transceiver by conﬁguring it for transmission using FSK-4 modulation. An OOK signal is produced by continuously generating random FSK-4 symbols, and using the antenna switch to generate either a 1 or a 0 sub-bit, as required. An OOK 1 sub-bit is produced by switching the antenna port to the CC110L transceiver for a period of Tb, while an OOK 0 sub-bit is produced by switching the antenna port to the 50Ω resistor
+
+100
+
+PRR [%]
+
+50
+
+0
+
+−55
+
+−50
+
+−45
+
+−40
+
+−35
+
+−30
+
+OOK Receiver Input Level [dBm]
+
+Figure 13: Sensitivity of the OOK receiver as measured experimentally with a variable attenuator.
+
+Mote ID
+
+32 18 27 28 16 6 3 33 1 2 4 15 8 00:00
+
+04:00
+
+08:00
+
+12:00 Time of Day
+
+16:00
+
+20:00
+
+00:00
+
+Figure 14: Sporadic false wake-ups observed during a 24 hour experiment on an indoor testbed.
+
+for a period of Tb. A software-based pseudo-random number generator [26] is used to randomly select each FSK symbol from a uniform distribution, thus producing the desired randomization of the carrier frequency.
+5.1.1 Receiver Sensitivity
+The sensitivity of a wireless receiver is deﬁned as the minimum input signal power that supports successful decoding. While the receiver sensitivity has an inﬂuence on the overall reception range of the receiver, care must be taken not to infer reception range only from receiver sensitivity, as various techniques can be used to improve the RF link budget, e.g., increasing the power of the transmitted signal and the use of high-gain antennas.
+We measured the sensitivity of the OOK receiver using the setup described in Sec. 4.1, and illustrated in Fig. 5. By varying the attenuation between OOK transmitter and receiver, the sensitivity is determined by the minimum input signal level upon which the DATA line no longer asserts in the presence of an OOK 1 sub-bit transmission. As shown in Fig. 13, the receiver sensitivity of the OOK receiver is approximately −52 dBm. This sensitivity level is considered state-of-the-art compared to existing prototypes with a similar architectural design [10].
+It is important to clarify that despite the apparent low sensitivity compared to high-complexity receivers, practical experiments have demonstrated ranges up to 15 meters non-line-of-sight in an oﬃce hallway, and up to 30 meters line-of-sight in an outdoor sports ﬁeld. These experiments were carried out using quarter-wavelength omnidirectional monopole antennas with a ground plane of 25 cm2, while being ﬁxed 1.5 m above the ground.
+5.1.2 False Wake-up Rate
+Due to the low-complexity design of the OOK receiver, it is susceptible to external interference. In particular, we are interested in how often a false wake-up occurs, i.e., when the DATA line asserts without an OOK preamble being transmitted. The receiver used in this work operates using subcarrier modulation [29], where a 434 MHz carrier produces the envelope of a 125 kHz carrier. While this design achieves
+
+52
+
+Power [W]
+
+100 Initiator
+10−2
+
+10−4
+
+10−6
+
+0
+
+5
+
+10
+
+15
+
+20
+
+25
+
+100 Participant
+10−2
+
+Power [W]
+
+10−4
+
+10−6 0
+
+5
+
+10
+
+15
+
+20
+
+25
+
+Time [ms]
+
+Figure 15: Power proﬁle of initiator and participant motes during a Zippy ﬂood.
+
+ultra-low power dissipation, it is susceptible to strong noise sources operating around the 125 kHz frequency, e.g., from switch-mode power supplies, and devices operating in the 434 MHz ISM band, e.g., other wireless modules.
+In order to quantify the false wake-up rate of our prototype, we deployed 13 motes into an indoor oﬃce environment, as described in Sec. 5.3. During a period of 24 hours, we recorded each time a false wake-up occurred. The results of the experiment are shown in Fig. 14, where a cross indicates a false wake-up. In summary, four motes did not exhibit any false wake-ups, while mote 28 experienced the maximum of 3166 false wake-ups. With the exception of mote 27, the false wake-ups were predominantly recorded during oﬃce hours. The root cause for all the false wakeups are not yet known, however, it is anticipated that RF shielding and common mode noise rejection circuitry may reduce some false wake-ups.
+
+5.1.3 Active and Idle Power Dissipation
+The power proﬁles of an initiator and a participant mote are depicted in Fig. 15, as measured using an Agilent N6705A DC Power Analyzer. The two platforms were supplied with 3.0 V, while having their on-board low-dropout regulators bypassed. The power proﬁle begins with both motes in an idle listening mode, whereby the MCU resides in a deep sleep mode, i.e., LPM4. During this time, the CC110L transceiver is in standby mode, the antenna switch is active, and the OOK receiver is active. The initiator and participant measured a total idle power dissipation of 9.6µW during periods of inactivity.
+Once the initiator is triggered to begin a Zippy ﬂood (parameterized with a maximum of k = 2 hops), i.e., at approximately 2 ms into the power proﬁle, the initiator begins to transmit the preamble, followed by the synchronization bit, and an 8-bit packet containing the bit sequence 0x55. The power dissipation during all OOK transmissions is approximately 70 mW, which concurs with the CC110L datasheet.
+
+5.2 Controlled Multi-hop Experiments
+We ﬁrst evaluate Zippy in controlled laboratory experiments before extending the evaluation to an indoor testbed. The motivation for controlled experiments is two-fold, ﬁrstly, to provide a baseline timing analysis of the per-hop synchronization achieved by Zippy, and secondly to evaluate
+
+... ...
+
+A
+
+B1 B2
+
+B6
+
+C
+
+Initiator A Participant C
+
+1 2
+3
+
+Participant B6
+...
+Participant B2
+Participant B1
+
+Figure 16: Logical (left) and physical (right) setup
+
+for the controlled laboratory experiments.
+
+100 B1 B2
+
+B6
+
+Participant B1 Participant B2
+
+Participant C
+
+PRR [%]
+
+...
+
+99.5
+
+C
+
+99
+
+Participant B6
+
+1
+
+2
+
+3
+
+4
+
+5
+
+6
+
+35
+
+T0,1 [µs]
+
+30
+
+25
+
+OOK 1
+
+2
+
+3
+
+4
+
+5 OOK
+
+6
+
+Transmitter
+
+Transmitter
+
+MCU 40
+
+MCU
+
+35
+
+OOK Receiver
+
+OOK Receiver
+
+30
+
+T1,2 [µs]
+
+25 1
+Initiator
+
+2
+
+3
+
+4
+
+5
+
+6
+
+Number of 1st hop ParticipantsParticipant
+
+Figure 17:TraOnPsOmaKittcerket reception raTtraeOnsOmKaittner d per-hop time
+
+syncMhCUronization of thVeariabcle abled multi-hopMnCUetwork.
+
+OOK
+
+Attenuator
+
+OOK
+
+Receiver
+
+Receiver
+
+the robustness of Zippy in large, dense networks that would
+
+otherwise be infeasibleLogticoAnraelypzelricate in a testbed.
+
+Experimental Setup. As illustrated in Fig. 16, a cabled
+
+2-hop network is used to evaluate the timing and robustness of ZippyNeuigshibnogrhoaodcSiyrncchurloanitzoatrio.nDaAta Pcroipracgualtiaontor is a passive 3A-spynocrhtrodnoeuvs iNceetwtohrkaWtakpea-uspses an RF signal between ports 1 and
+
+2, but isolates the signal from port 3. S1i-mbit ilarly0,-bit a signal
+
+may
+
+pass
+
+betweeWnakep-uop rt Preamble
+
+2
+
+and
+
+3,
+
+bSYut N
+
+i.s. . iTsXoTlXat. e. .d from. . OFF OFF . port
+
+1.InitCiatoornnAecting a 6-port RF combinC er at port 2 of the cir-
+
+culator enables the construction of sparse and dense 2-hop
+
+DATA
+
+network topologies. WAake-luopgic
+
+tor A,
+Participant
+
+anBd
+
+participParneatmsbleB1
+
+analyzerS is connected to initia-
+
+and
+
+C
+
+Y
+fNCor
+
+.
+
+t. .heRX
+
+mTX e.a. .suRXreRXm.e.n. t
+
+of
+
+the per-hop time synchronization and evaluation of packet
+
+reception rate.
+
+DATA
+
+The initiator A aPcarcticoipradntingC the the
+
+starts Wtahkee-utpransmissSYio.n.
+
+Preamble
+
+N
+
+.
+
+ofRXeRaXch. .
+
+.ZRiXpRpXy.
+
+.ﬂ. ood
+
+frequency of an extCernal square-wave sig-
+
+nal generator. Each ﬂood consists of a 32-bit packet contain-
+
+OOK Receiver Active @ ~10µW
+
+OOK Transmitter Active @ ~30mW
+
+ing 24 randomly generated bits and an 8-bit CRC. Zippy
+
+is conﬁgured with k = 3 maximum hops, majority decod-
+
+ing with n = 3 samples per bit, and with carrier frequency
+
+1-bit
+
+0-bit
+
+1-bit
+
+randomization as described in Sec. 4.4. The transmission
+
+poweInritiatoorf all motesTXis ﬁTxX ed at −30 dBTXm. TXThe. .e.xperiment
+
+begins with a single 1-hop participant, B1, with all other
+
+combiner poDrAtTAs terminλTabted with 50Ω SMA terminators. Af-
+
+terPtahrticeipatnrt ansmission of T0,1 RX
+
+1000 TX
+
+ZRiXppyRXﬂooRdXs
+
+by initiator TX
+
+A,
+
+an
+
+additional 1-hop participant, up to a maximum of six, is
+
+connected to the cabled mTbulti-hop network before restarting
+
+the experimeDAnTAt. Participant
+
+T1,2
+
+Results. The resultRsX of RtXhe RcXontrRoX lledRXlabRoXratory exper-
+
+iment are shown in Fig. 17. The robustness of Zippy is
+
+determined by the packet reception rate as measured at par-
+
+ticipant C. As more 1-hop participants are added, it is vital
+
+that the packet reception rate does not decrease. As we can
+
+see from Fig. 17, the packet reception rate remains at ap-
+
+proximately 100% with up to six ﬁrst-hop participants. This
+
+remarkable behavior is primarily attributed to the use of car-
+
+Initiato Participa Participa Participa
+OO
+P D
+DATA
+1
+
+53
+
+Table 1: Zippy conﬁguration used throughout all
+
+indoor testbed experiments.
+
+Parameter
+
+Description
+
+k = 2 and 3 hops
+
+D
+
+=
+
+1 Tb
+
+= 1.364
+
+kbps
+
+Ndata = 8 and 16 bits
+
+n = 3 samples per sub-bit
+
+Maximum hop count OOK receiver data rate
+Packet length Majority vote sub-bit decoding
+
+Tpreamble = 1.4 ms Tx = 1.25 ms
+
+Preamble duration Participant wait delay
+
+2
+
+1
+
+16
+
+6
+
+28
+
+18
+
+33 3
+
+4 8 15
+
+32 3
+
+27
+
+Figure 18: Indoor testbed deployment map, featuring large (left) and small (right) network topologies.
+rier frequency randomization. As discussed in Sec. 4.4, the use of majority vote decoding slightly increases the packet reception rate under overlapping transmissions. This experimental result demonstrates an improvement on the packet reception rate achievable during concurrent OOK transmissions compared to using high-complexity receivers as presented in [40](Fig. 6), where simulations show that approximately 10% of all packets are corrupt when there is more than one concurrent transmission.
+The per-hop time synchronization is determined by measuring the Ti,i+1 delay, as introduced in Sec. 4.2. The ﬁrsthop synchronization between the initiator A and participant B1 is given by T0,1, while the second-hop synchronization between participants B1 and C is given by T1,2. As shown in Fig. 17, the mean of the ﬁrst-hop time synchronization is approximately 31 µs, and exhibits a very narrow distribution, irrespective of the number of additional participants. This result is not surprising, since the reception of the synchronization bit at B1 is not aﬀected by the reception of the synchronization bit by all other participants residing at the same hop. However, the mean of the second-hop time synchronization is slightly increased to approximately 33 µs, and has a wider distribution due to the colliding synchronization bit transmissions. As the number of 1-hop participants increases, the percentiles of the time distribution increase accordingly, however, the mean remains below 35 µs. This demonstrates that, under ideal conditions, Zippy provides ﬁne-grained per-hop time synchronization, while also exhibiting robustness in sparse and dense network topologies due to carrier frequency randomization.
+5.3 Testbed Multi-hop Experiments
+We next evaluate Zippy’s performance in an indoor testbed. Experimental Setup. We deployed a total of 13 prototype wireless sensor platforms into the FlockLab [21] indoor
+
+Initiator
+
+WRR [%] Initiator
+
+100 50 0 6 16 3 33 32 28 18 27 8 4 2 1 15
+100 50 0 6 16 3 33 32 28 18 27 8 4 2 1 15 20
+
+Initiator
+
+PRR [%] Initiator
+
+Transmission Time [ms]
+
+10
+
+End−to−End Latency [ms]
+Initiator
+
+0 6 16 3 33 32 28 18 27 8 4 2 1 15
+
+60
+
+Initiator
+
+40
+
+20
+
+0 6 16 3 33 32 28 18 27 8 4 2 1 15 Mote ID
+
+8−bit Packet
+
+16−bit Packet
+
+8−bit Packet
+
+16−bit Packet
+
+10−3
+
+8−bit Packet
+
+16−bit Packet
+
+10−4
+
+Per−hop Sync. [s]
+
+10−5 [6−28] [6−16] [6−3] [6−33] [3−32][28−18][18−27] [8−2] [8−4] [4−15] [2−1] [4−1] Link [From − To]
+Figure 19: Results from indoor testbed experiments.
+
+testbed, which is conﬁgured with ﬁne-grained tracing capabilities [22]. The location of each deployed mote is depicted in Fig. 18. We conﬁgured the motes into two independent networks, a 2-hop network with a topology having more than one participant at the ﬁrst hop, and a 3-hop network oﬀering substantial spatial coverage. All motes were conﬁgured with carrier frequency randomization, as detailed in Sec. 4.4. Motes 8 and 6 were conﬁgured as the initiators for the small and large networks, respectively. All experiments were performed with 8- and 16-bit randomly generated packets. As discussed in Sec. 5.4, support for longer packets with Zippy is indeed feasible.
+The experimental evaluation is based on the following four metrics: (i) wake-up reception rate (WRR) is the ratio of the number of motes that wake-up compared to the number of Zippy ﬂoods initiated, (ii) packet reception rate (PRR) is the ratio of the number of correctly received packets compared to the number of Zippy ﬂoods initiated, (iii) transmission time is the duration each mote had their OOK transmitter active per Zippy ﬂood, (iv) end-to-end latency is the elapsed time between the start of the Zippy ﬂood at the initiator until the end of the ﬂood at each participant, and (v) per-hop synchronization is the mean time delay between the motes’ nearest neighbor during all Zippy ﬂoods. We compute all metrics based on 500 Zippy ﬂoods using a static conﬁguration, as listed in Table 1. Results. The results of the testbed experiments are shown in Fig. 19, and are summarized as follows:
+• We ﬁrst observe a wake-up reception rate (WRR) of 100% for all motes deployed in the testbed. This is a remarkable result, given the challenging RF propagation environment
+
+54
+
+imposed by the testbed: motes are separated by physical obstacles including thick concrete walls reinforced with steel, and metal piping aﬃxed to the ceiling for plumbing, heating and ventilation. No false wake-ups were observed during the experiments. • The packet reception rate (PRR) of the motes residing in the large network range from 1.8% (mote 27) up to 100% (motes 16, 3, and 33), while all motes residing in the small network exhibited a PPR exceeding 94.6%. The higher PRR in the small network is attributed to the improved link quality between motes, which exhibit shorter link distances and less physical obstruction compared to the large network topology. • The transmission times are approximately equal for all motes having the same hop count. This is due to the way in which Zippy propagates each sub-bit of the packet. In addition to the preamble and synchronization bit transmissions, each initiator (motes 6 and 8) transmit all packet bits using a repetition code, as detailed in Sec. 4.3. As the hop count increases, the number of sub-bits to be propagated decreases, resulting in a decrease in transmission time per hop. For example, in the small network, mote 8 initiates the Zippy ﬂood and takes 7.3 ms to transmit the preamble, synchronization bit, and an 8-bit packet, while motes 2 and 4, residing at the ﬁrst hop, experience a transmission time of approximately 5.0 ms for the preamble, synchronization bit and only half of the packet sub-bits. Finally, the leaf motes, i.e., motes 1 and 15, require a transmission time of only 2.0 ms, as they transmit only the preamble and synchronization bit. A maximum of 19.8 ms was observed by the initiator of the large network for the transmission of a 16-bit packet. • The end-to-end latency is nearly constant for each network topology and evaluated packet length. Due to the way in which Zippy propagates sub-bits through the network, all participant motes complete a ﬂood at approximately the same time, with small diﬀerences attributed to the perhop time synchronization to their neighbors. The small and large networks exhibit average end-to-end latencies of 17.8 ms and 24.4 ms for the 8-bit packet, and 29.8 ms and 41.6 ms for the 16-bit packet, respectively. • The mean per-hop synchronization ranges from 21.9 µs between motes 18 and 27, and 143.5 µs between motes 8 and 2. Apart from the link between motes 6 and 33, there are only slight diﬀerences between the 8-bit and 16-bit packet experiments. This is to be expected as the perhop time synchronization is dependent on the reception of the synchronization bit and not on the length of the packet. It is important to highlight that the minimum per-hop synchronization observed is less than what was measured in the cabled experiments in Sec. 5.2. This is indeed feasible, as all links in the testbed are not perfectly isolated. For example, mote 27 may on occasion receive the synchronization bit transmitted from mote 28, while the data propagation is decoded from mote 18.
+Comparative Analysis. We next compare the energy efﬁciency of Zippy in ﬂooding on-demand events compared to state-of-the-art ﬂooding protocols, such as Glossy [8]. We consider a static network topology with a maximum of k = 3 hops and with a packet length of 16-bits. As we have shown in the testbed experiments, Zippy can disseminate an event through a 3-hop network with an end-to-end latency of approximately 41.6 ms. If instead Glossy was used to dissemi-
+
+nate on-demand events with a reporting latency comparable to Zippy, all motes must perform periodic Glossy ﬂoods each separated by at most 41.6 ms. Assuming the Glossy parameterization presented in [45] for the TelosB and CC2420 radio with a maximum number of transmissions N = 2, this corresponds to maximum transmission time of 1.9 ms per ﬂood every 41.6 ms. In contrast, the Zippy prototype only needs a maximum transmission time of 19.8 ms once per event. Despite the speciﬁc radio-on time depending greatly on the speciﬁc mote hardware and the protocol software implementation, we can conclude that Zippy will consume less energy than periodic Glossy ﬂoods provided the average event interarrival time is greater than approximately 434 ms.
+5.4 Protocol Limitations and Challenges
+We next discuss limitations and challenges associated with the operation, implementation and evaluation of Zippy. False Wake-up Detection. As discussed in Sec. 5.1.2, the always-on low-complexity OOK receiver is susceptible to false wake-ups. Zippy is designed such that a preamble is always transmitted once a wake-up is detected. Therefore in the worst-case scenario, if a false wake-up is detected at one mote, all motes in the network will erroneously participate in a Zippy ﬂood. After the preamble has been erroneously relayed, two scenarios are possible, namely, (i) a synchronization bit is detected and an erroneous packet is decoded and delivered to a higher-layer application, or (ii) a synchronization bit is not detected causing a protocol timeout after an inactivity timer expires. Erroneous packets can be ﬁltered at higher-layers using forward error correction, however, in either case, a false preamble detection results in the misuse of energy reserves, the impact of which depends greatly on the speciﬁc parameterization of Zippy. Erroneous Synchronization. If a participant mote receives the synchronization bit too early due to a false wakeup, or too late due to poor RF propagation, subsequent transmissions may corrupt the reception of all other participants within its 1-hop neighborhood. The quantitative impact of erroneous synchronization has yet to be investigated, however, extensive tests suggest an adequate parameterization of the preamble length Tpreamble and participant wait delay Tx reduce the occurrence of this erroneous behavior. Noise Resilience. The performance of modulation schemes in the presence of noise are characterized analytically by their bit error vs. signal to noise ratio (SNR) curve [31]. It is well known that higher-order modulation schemes, such as BPSK, exhibit a lower bit error probability for the same SNR compared to OOK modulation. Based on this analytical result, there are two approaches to improve the operation of Zippy’s data propagation with respect to noise, namely, (i) increase the SNR at the input of the OOK receiver’s decoder, or (ii) reduce the bit error by employing a higherorder modulation scheme.
+The ﬁrst approach seeks to increase the SNR of the receiver, thereby reducing the probability of bit error. This is achieved in practice by selecting an advanced OOK receiver incorporating a low noise ampliﬁer, which is directly associated with an increase in power dissipation of the radio hardware. However, if the advanced receiver supports a suﬃciently high data rate, Zippy’s data propagation can operate with higher energy eﬃciency.
+An alternative approach is to adopt a new modulation scheme that is more robust against noise, i.e., where a lower
+
+55
+
+SNR is needed for the same probability of bit error. However, the challenge is to manage the adverse eﬀects of simultaneous transmissions using a modulation scheme other than OOK. As introduced in Glossy [8], constructive interference can be leveraged to reliably disseminate packets through simultaneous transmissions using O-QPSK modulation. Data Rate Reduction. The data rate of the OOK receiver had to be reduced to 1.364 kbps for the implementation of Zippy due to instability of the OOK demodulator output. We suspect that this is due to the dynamic operation of the AS3930’s integrated AGC. Since the design of the AGC is not in the public domain, it is diﬃcult to identify the root cause of this behavior. However, in principle, there are no limitations in operating Zippy at higher data rates using an appropriately designed AGC. Packet Length Support. The packet length supported by Zippy is primarily dependent on the quality of the RF links between motes. As exempliﬁed in Sec. 5.3, motes with poor RF connectivity, e.g., motes 18 and 27 in the large network, will experience higher bit errors, resulting in a lower PRR as the packet length is increased. However, when motes have good RF connectivity, longer packet lengths may be supported with a high PRR. For example, in the small testbed network, Zippy has been shown to support a packet length of 64-bits with an average PRR of 96.7%. Network Scalability. As shown in the experiments presented in Sec. 5.3, Zippy’s end-to-end latency is approximately constant for a given network conﬁguration, and increases linearly with respect to the maximum hop count k, and the number of packet bits Ndata. Furthermore, the transmission time of the initiator is determined by the maximum hop count k, while the transmission time of participants decreases linearly with respect to its hop count. It is anticipated that the advantageous properties of carrier frequency randomization, as validated in Sec. 4.4, will also apply in large network deployments with appropriate parameterization. The validation of these network scaling properties remain a future research opportunity. Antenna Ground Plane. The ground plane and placement of the antenna adversely impacted the range of the low-complexity OOK receiver. Since each FlockLab target slot has a deﬁned physical footprint, the size of the antenna ground plane is therefore limited. Furthermore, by aﬃxing the antennas close to thick reinforced concrete walls, as is the case for all indoor FlockLab targets, the antenna radiation pattern of each mote is altered. These two combined eﬀects reduced the operation range of some links within the testbed deployment, necessitating the installation of larger antenna ground planes at selected FlockLab observers.
+6. RELATED WORK
+Asynchronous network wake-up was ﬁrst proposed as part of the PTW [42] protocol, where each mote immediately transmits a preamble as soon as it is woken up by the reception of a preamble. The relaying of preambles has been recently extended in FLOOD-WUP [32] by leveraging the addressable wake-up mode supported by modern ultra-low power receivers. Zippy builds on their work by addressing the problem of motes simultaneously transmitting. Leveraging carrier frequency randomization, as introduced in this paper, provides a robust, rapid, and topology-independent
+
+asynchronous network wake-up. In addition, Zippy provides tight per-hop synchronization and data dissemination.
+Several protocols employing ultra-low power receivers have been proposed in the literature, for example E2RMAC [15], WUR-MAC [25], and RTWAC [1], which provide single-hop packet transfer by leveraging an asynchronous rendezvous. While these protocols achieve improved end-to-end latency and energy eﬃciency compared to synchronous and pseudoasynchronous protocols, they do not support asynchronous multi-hop data dissemination as demonstrated by Zippy. Furthermore, the aforementioned protocols have only been evaluated empirically through simulation, in contrast to the extensive indoor testbed deployment of Zippy.
+RFID tags for asynchronous rendezvous in wireless sensor networks have been proposed in [16] using active tags, and in [3] using passive WISP [38] platforms. While simulations of RFID-enabled multi-hop communication indicate promising energy eﬃciencies [17], it is unclear if the power dissipation of the RFID reader, coupled with limited operational range, prohibits the realization of energy-eﬃcient multi-hop data dissemination using RFID tags.
+Ambient backscatter [24] is a novel communication paradigm, however, despite recent advancements of these passive receivers [30], the communication range of ambient backscatter devices is constrained by the power of the ambient signal source. Realistic signal powers of ambient sources, e.g., from TV transmissions, are likely to constrain the communication range to only a few meters. In this work, we have demonstrated Zippy operating in an indoor testbed with challenging RF propagation conditions, achieving multi-hop connectivity with per-hop links of up to 10 meters.
+Dual-radio wireless sensor platforms incorporating a highpowered transceiver and an ultra-low power receiver have been proposed in [4], [36], [28] and [9]. Although these prototype platforms support asynchronous rendezvous and single-hop data dissemination, they do not support carrier frequency randomization, and have not been experimentally evaluated in a testbed. We have shown experimentally using our prototype wireless sensor platform that carrier frequency randomization is a prerequisite for robust multi-hop data dissemination using low-complexity OOK receivers.
+7. CONCLUSIONS
+This paper is motivated by the need for rapid and energy eﬃcient dissemination of rare events through multi-hop wireless networks. We present Zippy, a paradigm shift in protocol design, where the fundamental design trade-oﬀ between mote life-time and end-to-end latency is decoupled. Zippy supports on-demand multi-hop ﬂooding with end-to-end latencies of tens of milliseconds, while dissipating less than ten microwatts during periods of inactivity. We detail the design, analysis and prototype implementation of Zippy, and extensively evaluate its performance in a laboratory setting and in an indoor testbed.
+Acknowledgements. We thank Marco Zimmerling, our shepherd Kamin Whitehouse, and the anonymous reviewers for their valuable feedback, Roman Lim and Balz Maag for their FlockLab feature extensions and support, and Reto Da Forno for his power optimizations on the Zippy prototype. This work was scientiﬁcally evaluated by the SNSF and ﬁnanced by the Swiss Confederation and by Nano-Tera.ch.
+
+56
+
+8. REFERENCES
+[1] J. Ansari, D. Pankin, and P. M¨ah¨onen. Radio-triggered wake-ups with addressing capabilities for extremely low power sensor network applications. International Journal of Wireless Information Networks, 2009.
+[2] D. Ash. A comparison between OOK/ASK and FSK modulation techniques for radio links. Technical report, RF Monolithics Inc, 1992.
+[3] H. Ba, I. Demirkol, and W. Heinzelman. Feasibility and beneﬁts of passive RFID wake-up radios for wireless sensor networks. In Global Telecommunications Conference (GLOBECOM). IEEE, 2010.
+[4] J. Brown, J. Finney, C. Efstratiou, B. Green, N. Davies, M. Lowton, and G. Kortuem. Network interrupts: supporting delay sensitive applications in low power wireless control networks. In Proceedings of the 2nd ACM Workshop on Challenged Networks. ACM, 2007.
+[5] I. Demirkol, C. Ersoy, and F. Alagoz. MAC protocols for wireless sensor networks: a survey. Communications Magazine, IEEE, 2006.
+[6] I. Demirkol, C. Ersoy, and E. Onur. Wake-up receivers for wireless sensor networks: beneﬁts and challenges. Wireless Communications, IEEE, 2009.
+[7] P. Dutta, M. Grimmer, A. Arora, S. Bibyk, and D. Culler. Design of a wireless sensor network platform for detecting rare, random, and ephemeral events. In Proceedings of the 4th International Symposium on Information Processing in Sensor Networks (IPSN). IEEE, 2005.
+[8] F. Ferrari, M. Zimmerling, L. Thiele, and O. Saukh. Eﬃcient network ﬂooding and time synchronization with glossy. In Proceedings of the 10th International Conference on Information Processing in Sensor Networks (IPSN). IEEE, 2011.
+[9] G. Gamm, S. Stoecklin, and L. Reindl. Wake-up receiver operating at 433 MHz. In Proceedings of the 11th International Multi-Conference on Systems, Signals and Devices (SSD), 2014.
+[10] G. U. Gamm and L. M. Reindl. Smart metering using distributed wake-up receivers. In Proceedings of the IEEE International Instrumentation and Measurement Technology Conference (I2MTC). IEEE, 2012.
+[11] G. U. Gamm, M. Sippel, M. Kostic, and L. M. Reindl. Low power wake-up receiver for wireless sensor nodes. In Proceedings of the 6th International Conference on Intelligent Sensors, Sensor Networks and Information Processing (ISSNIP). IEEE, 2010.
+[12] L. Girard, J. Beutel, S. Gruber, J. Hunziker, R. Lim, and S. Weber. A custom acoustic emission monitoring system for harsh environments: application to freezing-induced damage in alpine rock-walls. Geoscientiﬁc Instrumentation, Methods and Data Systems Discussions, 2012.
+[13] W. Granzer, C. Reinisch, and W. Kastner. Future challenges for building automation: wireless and security. In Proceedings of the IEEE International Symposium on Industrial Electronics (ISIE), 2010.
+[14] C. Guo, L. C. Zhong, and J. M. Rabaey. Low power distributed MAC for ad hoc sensor radio networks. In
+
+IEEE Global Telecommunications Conference. IEEE, 2001.
+[15] V. Jain, R. Biswas, and D. P. Agrawal. Energy-eﬃcient and reliable medium access in sensor networks. In IEEE International Symposium on a World of Wireless, Mobile and Multimedia Networks (WoWMoM). IEEE, 2007.
+[16] R. Jurdak, A. Ruzzelli, and G. O’Hare. Radio sleep mode optimization in wireless sensor networks. IEEE Transactions on Mobile Computing, 2010.
+[17] R. Jurdak, A. G. Ruzzelli, and G. M. O’Hare. Multi-hop RFID wake-up radio: design, evaluation and energy tradeoﬀs. In Proceedings of the 17th International Conference on Computer, Communications and Networks (ICCCN). IEEE, 2008.
+[18] G. Kim, Y. Lee, S. Bang, I. Lee, Y. Kim, D. Sylvester, and D. Blaauw. A 695pW standby power optical wake-up receiver for wireless sensor nodes. In Custom Integrated Circuits Conference (CICC). IEEE, 2012.
+[19] S. Kim, S. Pakzad, D. Culler, J. Demmel, G. Fenves, S. Glaser, and M. Turon. Health monitoring of civil infrastructures using wireless sensor networks. In Proceedings of the 6th International Symposium on Information Processing in Sensor Networks (IPSN). IEEE, 2007.
+[20] K. Leentvaar and J. Flint. The capture eﬀect in FM receivers. IEEE Transactions on Communications, 1976.
+[21] R. Lim, F. Ferrari, M. Zimmerling, C. Walser, P. Sommer, and J. Beutel. FlockLab: A testbed for distributed, synchronized tracing and proﬁling of wireless embedded systems. In Proceedings of the 12th International Conference on Information Processing in Sensor Networks (IPSN). ACM, 2013.
+[22] R. Lim, B. Maag, B. Dissler, J. Beutel, and L. Thiele. A testbed for ﬁne-grained tracing of time sensitive behavior in wireless sensor networks. In Local Computer Networks Workshops, 2015.
+[23] E.-Y. Lin, J. M. Rabaey, and A. Wolisz. Power-eﬃcient rendez-vous schemes for dense wireless sensor networks. In International Conference on Communications. IEEE, 2004.
+[24] V. Liu, A. Parks, V. Talla, S. Gollakota, D. Wetherall, and J. R. Smith. Ambient backscatter: wireless communication out of thin air. In Proceedings of the ACM SIGCOMM Conference. ACM, 2013.
+[25] S. Mahlknecht and M. S. Durante. WUR-MAC: energy eﬃcient wakeup receiver based MAC protocol. In Proceedings of the 8th IFAC FET, 2009.
+[26] G. Marsaglia. The mother of all random generators, 1994.
+[27] R. Musaloiu-E, C.-J. Liang, and A. Terzis. Koala: Ultra-low power data retrieval in wireless sensor networks. In Proceedings of the 7th Conference on Information Processing in Sensor Networks (IPSN). IEEE, 2008.
+[28] J. Oller, I. Demirkol, J. Casademont, and J. Paradells. Design, development, and performance evaluation of a low-cost, low-power wake-up radio system for wireless sensor networks. ACM Transactions on Sensor Networks, 2013.
+
+57
+
+[29] J. Oller, I. Demirkol, J. Casademont, J. Paradells, G. U. Gamm, and L. Reindl. Performance evaluation and comparative analysis of subcarrier modulation wake-up radio systems for energy-eﬃcient wireless sensor networks. Sensors, 2013.
+[30] A. N. Parks, A. Liu, S. Gollakota, and J. R. Smith. Turbocharging ambient backscatter communication. In Proceedings of the 2014 ACM SIGCOMM Conference. ACM, 2014.
+[31] P. Z. Peebles Jr. Digital communication systems. Prentice-Hall, 1987.
+[32] C. Petrioli, D. Spenza, P. Tommasino, and A. Triﬁletti. A novel wake-up receiver with addressing capability for wireless sensor nodes. In Proceedings of the International Conference on Distributed Computing in Sensor Systems (DCOSS), 2014.
+[33] N. Pletcher, S. Gambini, and J. Rabaey. A 65 µW, 1.9 GHz RF to digital baseband wakeup receiver for wireless sensor nodes. In Proceedings of the Custom Integrated Circuits Conference (CICC). IEEE, 2007.
+[34] J. Polastre, J. Hill, and D. Culler. Versatile low power media access for wireless sensor networks. In Proceedings of the 2nd International Conference on Embedded Networked Sensor Systems (SenSys). ACM, 2004.
+[35] C. V. Pollack Jr. Wireless cardiac event alert monitoring is feasible and eﬀective in the emergency department and adjacent waiting areas. Critical Pathways in Cardiology, 2009.
+[36] T. Prabhakar, N. Soumya, P. Muralidharan, and H. Jamadagni. A Novel Wake-Up Radio WSN Mote. In Proceedings of the Texas Instruments India Educators’ Conference (TIIEC), 2013.
+[37] I. Reed. A class of multiple-error-correcting codes and the decoding scheme. Transactions of the IRE Professional Group on Information Theory, 1954.
+
+[38] A. Sample, D. Yeager, P. Powledge, A. Mamishev, and J. Smith. Design of an RFID-based battery-free programmable sensing platform. IEEE Transactions on Instrumentation and Measurement, 2008.
+[39] C. Schurgers, V. Tsiatsis, S. Ganeriwal, and M. Srivastava. Optimizing sensor networks in the energy-latency-density design space. IEEE Transactions on Mobile Computing, 2002.
+[40] M. Wilhelm, V. Lenders, and J. Schmitt. On the reception of concurrent transmissions in wireless sensor networks. IEEE Transactions on Wireless Communications, 2014.
+[41] K. Yadav, I. Kymissis, and P. R. Kinget. A 4.4µW wake-up receiver using ultrasound data communications. In VLSI Circuits (VLSIC), 2011 Symposium on. IEEE, 2011.
+[42] X. Yang and N. Vaidya. A wakeup scheme for sensor networks: Achieving balance between energy saving and end-to-end delay. In Proceedings of the 10th Real-Time and Embedded Technology and Applications Symposium (RTAS). IEEE, 2004.
+[43] P. Zappi, E. Farella, and L. Benini. Tracking motion direction and distance with pyroelectric IR sensors. IEEE Sensors Journal, 2010.
+[44] P. Zhang, P. Hu, V. Pasikanti, and D. Ganesan. Ekhonet: high speed ultra low-power backscatter for next generation sensors. In Proceedings of the 20th Annual International Conference on Mobile Computing and Networking (MobiCom). ACM, 2014.
+[45] M. Zimmerling, P. Kumar, F. Ferrari, L. Mottola, and L. Thiele. Energy-eﬃcient real-time communication in multi-hop low-power wireless networks. Technical report, TIK Report No. 356, 2015.
+
+58
+

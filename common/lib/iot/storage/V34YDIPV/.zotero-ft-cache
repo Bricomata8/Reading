@@ -1,0 +1,5392 @@
+Faculty of Science and Bio-Engineering Sciences Department of Computer Science
+
+Integrating Long Range Technology into the Contiki Operating System Framework
+Thesis submitted in partial fulﬁllment of the requirements for the degree of Master of Science in de Ingenieurswetenschappen: Computerwetenschappen
+Jelle Aerts
+
+Promotors: Advisors:
+
+Prof. Dr. Ir. Kris Steenhaut Prof. Dr. Ir. Jacques Tiberghien Ir. Steffen Thielemans Ir. Maite Bezunartea
+
+June 2016
+
+Faculteit Wetenschappen en Bio-ingenieurswetenschappen Vakgroep Computerwetenschappen
+
+Integrating Long Range Technology into the Contiki Operating System Framework
+Proefschrift ingediend met het oog op het behalen van de graad van Master of Science in de Ingenieurswetenschappen: Computerwetenschappen
+Jelle Aerts
+
+Promotors: Begeleiders:
+
+Prof. Dr. Ir. Kris Steenhaut Prof. Dr. Ir. Jacques Tiberghien Ir. Steffen Thielemans Ir. Maite Bezunartea
+
+Juni 2016
+
+Abstract
+The Internet of Things in which everyday objects are provided with a microcontroller and a radio transceiver is developing rapidly at the moment. Quite recently, some new wireless technologies like LoRa and SigFox became available and offer energy efﬁcient communication over long distances. Currently, they are mainly employed to build infrastructures with a classic star topology. However, this Master’s Thesis took LoRa completely out of its traditional context in order to take the ﬁrst steps towards a long-distance multi-hop mesh network. As such, the popular operating system for hardware platforms in wireless sensor networks Contiki was ported to the LoRaMote demo platform. The experiences that were gained during this process were bundled in order to provide the online Contiki community for the ﬁrst time with a detailed and complete porting guide. Finally, different LoRa conﬁgurations and their inﬂuence on the wireless range between two LoRaMotes were tested.
+
+Het Internet of Things waarin dagelijkse voorwerpen worden voorzien van een elektronische chip en radiozender, is momenteel nog volop in ontwikkeling. Recentelijk kwamen er enkele nieuwe draadloze technologieën zoals LoRa en SigFox op de markt die energiezuinige communicatie over lange afstanden bieden. Op het ogenblik worden deze hoofdzakelijk aangewend om infrastructuren met een klassieke stertopologie te bouwen. In deze masterthesis werd LoRa echter volledig uit de traditionele context gehaald om zo de eerste stappen richting een lange afstands-, multi-hop, mesh netwerk te zetten. Zo werd Contiki, een populair besturingssysteem voor hardware platformen in draadloze sensornetwerken, naar het LoRaMote demoplatform overgezet. De ervaringen die hieruit volgden, werden gebundeld om zo voor de eerste keer een gedetailleerde en volledige "porting" handleiding te verschaffen aan de online Contiki gemeenschap. Tot slot werden verschillende LoRa conﬁguraties en hun effect op het draadloos bereik tussen twee LoRaMotes getest.
+
+Table of Contents
+
+1 Introduction
+
+1
+
+2 Background
+
+3
+
+2.1 Wireless sensor networks . . . . . . . . . . . . . . . . . . . . . . . 3
+
+2.1.1 WSN communication standards . . . . . . . . . . . . . . . 5
+
+2.1.2 WSN operating systems . . . . . . . . . . . . . . . . . . . 5
+
+2.2 Contiki . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 6
+
+2.2.1 Process scheduler . . . . . . . . . . . . . . . . . . . . . . . 7
+
+2.2.2 Network capabilities . . . . . . . . . . . . . . . . . . . . . 8
+
+2.2.3 Features . . . . . . . . . . . . . . . . . . . . . . . . . . . . 11
+
+2.3 LoRa . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 13
+
+2.3.1 LoRaWAN . . . . . . . . . . . . . . . . . . . . . . . . . . 13
+
+2.3.2 Features . . . . . . . . . . . . . . . . . . . . . . . . . . . . 14
+
+2.3.3 LoRaMote demo platform . . . . . . . . . . . . . . . . . . 15
+
+3 Integration approach
+
+17
+
+3.1 LoRaMAC on Windows . . . . . . . . . . . . . . . . . . . . . . . 17
+
+3.2 LoRaMAC on Linux . . . . . . . . . . . . . . . . . . . . . . . . . 18
+
+3.3 Deploying Contiki to LoRaMote . . . . . . . . . . . . . . . . . . . 19
+
+4 Porting Contiki to new hardware platforms
+
+21
+
+4.1 Contiki’s directory structure . . . . . . . . . . . . . . . . . . . . . 22
+
+4.2 Components to port . . . . . . . . . . . . . . . . . . . . . . . . . . 23
+
+4.2.1 Conﬁguration ﬁles . . . . . . . . . . . . . . . . . . . . . . 23
+
+4.2.2 Clock module . . . . . . . . . . . . . . . . . . . . . . . . . 24
+
+4.2.3 Rtimer . . . . . . . . . . . . . . . . . . . . . . . . . . . . 25
+
+4.2.4 Watchdog . . . . . . . . . . . . . . . . . . . . . . . . . . . 26
+
+4.2.5 LEDs . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 27
+
+4.2.6 Serial line driver . . . . . . . . . . . . . . . . . . . . . . . 27
+
+4.2.7 Sensors . . . . . . . . . . . . . . . . . . . . . . . . . . . . 29
+
+4.2.8 Node MAC address & node ID . . . . . . . . . . . . . . . . 30
+
+4.2.9 SLIP driver . . . . . . . . . . . . . . . . . . . . . . . . . . 30
+
+4.2.10 Radio driver . . . . . . . . . . . . . . . . . . . . . . . . . . 31
+
+4.2.11 Low power mode . . . . . . . . . . . . . . . . . . . . . . . 32
+
+4.3 Main function . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 33
+
+4.4 Code upload mechanisms . . . . . . . . . . . . . . . . . . . . . . . 33 4.5 Makeﬁles . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 34
+
+5 Testing the Contiki enabled LoRaMotes
+
+37
+
+5.1 LoRa’s range performance . . . . . . . . . . . . . . . . . . . . . . 37
+
+5.2 IPv6 & RPL support . . . . . . . . . . . . . . . . . . . . . . . . . 41
+
+6 Conclusion
+
+43
+
+Bibliography
+
+45
+
+A Porting Contiki to LoRaMote
+
+51
+
+A.1 Clock module . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 51
+
+A.2 Rtimer . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 52
+
+A.3 Watchdog . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 53
+
+A.4 LEDs . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 55
+
+A.5 Serial line driver . . . . . . . . . . . . . . . . . . . . . . . . . . . . 55
+
+A.6 Button sensor . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 57
+
+A.7 Node MAC address & node ID . . . . . . . . . . . . . . . . . . . . 59
+
+A.8 SLIP driver . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 60
+
+A.9 Radio driver . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 60
+
+A.10 External clock . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 64
+
+A.11 Low power controller . . . . . . . . . . . . . . . . . . . . . . . . . 65
+
+A.12 Low power clock module . . . . . . . . . . . . . . . . . . . . . . . 66
+
+A.13 Low power rtimer . . . . . . . . . . . . . . . . . . . . . . . . . . . 68
+
+A.14 Contiki main . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 71
+
+A.15 OpenOCD conﬁguration ﬁle . . . . . . . . . . . . . . . . . . . . . 74
+
+A.16 CPU Makeﬁle . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 74
+
+A.17 Platform Makeﬁle . . . . . . . . . . . . . . . . . . . . . . . . . . . 78
+
+List of Figures
+2.1 Contiki’s execution contexts . . . . . . . . . . . . . . . . . . . . . 7 2.2 The ContikiMAC RDC mechanism, before and after phase locking . 9 2.3 The X-MAC RDC mechanism . . . . . . . . . . . . . . . . . . . . 9 2.4 The Low Power Probing RDC mechanism . . . . . . . . . . . . . . 10 2.5 Contiki’s network stack . . . . . . . . . . . . . . . . . . . . . . . . 12 2.6 LoRaMote demo platform . . . . . . . . . . . . . . . . . . . . . . 16
+3.1 ST-Link/V2 programming tool . . . . . . . . . . . . . . . . . . . . 18
+5.1 Testing the LoRaMote’s peripherals & sensors . . . . . . . . . . . . 38 5.2 LoRaMote 1 connected to the computer, LoRaMote 2 attached to a
+portable power bank . . . . . . . . . . . . . . . . . . . . . . . . . . 39 5.3 LoRaMote 2 being moved around in the neighborhood . . . . . . . 39 5.4 LoRa’s maximal communication range using spreading factor 7 . . 40 5.5 LoRa’s maximal communication range using spreading factor 9 . . 40 5.6 LoRa’s maximal communication range using spreading factor 12 . . 41
+
+List of Acronyms
+6LoWPAN IPv6 over Low power Wireless Personal Area Networks
+AES Advanced Encryption Standard API Application Programming Interface ARM Acorn RISC Machine
+CCA Clear Channel Assessments CPU Central Processing Unit CRC Cyclic Redundancy Check CSMA Carrier Sense Multiple Access CSMA/CA Carrier Sense Multiple Access with Collision Avoidance CSS Chirp Spread Spectrum
+DFU Device Firmware Upgrade
+EEPROM Electrically Erasable Programmable Read-Only Memory ELF Executable and Linking Format ETSI European Telecommunications Standards Institute
+FEC forward error correction FIFO First In, First Out
+GCC GNU Compiler Collection GPIO General-Purpose Input/Output GPS Global Positioning System GUI graphical user interface
+I/O Input/Output
+
+IDE Integrated Development Environments IEEE Institute of Electrical and Electronics Engineers IETF Internet Engineering Task Force IoT Internet of Things IP Internet Protocol IPv6 Internet Protocol version 6 ISM Industrial, Scientiﬁc and Medical
+JTAG Joint Test Action Group
+LCD Liquid-Crystal Display LED Light Emitting Diode LLC Logical Link Control LoRaWAN Long Range Wide Area Network LPM low power mode LPP Low Power Probing LPWAN Low-Power Wide-Area Network LQI Link Quality Indicator
+M2M Machine-to-Machine MAC Media Access Control MIC message integrity code MTU Maximum Transmission Unit
+OS operating system OSI Open Systems Interconnection
+RAM Random-Access Memory RDC Radio Duty Cycling RFC Request For Comments RPL IPv6 Routing Protocol for Low-Power and Lossy Networks
+SAR Speciﬁc Absorption Rate SF spreading factor
+
+SLIP Serial Line Internet Protocol
+TCP Transmission Control Protocol TDMA Time Division Multiple Access
+UART Universal Asynchronous Receiver/Transmitter UDP User Datagram Protocol uIP micro IP USART Universal Synchronous/Asynchronous Receiver/Transmitter USB Universal Serial Bus
+WLAN Wireless Local Area Network WSN Wireless Sensor Networks
+
+1 | Introduction
+The SmartNet research group which is part of the ETRO-IRIS department at the Vrije Universiteit Brussel investigates issues related to Wireless Sensor and Actuator Networks. They propose improvements to certain protocols used in such networks and deploy them to explore new applications. ETRO for example is currently developing a feature extraction system solely based on raw camera images obtained from Wireless Sensor Networks (WSN). The high frequency (2.4GHz) and the link budget typical for the commonly used radios in these networks however exclude the connected devices from applications requiring radio waves to cross thick stone walls.
+Quite recently, new transceiver technologies which use other license-free bands have emerged. They enable power efﬁcient communication over very long distances and also allow communicating through several thick walls. Examples of such Low-Power Wide-Area Network (LPWAN) technologies are LoRa, SigFox and Weightless. Typically, such novel LPWANs are based upon single-hop star networks built around base stations, similar to the cellular telephone networks. However, these transceivers are potentially very useful to construct more generic Internet of Things (IoT) networks incorporating multi-hop bidirectional communication enabling sensing and actuation. This is the very reason why ETRO is also developing a multi-hop protocol for the LoRa technology at the moment.
+Although these new technologies are promising, they are not mature, not standardized and often distributed with a proprietary software framework. This results in incompatibility with existing applications. Contiki on the other hand is a well-known open-source operating system (OS) for severely resource constrained systems and has been around for quite a while now. Integrating those new technologies in the Contiki OS would provide full integration of the devices in the Internet of Things. Practically, this can lead to applications where only a few devices are needed to cover a great surface, or where long range technologies can pass small messages like status updates or broadcasts between several short-range Wireless Sensor Networks or to a distant base station. Zolertia, the manufacturer of the popular WSN device Z1 already adopted the SigFox technology in its new dual-stack platform RE-Mote. A similar project to integrate LoRa technology into Wireless Sensor Networks is however non-existent.
+This Master’s Thesis consists of taking the ﬁrst step in this LoRa integration process.
+1
+
+Integrating Long Range Technology into the Contiki Operating System Framework
+By porting the Contiki operating system to a LoRa platform, it will be possible to empower some advantages of this new technology. Moreover, it will also provide the research team with a full-featured mature operating system for these devices that can be used to perform tests with their experimental LoRa multi-hop protocol. The ETRO department is porting Contiki to a Texas Instruments platform too which will be used by the smart lighting project EDISON and some power-line applications. Detailed guidelines on how to perform such port are however lacking. So, another purpose is to gather all information and document the experiences that will be acquired during this project. These ﬁndings then can be used to document a general approach on porting Contiki to new hardware platforms.
+In the next chapter a profound background on Wireless Sensor Networks, the Contiki operating system and the LoRa technology will be presented. Chapter 3 then continues on how this project was approached, which conceptual challenges were taken into account and which problems had to be tackled. The general guidelines on porting Contiki that were created based on the gained experience are presented in the 4th chapter. The results that were achieved are discussed in Chapter 5. In the last chapter an overview of the whole project is given, conclusions are drawn and some ideas for future work are suggested. The appendices contain the source code of all different components that are needed to successfully port Contiki to the LoRaMote demo platform.
+
+2
+
+VRIJE UNIVERSITEIT BRUSSEL
+
+2 | Background
+The Internet has been around for quite some time now, but ever since the rise of wireless network technologies the desire of connectivity has been fueled remarkably. The development of Wireless Local Area Network (WLAN) standards and mobile telephony services has greatly increased the number of interconnected devices. Up till now, this amount of connected devices was more or less restricted to the number of humans. With the current course of events and upcoming breakthrough of the Internet of Things (IoT) in which all kinds of devices will be connected to the Internet, this virtual restriction will no longer hold [1]. The number of connected devices will grow signiﬁcantly in the near future [2] and the latest version of the Internet Protocol (IPv6) will help connecting them all.
+Lots of modern applications rely on data collection to offer new services or service improvements. Industrial control and monitoring, home automation and consumer electronics, environmental and health monitoring, security and military sensing, asset tracking and supply chain management or intelligent agriculture [3, 4] are just some examples of such applications. Collecting information and creating statistics has been common practice for ages, but there were always some restricting issues present. Either people or wired hardware sensors had to perform the measurements. Both have huge disadvantages. Manpower is costly and is not available all the time whereas wired sensors require lots of cable equipment and are not mobile. Then there were also limitations on the employability in certain locations or environments. Some areas can be difﬁcult to access and/or stay at to perform measurements. Whenever the data was collected, it also had to be structured and processed by hand or with some aid of computers.
+2.1 Wireless sensor networks
+Next to the previously mentioned mainstream wireless technologies, other wireless solutions have been researched and developed as well. Wireless Sensor Networks are self-conﬁguring networks of small sensor nodes scattered in a certain area to monitor environmental conditions [5]. They have been developed especially for data gathering purposes since they have almost no environmental limitations and are relatively inexpensive [4, page 2]. Such inexpensive and easy employable wireless networks will be one of the cornerstones of the Internet of Things and will become
+3
+
+Integrating Long Range Technology into the Contiki Operating System Framework
+omnipresent. As a result, huge amounts of data will be generated. Even more than classical data processing approaches can handle. Therefore the Big Data technology will be an indispensable tool to deduct, visualize and generate useful information from the enormous amount of available data [6].
+With the emerging of all these new technologies, the interest in and the market of the Internet of Things is increasing. Quite recently, Belgian telecommunication company Proximus and a subsidiary of electric utility company Engie started to deploy experimental IoT-networks [7, 8]. Regular workshops to keep everyone up to date on the latest wireless technology developments are organized by and for the "wireless community" which consists of experts from the wireless communication industry and involved academia. During their 21st workshop, lots of tips and tricks were given on how to develop sustainable IoT-applications and several demo implementations were showcased. The example applications included solutions for pest control, city environment monitoring and tracking of material, people and even animals. One demo displayed a modular microcontroller with several plug-and-play peripherals [9]. Another interesting concept was presented: the City of Things. It is an open Internet of Things playground, currently in deployment in Antwerp, Belgium. Several IoT-technologies are installed throughout the city, which act as a testbed for performing network and data experiments [10].
+Although all these developments may be a great outlook, the current state of affairs does not allow bulk deployments yet. This is because hardware nodes (or motes) in wireless sensor networks have to operate under restricted conditions [3]. These restrictions are a direct result from the nature of sensor node applications. They have to be cheap and only capable of processing relatively easy computations. Therefore usual speciﬁcations of motes are a low-end microcontroller, a low-power radio transceiver, some sensors and a battery pack [11, page 457]. The prolonged lifetime of WSN applications leads to strict energy constraints. When a network is required to operate several months or years, there is a huge need for decent energy consumption management. In order to extend the lifespan of the network, nodes will operate in a low-power or sleep mode most of the time. Besides operating in low-power mode, it is also possible to harvest energy from the environment in some cases. To ensure low power consumption and minimal service disruption, special algorithms are needed to put the radio transceivers into sleep mode. Such algorithms are known as duty cycle schemes [12]. Another required characteristic of a WSN network is resilience. For various reasons, a sensor node can fail. Its battery can be depleted, an electronic problem can unfold or it may be even a software bug. Whatever the reason for the failure, it is essential that the network is able to successfully continue relaying data in a timely manner [13]. A last important criterion that has to be taken into account is the impossibility of software upgrades. Since most networks are not designed to transmit huge amounts of trafﬁc and the nodes have strict energy constraints, it is unfeasible to distribute upgrades once the device is deployed. Therefore its software should contain everything the node will ever need [9]. The challenges that result from these restrictions have to be tackled before the Internet of Things will bring advanced applications on a large scale [14].
+
+4
+
+VRIJE UNIVERSITEIT BRUSSEL
+
+2.1.1 WSN communication standards
+
+Chapter 2. Background
+
+To maintain network connectivity in an environment with the presented challenges, a different communication approach was needed. Several wireless communication standards were developed to address the special requirements.
+In 2003 the Institute of Electrical and Electronics Engineers (IEEE) created the IEEE 802.15.4 communication standard. It deﬁnes the physical and Media Access Control (MAC) layer in the OSI network model and has been designed speciﬁcally for wireless low-data-rate devices with limited energy consumption requirements. On the physical layer, it is responsible for tasks like activation of the radio transceiver, calculating the Link Quality Indicator (LQI), performing Clear Channel Assessments (CCA) and selecting the channel frequency. The MAC layer is responsible for generating and synchronizing network beacons, supporting device security, providing a reliable link between two peer entities and employing the CSMA/CA mechanism [15]. CSMA/CA stands for Carrier Sense Multiple Access with Collision Avoidance and regulates access to the shared medium for multiple devices. Using this method, devices ’listen’ to the communication medium before transmitting. If the channel is clear, a device can decide to start the transmission. If another device also started sending, the transmission will be delayed for a random period of time.
+Although IEEE 802.15.4 may be a great development, it also has a downside. Natively, it does not support IP packets. Since the Internet Protocol has become the de facto standard for computer networks it is difﬁcult to communicate with external services for devices that use the IEEE 802.15.4 standard. To solve this problem, the Internet Engineering Task Force (IETF) has created the 6LoWPAN protocol which is an acronym for IPv6 over Low power Wireless Personal Area Networks. The main conﬂict between the two standards consists in the difference in packet size. The IEEE 802.15.4 standard has a maximum frame size of 127 bytes whereas the IPv6 Maximum Transmission Unit (MTU) has to be at least 1280 bytes. Therefore IPv6 packets of 128 bytes or more will simply not ﬁt within an IEEE 802.15.4 frame. At this point 6LoWPAN will operate as an adaptation layer between the Network and Data Link Layer of the OSI network model by fragmenting IP packets upon transmission and reassembling IEEE 802.15.4 frames upon receival. [16]
+Several other WSN communication technologies have been developed, building on the IEEE 802.15.4 standard. Some examples are ZigBee, WirelessHART, OCARI, MiWi, ISA100.11a and IEC 62601 (WIA-PA) [17, page 34-2]. These standards will not be discussed here since they are out of the scope of this project.
+
+2.1.2 WSN operating systems
+Next to communication standards, several operating systems were developed as well. These are dedicated to operating in low-power circumstances with constrained hardware and processing resources [18]. In this section, three widely used WSN
+
+JELLE AERTS
+
+5
+
+Integrating Long Range Technology into the Contiki Operating System Framework
+focused operating systems will shortly be introduced. The Contiki operating system will be discussed in the next section.
+TinyOS is a lightweight open-source operating system and is written in nesC, a dialect of the C programming language. It is designed to run embedded systems with very low memory requirements and is capable of running with just 400 bytes of memory [19]. This is the result of the fact that no kernel is present, so direct hardware manipulation is required [20]. Two types of processes are distinguished, time-critical events and non-time-critical tasks. Tasks are scheduled by means of adding them to a FIFO queue. When a task is started, it will run until it is completed. In the meantime no other task can be processed. Events on the other hand, are able to stop a running task and get executed. These events are not scheduled but implemented as interrupts. TinyOS provides three multi-hop protocols: dissemination, DIP (a newer dissemination protocol) [21] and TYMO (an adapted DYMO protocol) and also supports 6LoWPAN. On the MAC layer it has support for a TDMA protocol, B-MAC [22], an adaption of Z-MAC [23] and IEEE 802.15.4. [24, page 5908].
+MANTIS, the MultimodAl system for NeTworks of In-situ wireless Sensors is another lightweight open-source operating system for embedded systems with multithreading capabilities. It is written in plain C and runs with only 500 bytes of memory [20]. The process scheduler is based upon the UNIX-style schedulers and employs a priority-based round-robin algorithm [25]. Each process is assigned a priority class and will share runtime on the processor with the processes of the same class once the scheduler starts executing the processes in its priority class. The network stack is implemented in a somewhat special way in MANTIS. The physical and MAC layer are managed by the system, while the other layers are run in user space. This provides more ﬂexibility to user applications since they can be switched with other protocols, but also results into performance loss since the radio driver cannot be accessed directly but only through an interface which results in computational overhead [24, page 5916]. The COMM component which manages the radio driver and MAC layer implements a protocol which resembles the S-MAC protocol [26] and zero-copy sockets [25].
+Nano-RK is an open-source real-time operating system written in C. Once loaded it uses 2KB of memory. Its scheduler uses a preemptive priority-based algorithm. By executing at each given time the process with the highest priority, support for realtime applications is empowered [27]. The network stack consists of a TDMA-based protocol and zero-copy buffering [28, 24].
+
+2.2 Contiki
+
+Contiki is a lightweight, open-source operating system designed to run on resource constrained, wireless networked motes [29]. It is developed by Adam Dunkels in 2002 after he successfully created a slimmed down implementation of the TCP/IP stack [30]. Contiki is written in plain C, runs on average with a mere 2KB of memory
+
+6
+
+VRIJE UNIVERSITEIT BRUSSEL
+
+Chapter 2. Background
+
+Figure 2.1: Contiki’s execution contexts (Source: [32, Section Processes])
+[24, page 5909] and almost all of its components are constructed with so called protothreads. Protothreads are another invention of Dunkels’ and can be seen as threads speciﬁcally designed for memory constrained devices since they have a low memory overhead and do not make use of a stack [31]. They are implemented by means of C macros and are as such completely architecture independent which results in highly portable structures [24, page 5911]. In the following sections Contiki’s process scheduler, network capabilities and features will be explained. Later on in Chapter 4, its most important components are discussed in great detail.
+
+2.2.1 Process scheduler
+According to the ofﬁcial Contiki Wiki pages [32, Section Processes], code on a Contiki system can be executed in two different contexts: cooperative or preemptive. In a cooperative execution context, processes are scheduled and executed in a sequential way. Each process is carried out until it ﬁnishes its job or indicates it is waiting for an event to happen. Only then another process can be started. Preemptive code on the other hand is able to stop cooperative running code and get executed immediately. Only after the preemptive code has completed, the system will continue the stopped process in the cooperative context. The concept of these execution contexts is displayed in Figure 2.1. Processes are always run in cooperative mode whereas hardware interrupts and real-time tasks are executed in a preemptive context.
+Contiki’s kernel is event-driven which means that the system reacts to speciﬁc external events and/or propagates them further to running processes. Processes in Contiki are implemented as a special kind of protothreads which give them the possibility to wait for such external events. Three kinds of events are used: synchronous events, asynchronous events and a polling event. Whenever a synchronous event is posted by a process, it is directly delivered to the destination process. Asynchronous events are posted to an event queue which will deal with the event once the others are processed. Polling is a special kind of event. It establishes a bridge between the preemptive and cooperative contexts, i.e. a poll event can be posted by a hardware interrupt
+
+JELLE AERTS
+
+7
+
+Integrating Long Range Technology into the Contiki Operating System Framework
+and will make sure the polled process is scheduled as soon as possible. [32, Section Processes]
+
+2.2.2 Network capabilities
+When looking at the network stack of Contiki, several technologies are offered to connect a device to the network. The available protocols will be listed following the OSI network model in a bottom-up approach. An overview of Contiki’s network stack can be found in Figure 2.5. The physical layer is obviously architecturedependent. A default Contiki installation includes several radio drivers for popular radio transceivers. If however a speciﬁc radio is not supported, a software interface is provided that can be used to include support for the new hardware. This interface will be discussed in Chapter 4.
+
+Radio Duty Cycling layer
+According to the OSI network model [33], on top of the physical layer resides the Data Link layer. Contiki’s developers chose to introduce an intermediate layer however, called the Radio Duty Cycling (RDC) layer [32, Section Radio Duty Cycling]. The purpose of RDC protocols is to save energy by switching off radio transceivers as much as possible while still be able to send messages across the network. Since on most platforms these mechanisms are implemented at the MAC layer, some of the protocols are named referring to that layer. Three different RDC protocols are available for use: ContikiMAC, X-MAC and Low Power Probing.
+In a ContikiMAC environment, the sender will continuously send its data frame, waiting for the receiver to wake up. When the receiver wakes up and detects radio activity, it will not go to sleep again but keep listening and send an acknowledgement (ACK) once it has received the whole frame [34]. To reduce the amount of data frames that are transmitted by the sender, a phase-locking mechanism is included. By observing the timestamp of the ACK, the sender knows when the receiver was awake. Since wake-ups occur periodically, the sender can use this information to start transmitting new frames just before it expects the receiver to be awake [34]. This process is illustrated in Figure 2.2.
+The X-MAC protocol is similar to ContikiMAC. Instead of continuously sending data frames, it transmits small request frames (preambles) at random moments. When it receives an ACK, it knows the receiver is listening and will start transmitting the data frame. Also in this protocol a phase-locking technique is used to reduce the amount of transmitted preambles [35]. The X-MAC mechanism is depicted in Figure 2.3.
+Lastly, a protocol with a different approach can be used. When using the Low Power Probing (LPP) protocol, sender nodes start listening to the channel whenever they have data to transmit. Receiver nodes on the other hand broadcast a probe each
+
+8
+
+VRIJE UNIVERSITEIT BRUSSEL
+
+Chapter 2. Background
+
+Figure 2.2: The ContikiMAC RDC mechanism, before and after phase locking (Source: [34])
+
+Figure 2.3: The X-MAC RDC mechanism (Source: [35])
+
+JELLE AERTS
+
+9
+
+Integrating Long Range Technology into the Contiki Operating System Framework
+
+Figure 2.4: The Low Power Probing RDC mechanism (Source: ETRO-VUB Department)
+time they wake up. Upon the detection of the correct probe, the sender can start to transmit its data frame [36]. Contiki implements its own version of the LPP protocol but none of the two versions makes use of a phase-locking mechanism, although it is possible to include one. The operation of LPP is shown in Figure 2.4.
+Contiki provides another option, namely NullRDC. It can be used for testing and debugging purposes and will disable radio duty cycling by never switching off the radio transceiver.
+
+Data Link (Media Access Control) layer
+The previously mentioned Data Link layer consists of two sublayers: the Logical Link Control (LLC) layer and the MAC layer. The LLC layer is responsible for protocol multiplexing, ﬂow control and error detection [33]. This layer is however not implemented by Contiki. The MAC layer is responsible for efﬁcient usage of the shared medium by multiple devices. It has to avoid collisions and to retransmit frames whenever such collision is detected. Two protocols of this category are implemented in Contiki: CSMA and NullMAC.
+CSMA short for Carrier Sense Multiple Access is the default used protocol to perform the mentioned tasks [37, Section CSMA/CD operation]. It guarantees that the sent frames successfully arrive at their destinations by keeping track of acknowledgments. If no ACK is received, CSMA will retransmit the lost data frame up to three times. The other protocol NullMAC will just pass on every frame to the RDC layer. Using this protocol, frames are sent across the network but are not guaranteed to arrive correctly [32, Section Change mac or radio duty cycling protocols]. The latter mechanism can be used for testing and debugging purposes.
+
+10
+
+VRIJE UNIVERSITEIT BRUSSEL
+
+Network and upper layers
+
+Chapter 2. Background
+
+In Contiki, two different network stacks can be run on top of the MAC layer, namely Rime and uIP. Rime is a lightweight layered communication stack that is designed for relaying data in sensor networks. It provides a range of different communication mechanisms, called primitives. Examples are best-effort neighbor broadcasting, reliable network ﬂooding and single-hop or multi-hop unicast communication [38, 39].
+The other option is micro IP (uIP) which is a small and simple implementation of the TCP/IP stack. Although small in size, it does not break any of the TCP/IP mechanisms and is compliant with RFC 1222, a speciﬁcation that describes the requirements for Internet hosts [40]. When combining this size-optimized network stack with the 6LoWPAN and IEEE 802.15.4 protocols, it is possible to run a full TCP/IP stack on memory constrained microcontrollers. For data relaying in a multihop wireless sensor network while using uIP, a routing protocol is needed. The Internet Engineering Task Force speciﬁcally designed RPL (IPv6 Routing Protocol for Low-Power and Lossy Networks) for this task [41].
+
+2.2.3 Features
+
+Contiki aims to provide its users with features and services like a normal operating system would. Some of them are available on all platforms, others are just available for systems with less constrained hardware resources. Coffee is a ﬁle system that has a small and constant RAM footprint ﬁle and has a low performance overhead. It uses a ﬁrst-ﬁt algorithm for allocating ﬂash memory pages to ﬁles [43]. When there would be insufﬁcient pages to assign to a ﬁle, a garbage collector is activated to reclaim obsolete pages. Coffee also employs a wear-leveling mechanism that spreads the erasure of sectors in order to protect the ﬂash memory from unequal wearing which could lead to damaged sectors and failures [24, page 5912].
+Since it is not evident to redeploy wireless sensor networks each time they are updated in a testing stage, tools have been developed to simulate WSN environments. Cooja is such simulator and can be used to simulate the behavior of Contiki nodes at network level. Besides simulating the network stacks, it can also simulate Contiki at operating system level and machine instruction level [44]. Even though simulators are handy tools, it is important to realize that WSN nodes can behave signiﬁcantly different in a real life setup.
+Other available features in a complete Contiki system are a graphical user interface (GUI), web browser, web server, telnet client and screensaver [24, page 5909]. These tools will not be used in this project and will thus not be discussed.
+
+JELLE AERTS
+
+11
+
+Integrating Long Range Technology into the Contiki Operating System Framework
+
+Figure 2.5: Contiki’s network stack (Source: [42])
+
+12
+
+VRIJE UNIVERSITEIT BRUSSEL
+
+2.3 LoRa
+
+Chapter 2. Background
+
+LoRa which is an abbreviation for Long Range, is a spread-spectrum modulation technique developed by Cycleo which was acquired by Semtech in 2012 [45]. It is based on the Chirp Spread Spectrum (CSS) modulation technique, has integrated forward error correction (FEC) and operates in the Industrial, Scientiﬁc and Medical (ISM) radio band [46]. More speciﬁcally, it operates in the 868MHz band in Europe, the 915Mhz band in the United States and there are plans to implement the Australian 915-928MHz and Chinese 470-510MHz band in the near future [47, wiki page]. It is designed as a solution for LPWAN and aims to facilitate IoT, Machine-to-Machine (M2M) and smart city applications [48, Section Alliance]. On the physical level LoRa boasts characteristics like high robustness, multi-path resistance, Doppler resistance, low power usage and obviously long range communication capabilities [46]. By multiplying a reference bit pattern to the incoming radio signal, it is also possible to communicate in very noisy environments [9].
+While Semtech is mainly responsible for the development of the radio transceivers (SX1272), the LoRa Alliance is the driving force behind the LoRaWAN protocol. Its speciﬁcations were available in January 2015 for early-adopter partners and were publicly released six months later. Since the technology is fairly new, Semtech and the LoRA Alliance regularly organize workshops and boot camps [49][48, Section Events]. During the (free) online workshops the LoRa modulation technique and LoRaWAN protocol are explained while promising applications are presented alongside. The boot camps are full-day trainings where participants will get acquainted with the platform. The LoRa Alliance also developed a certiﬁcation program to ensure the interoperability of new hardware platforms in existing LoRa infrastructures [48, Section Certiﬁcations]. Although the deployment of LoRa is still in its initial stage, the LoRa Alliance expects a turning point in 2018 and even around three billion LoRa devices in 2022, mostly being operational in agriculture, consumer and smart building applications [45].
+
+2.3.1 LoRaWAN
+The LoRaWAN protocol is a MAC layer network protocol designed for LPWAN environments. It describes a star or star-of-stars network topology where all end devices are connected to data concentrators known as gateways. Typically these gateways are powered by and connected to a backbone infrastructure while end devices are usually powered by batteries and connect to the gateway using single-hop LoRa communication [50]. Since LoRa can be used for a broad range of applications with different requirements, three MAC proﬁles have been determined: Class A, B and C.
+Class A devices have a bi-directional link with the gateway where the device opens two downlink transmission windows after each uplink transmission to the gateway [50]. Such devices are thus suited for applications with no downlink latency con-
+
+JELLE AERTS
+
+13
+
+Integrating Long Range Technology into the Contiki Operating System Framework
+straints. Typically they have to report their status a couple of times a day and have (almost) no actuators to power which result in extreme low power consumption [45]. Examples are omnipresent in the smart city concept like thrash containers, wearables, etc.
+Class B devices implement the Class A speciﬁcation but provide extra scheduled downlink reception slots. In order to synchronize the time between all end devices, the gateway broadcasts periodical beacons [50]. Typical Class B applications can be found in agriculture. Actuators report several times a day their status and are able to perform actions with a few minutes latency. Also Class B devices have a very low power consumption proﬁle [45].
+Lastly, Class C devices also implement the Class A speciﬁcation but have a continuously open downlink window which is only closed when the device is transmitting data to the gateway itself [50]. These devices are usually mains powered and are used for applications with low latency requirements. Smart lighting is a perfect example of a Class C implementation since these devices have access to a power source and require immediate actuation [45].
+Although LoRaWAN speciﬁes a star topology where all devices are directly connected to a gateway, there is also interest in creating multi-hop network protocols for LoRa enabled devices. An example protocol was already implemented and shows that great surfaces can be covered with very few end devices and just one gateway when empowering multi-hop routing [46].
+
+2.3.2 Features
+Combining the physical characteristics of the LoRa enabled radio transceivers with the LoRaWAN speciﬁcation, allows for network deployments with quite unique features. As said before, the main feature of a LoRa network is its long range communication capability.
+Another result of the physical modulation technique is the ability of deep coverage in urban environments with low data rates. In so called ’deep urban’ areas like parking lots and metro tubes, one can expect network coverage of 500 meters to two kilometers with a data rate of around 1 kilobit per second. In normal urban areas a range between ﬁve and ten kilometers should be able to get covered and should provide a data rate of 5 to 10 Kbps. In a rural environment LoRa can present its best performances by covering ten to twenty kilometers with data rates up to 37.5 Kbps [45].
+As a consequence of the energy efﬁcient LoRaWAN speciﬁcation, it is expected that LoRa end devices can have a lifetime of ten to twenty years. Even a higher lifetime could be achieved when the device is powered by energy harvesting [45].
+On a global scale, a LoRa network offers a high capacity infrastructure and multitenancy which is a result of the orthogonality of the modulation technique [46]. The whole infrastructure can be a low cost solution since one gateway is able to serve
+
+14
+
+VRIJE UNIVERSITEIT BRUSSEL
+
+Chapter 2. Background
+many end devices. If a certain area is well covered by gateways, an additional feature emerges. By means of triangulation, the location of a sensor can be determined without a costly GPS sensor [45, 9].
+Security in LoRa communication is empowered at two levels with AES encryption. When a newly deployed end device is activated on the network, it receives two different encryption keys of 128 bits: a network session key and an application session key. The network session key is used between the end device and gateway to encrypt the message integrity code (MIC) of all transmitted frames in order to guarantee data integrity and the authenticity of the end device [50, 45]. The application session key is only known by the application owner and encrypts the payload at the application layer. This results in the privacy of application data since the network carrier will only transmit encrypted data [50, 45].
+2.3.3 LoRaMote demo platform
+To demonstrate all these features, Semtech developed a demo LoRa platform called LoRaMote (see Figure 2.6). The rest of this section is heavily based on the device’s user guide [51] and will present the components and technical details of this platform.
+The core of this platform is the WiMOD iM880A module. It is a hardware module developed by IMST and contains an STM32L151C8U6 microcontroller from ST Microelectronics and a LoRa enabled SX1272 radio transceiver from Semtech. The microcontroller provides 64 KB ﬂash memory and 10 KB of RAM. Because the platform is a demo board and is therefore not meant to be deployed in real life. The manufacturer chose to ﬁt it with a WiMOD iM880A module so the development work is not completely lost if the other hardware platform uses the same module. [51]
+Since the LoRaMote is a handheld device, it is targeted to be powered by a battery. Hence a holder for standard 9V alkaline batteries is provided. It is also possible to power the platform by the means of a connection with a USB port. Therefore it is also equipped with a switch to be able to choose between the power sources [51]. Other components include three differently colored LEDs (yellow, red and green), 128 kilobit of EEPROM, a JTAG connector to connect hardware programmers and an I/O expander in order to hook up extra peripherals without needing extra microcontroller pins. [51]
+In order to support a broad range of applications and to display its IoT capabilities, the platform is equipped with a variety of sensors. The LoRaMote possesses a three-axis accelerometer (MMA8451Q), a three-axis magnetometer (MAG3110), a proximity sensor (SX9500) based on a capacitive SAR (Speciﬁc Absorption Rate) controller, a GPS module (UP501) and an MPL3115A2 module wielding an altimeter, thermometer and pressure sensor. [51]
+
+JELLE AERTS
+
+15
+
+Integrating Long Range Technology into the Contiki Operating System Framework
+
+Figure 2.6: LoRaMote demo platform (Source: [51])
+
+16
+
+VRIJE UNIVERSITEIT BRUSSEL
+
+3 | Integration approach
+The technical aspects and the properties of the technologies used in this project were presented in the previous chapter. Now, an overview will be given of how the whole project was approached, which conceptual challenges were taken into account and which problems had to be tackled.
+In order to get familiar with the Contiki operating system framework, the ﬁrst step was to study its components and their capabilities. This was done by means of examining simple example code. Then a small Contiki application to test the radio connectivity between two sensor nodes was written. It broadcasts dummy frames and receives frames from other broadcasting nodes using the Rime network stack. This application was tested on the Zolertia Z1 sensor node, but the goal of this project would be to run the same Contiki application on a LoRaMote demo platform.
+3.1 LoRaMAC on Windows
+The next step was to become acquainted with the LoRa technology. This was done through the means of self-study in order to extend the knowledge of LoRa technology that was already present at the ETRO department. One of the online workshops organized by Semtech was attended in order to get a quick introduction.
+The LoRaMAC project on GitHub [47] provides a LoRaWAN compliant base system for several hardware platforms and includes preconﬁgured project ﬁles for a few Integrated Development Environments (IDE). A LoRa network node has to be programmed with this base system using a hardware programmer. For the execution of this project, the ETRO department provided a LoRaMote demo platform and an ST-Link/V2 hardware programmer for STM8 and STM32 microcontrollers which is displayed in Figure 3.1. Since the LoRaMAC project comes with project ﬁles for the Keil IDE and the ST-Link/V2 includes an installation and conﬁguration guide for the same IDE, the logical decision was made to use this development suite. When the whole environment was set up, a simple LED blinking application was created to test the correct functioning of the tools.
+One of the included applications of the LoRaMAC project is a bootloader. It is a small piece of software that is programmed only once onto a platform. When this application is executed, it conﬁgures the device to activate a DFU mode (Device
+17
+
+Integrating Long Range Technology into the Contiki Operating System Framework
+
+Figure 3.1: ST-Link/V2 programming tool
+Firmware Upgrade) which enables the possibility to program new code onto the platform over a USB connection. Such setup greatly improves the ease of use of the platform and therefore its inner workings were further explored. The process of uploading code to the bootloader exists of three steps: building the applications with speciﬁc compiler and linker options, converting the executable to a DFU ﬁle and the actual programming of the executable. While doing this for the previously developed LED blink application, a problem was encountered with the DfuSe tool of ST Microelectronics. For some reason the executable could not be converted to a DFU ﬁle. This turned out to be a bug in the DfuSe software [52] and using the previous version solved the problem.
+When the application ﬁnally could be uploaded to the platform, no Light Emitting Diodes (LEDs) were blinking. After a long and thorough investigation, it turned out that one of the project settings was wrongly conﬁgured. All Keil project ﬁles of the LoRaMAC project include a normal and bootloader proﬁle for the applications. The bootloader proﬁle was conﬁgured with the default target memory address which means that the DFU application would tried to be written to the same memory location as the bootloader code. The memory slots occupied by the bootloader are however write-protected to prevent mistakes like this. As a consequence, only a part of the application was uploaded which of course resulted in invalid code.
+Once the application was built with the correct settings, the LED blinking application could be successfully uploaded to the platform. Yet, another problem arose. In the application, two LEDs were supposed to be lit at the same time but when executed on the hardware, there was a notable delay visible. Until today, this problem has not been solved and its cause is not known. Probably it is also related to the DfuSe tool since the application runs ﬁne when it is loaded with the hardware programmer.
+
+3.2 LoRaMAC on Linux
+The LoRaMAC project comes only with project conﬁgurations for Windows development suites while the Contiki framework is mainly used on Linux environments at
+
+18
+
+VRIJE UNIVERSITEIT BRUSSEL
+
+Chapter 3. Integration approach
+the ETRO department. In order to neatly integrate both technologies, it was decided to start programming the LoRaMote platform from an Ubuntu distribution.
+First of all, the appropriate tools had to be found. The GCC ARM Embedded toolchain was chosen to build applications. This toolchain provides the system with a compiler, linker, debugger and other convenient tools. The st-link open-source project allows loading applications from a Linux environment to hardware platforms with the ST-Link/V2 programmer. A replacement for the DfuSe tool was found in the open-source project dfu-util which enables DFU capabilities for Linux distributions. To ease the whole setup, a script was written that would download, compile and install the aforementioned tools, install their prerequisites and set the proper USB permissions.
+In order to build and upload applications to the LoRaMote demo platform, a makeﬁle was needed. Such makeﬁle contains all the information on how to build an executable ﬁle from source code ﬁles and a set of compiler and linker ﬂags. The makeﬁle for LoRaMAC applications was created by investigating the Keil project ﬁles and mapping their settings to the equivalent GCC ARM Embedded toolchain parameters. The functionality to ﬂash program and DFU upload the built LoRaMAC applications from this makeﬁle was implemented as well.
+Using the created makeﬁle, LoRaMAC applications can be deployed on the LoRaMote demo platform from a Linux environment. It was however impossible to get a working executable from one application, namely the bootloader. Whenever the bootloader was built using the GCC ARM Embedded toolchain, it would halt during initialization of the USB interface each time the code was executed. This problem was thoroughly investigated but no solution was found. During the whole project, the bootloader binary which was built in Keil on a Windows machine was used. It was only near the end of this project that the cause of the issue was discovered. On the ofﬁcial LoRaMAC GitHub someone suggested that the compiler toolchain could cause some trouble [53, 54]. By building the bootloader using an older version of the compiler toolchain, it turned out that the newer versions were indeed the source of the problem. Apparently they break some functionality which caused the bootloader code to halt. The latest working release is GCC ARM Embedded 4.8.
+
+3.3 Deploying Contiki to LoRaMote
+From the moment LoRaMAC applications could be loaded onto the LoRaMote from a Linux distribution, the main goal of this project could ﬁnally be pursued: porting Contiki to the LoRaMote demo platform so Contiki applications can use the long range communication capabilities provided by the LoRa transceiver.
+Both Contiki and LoRa provide speciﬁc network protocols to employ their features. Since Wireless Sensor Networks usually have a multi-hop nature, the single-hop LoRaMAC protocol becomes quite useless. Therefore only the physical layer of LoRa’s network stack will be used. Practically, this means that only certain parts of
+
+JELLE AERTS
+
+19
+
+Integrating Long Range Technology into the Contiki Operating System Framework
+the LoRaMAC code are interesting for this project which raises the question how the available code should be facilitated.
+During the integration of Contiki and LoRa, two main concepts were kept in mind: reusability and modularity. By carefully reorganizing a system implementation, several components can be reused by other people. This deﬁnitely increases the value of a project. By pursuing a modular design of an implementation, it becomes possible to switch or even remove several parts without inﬂuencing the overall working of the whole system. Such design relies on high code cohesion in modules and low coupling between the different modules.
+Contiki is designed in a quite modular way. The LoRa system code on the other hand is much more intertwined on several levels. By extracting CPU speciﬁc code from the LoRaMote code, the support for a new full-featured CPU in Contiki was created. This CPU code can be reused by other platforms.
+The most important part that is needed from the LoRaMAC system is of course the physical radio driver code. However, other interesting structures like Virtual COM Port handling and sensor reading functions can be kept as well for use by Contiki. By changing as little as possible to the original code and creating interfaces for the useful parts, a modular and robust integrated system can be created. This also results in a more update-proof construction. New LoRaMAC versions will seamlessly ﬁt in the Contiki code again when they get released. Since it is easier to maintain such implementations, the lifespan of these projects increases as well.
+In order to create support for Contiki on new hardware platforms, several components have to be implemented. To realize this for the LoRaMote platform, lots of different sources were used. The implementation of the Zolertia Z1 platform was studied extensively and other porting efforts were consulted. Some of those components could be partly adopted from the LoRaMAC system while others had to be implemented with the help from the STM32L1XX Standard Peripherals Library or product data sheets. The makeﬁle that was previously created for building and uploading LoRaMAC applications served as the base for the new Contiki makeﬁles. The whole porting process took quite some time because it was not always clear how certain components should be implemented. Since there are no sources that completely cover Contiki’s porting process, a guide was created especially for this purpose. This guide is presented in the next chapter and discusses all needed components and their implementations so it can be used as a reference work to create new ports. The results of porting the LoRaMote demo platform are shown in Chapter 5.
+
+20
+
+VRIJE UNIVERSITEIT BRUSSEL
+
+4 | Porting Contiki to new hardware platforms
+The Contiki operating system is designed to run on resource constrained, low-power Wireless Sensor Network nodes and is constructed in such a way that it should be easy to deploy to new hardware platforms. Hence, the majority of its components is completely platform-independent. When deploying Contiki to a new platform, only a handful of platform-dependent components have to be implemented to get the whole system up and running. One of the goals of this project is to provide the Contiki community with a detailed guide on how to port the Contiki operating system to new hardware platforms by implementing these platform-dependent components. The developers state that the operating system is indeed easy to port [55, 56], but a quick search in the ofﬁcial mailing lists [57] teaches us that a lot of users still struggle with this matter. Existing information on porting Contiki often neglects important details or does not treat certain aspects.
+Yair Hershkovitz and Demitry Lev for example wrote a porting guide [58] but merely described the basic porting components of Contiki. The same applies to Wincent Balin’s documentation [59] for his entry to the MSP430 Design Contest which was held in 2006. The University of Bern held a seminar in 2009 where Cyrill Schluep presented the steps of how to port Contiki to new platforms [60], but once again it only included an enumeration of the basic steps. In 2011 George Oikonomou shared his own porting experiences, but started from an existing discontinued porting effort [61] and thus does not contain any details about how to start a new port. Zhun Shen and his team even published a paper in 2013 which describes how to port a platform from Contiki to another operating system [62]. Adam Dunkels’ original presentation remains one of the best sources available although it dates from 2007 and is nowadays only available from archived copies [63]. In the same year Alexandru Stan wrote his Bachelor thesis which covers the same topic a bit more extensively [64]. Both of these works are excellent sources with examples, but are a bit outdated and lack information about low power mode implementations for microcontrollers.
+All of these papers thus either lack information, are not detailed enough or are simply outdated. They also often refer to the ’native’ platform which is provided within the Contiki repository and is supposed to be the simplest port for a new platform. In reality, it contains a lot of code which is not essential to get Contiki running which is confusing for users who have no experience with Contiki’s inner workings. Next to
+21
+
+Integrating Long Range Technology into the Contiki Operating System Framework
+the mentioned papers, more guidelines can be found on the ofﬁcial Contiki wiki page and within the source ﬁles [32]. As a result of all these scattered and incomplete sources of information on how to port Contiki, one can have a hard time to actually get it working while it should be in fact easy to do. This is the main reason why there was a need for a uniﬁed document with a detailed guide.
+In the rest of this chapter an enumeration of ’to be ported’ components will be presented as well as the steps to be taken on how to do it. All will be accompanied by examples from our own Contiki port to the LoRaMote demo platform which wields an STM32L151C8 microcontroller [51, 47], using the STM32L1 Standard Peripherals Library [65].
+
+4.1 Contiki’s directory structure
+The main Contiki directory [66] contains multiple ﬁles and folders. Those with any importance will be discussed although they are not necessarily of interest for porting purposes. Contiki’s base system resides in the /core directory and has no need to be ported [63]. Its code should only be consulted for more information on the inner workings, but should not be changed in order to ’ﬁx’ a process. To perform a port there are two relevant directories, namely /platform and /cpu. Only these two can contain architecture dependent code. Typically, the cpu folder will be used by all platforms with the same microcontroller and contains speciﬁc code like startup ﬁles, libraries, timers, watchdogs, multi-threading, low power mode controllers and an ELF loader. Generally the platform folder contains all other code which is not related to the CPU. This commonly includes the main function, LED control, sensor reading and all other functions the board is capable of. A last directory that will be used is /tools. This is the storage place for all tools that will be used during the build and upload process (e.g. hardware programmer, debugger, mote listing tools, terminal, etc.). One ﬁle of interest is Makeﬁle.include. It contains the make instructions for the Contiki base system and will build the whole project once a destination platform has been chosen.
+The ﬁrst step of porting Contiki should be creating the appropriate subfolders in the /cpu, /platform and /tools directories. The two ﬁrst directories should be provided with their own makeﬁle, which are respectively /cpu/{CPU_NAME}/ Makefile.{CPU_NAME} and /platform/{PLATFORM_NAME}/Makefile. {PLATFORM_NAME}. The contents of these ﬁles include instructions to compile, link and upload code. Their implementation will be discussed later. Then two new folders should be made in the personal platform directory, named ’dev’ and ’net’. The dev folder will contain the ﬁles with the low level code for sensors while the net folder will contain the low level code for the radio driver.
+Using this information, the following directories should be created for the LoRaMote platform example:
+• {CONTIKI_PATH}/cpu/arm/stm32l1
+
+22
+
+VRIJE UNIVERSITEIT BRUSSEL
+
+Chapter 4. Porting Contiki to new hardware platforms
+• {CONTIKI_PATH}/platform/loramote • {CONTIKI_PATH}/platform/loramote/dev • {CONTIKI_PATH}/platform/loramote/net • {CONTIKI_PATH}/tools/loramote Next, the STM32L1 Standard Peripherals Library should be placed in the /cpu/ arm/stm32l1 directory, together with linker scripts and system startup ﬁles for the STM32L1 that can be found in the LoRaMac GitHub repository [47]. These ﬁles will be crucial to build the whole project for this platform.
+
+4.2 Components to port
+The native platform which is included in Contiki’s source code is often referred to as a porting template. Although it indeed contains all basic necessary implementations, it is not always clear what is happening on each line of code when one has no or limited foreknowledge as mentioned before. Needless to say, when there should be a platform already available which is similar to the one that is being ported, it is more interesting to use that code as a starting point. Some caution is advised here since not all ports are completely ﬁnished and thus can result in unexpected results. Either way, it is always easier to start from existing code in order to have the basic structures.
+In the following section the different porting components will be discussed, accompanied with examples from the LoRaMote demo board. Since the multi-threading library is not used often and the ELF loader requires great knowledge of the ELF format and the CPU architecture [63], these components are out of the scope of this paper and are omitted.
+
+4.2.1 Conﬁguration ﬁles
+Each platform should contain two conﬁguration ﬁles: contiki-conf.h and platformconf.h. The Contiki conﬁguration ﬁle contains several conﬁguration options related to the operating system like C compiler instructions, C types, uIP settings, duty cycling preferences, apps and widgets preferences, etc. [63]. The platform conﬁguration ﬁle can be used for platform speciﬁc settings like clock conﬁguration and constants used by the platform’s clocks, sensors or other components. These conﬁguration ﬁles can be copied from the native platform or a platform that is similar to the one that is being ported. Later on during this guide, several conﬁguration options will be added to these ﬁles.
+Practically, the /platform/native/contiki-conf.h conﬁguration ﬁle is copied to /platform/loramote/contiki-conf.h. The clock_time_t and CLOCK_CONF_SECOND deﬁnitions should be removed from this new Contiki
+
+JELLE AERTS
+
+23
+
+Integrating Long Range Technology into the Contiki Operating System Framework
+conﬁguration ﬁle. Then a new ﬁle /platform/loramote/platform-conf. h is created, containing the default clock conﬁguration.
+1 #ifndef __PLATFORM_CONF_H__ 2 #define __PLATFORM_CONF_H__
+3
+4 typedef unsigned long clock_time_t; 5 typedef unsigned long long rtimer_clock_t;
+6
+7 #endif /* __PLATFORM_CONF_H__ */
+
+4.2.2 Clock module
+The clock module (clock.c) is one of Contiki’s most essentials components as it handles most of the timed events used by the system and its applications. The objective of the clock module is to generate a certain amount of ticks each second and to continue processes if their etimer or ctimer have expired. Such pending processes are started by calling the etimer_request_poll() function. The amount of ticks per second can be chosen freely, but is usually a power of two. The reason for this is that their divisions can be optimized greatly [67, page 92]. A number between 64 and 512 ticks is common, depending on which granularity is requested.
+According to Contiki’s ofﬁcial documentation on timers, there are six components of the clock module API that need porting [32, Section Timers].
+• clock_time_t clock_time(); Returns the amount of ticks that have passed since the initialization of the clock.
+• unsigned long clock_seconds(); Returns the amount of seconds that have passed since the initialization of the clock.
+• void clock_delay(unsigned int delay); Shortly delays the processor by executing some no-operations (NOPs).
+• void clock_wait(int delay); Delays the system for a certain amount of clock ticks.
+• void clock_init(void); Initializes the clock module.
+• CLOCK_CONF_SECOND; Deﬁnes the number of ticks per second.
+For the LoRaMote example, the STM32 Systick structure has been used. During clock initialization the CPU is told to ﬁre an interrupt several times per second in order to increase the tick counter and check for processes which are ready to continue their tasks. The full implementation can be found in Appendix A.1. In the implementation of the Systick interrupt, two ENERGEST calls can be found. These are used by Contiki to create an estimation of the power consumption. More of these calls
+
+24
+
+VRIJE UNIVERSITEIT BRUSSEL
+
+Chapter 4. Porting Contiki to new hardware platforms
+
+will be found in the implementation of other components. The RELOAD_VALUE constant uses two other constants, namely F_CPU and CLOCK_SECOND. F_CPU refers to the frequency of the main processor and should be deﬁned in the platform conﬁguration ﬁle. CLOCK_SECOND is a constant deﬁned by Contiki and will take the same value as CLOCK_CONF_SECOND. CLOCK_CONF_SECOND should be deﬁned in the platform conﬁguration ﬁle as well and is never supposed to be called directly.
+
+The following two instructions are thus added to the platform-conf.h ﬁle.
+
+1 /* The frequency of the main processor */
+
+2 #define F_CPU
+
+32000000
+
+3 /* The desired amount of ticks per second */
+
+4 #define CLOCK_CONF_SECOND
+
+256
+
+4.2.3 Rtimer
+The rtimer (rtimer-arch.c) is an independent clock. It differs from the clock module by giving extensive control to its users and not being used by Contiki itself. Its sole purpose is to precisely schedule one event at a time and it is used by conﬁguring a wake up time and a callback function. This callback function proﬁts from being preemptive, meaning that when the rtimer expires the current process will be stopped in favor of executing this rtimer callback function [32, Section Processes & Section Timers]. The user callback function is triggered by executing the rtimer_run_next(). The amount of ticks that this clock produces is much higher than the main clock for great precision, typically a power of two ranging between 8192 and 32768.
+In order to port the rtimer, the following items have to be implemented [32, Section Timers]:
+• RTIMER_CLOCK_LT(a, b); Should return TRUE if ’a’ is less than ’b’, otherwise FALSE.
+• RTIMER_ARCH_SECOND; Deﬁnes the number of ticks per second.
+• void rtimer_arch_init(void); Initializes the rtimer module.
+• rtimer_clock_t rtimer_arch_now(); Returns the amount of ticks that have passed since the initialization of the clock.
+• int rtimer_arch_schedule(rtimer_clock_t wakeup_time); Schedules a callback to a user function.
+In the LoRaMote example the STM32 TIM structure is used to implement the rtimer. The full implementation can be found in Appendix A.2. As in the clock module example, the initialization of this timer conﬁgures an interrupt that will handle the rtimer tick counter and optionally call the users’ callback function. This
+
+JELLE AERTS
+
+25
+
+Integrating Long Range Technology into the Contiki Operating System Framework
+
+implementation is not necessary. It can also be implemented without a tick counter by conﬁguring an interrupt that will immediately call the callback function. This will be shown in Section 4.2.11 discussing low power mode. The used RTIMER_SECOND constant is deﬁned by Contiki which refers to RTIMER_ARCH_SECOND. Just like the CLOCK_CONF_SECOND constant, RTIMER_ARCH_SECOND should never be called directly.
+
+Again two constants should be added to the platform-conf.h ﬁle.
+
+1 /* The desired amount of ticks per second */
+
+2 #define RTIMER_ARCH_SECOND
+
+32768
+
+3 #define RTIMER_CLOCK_LT(a,b)
+
+((signed short)((a)-(b)) < 0)
+
+4.2.4 Watchdog
+A watchdog is a hardware device that is able to recover a microcontroller from system errors [68]. It makes use of a counter that will count down to zero. The system should reset this counter to its original value on a regular basis. If this would fail and the counter reaches zero, the watchdog will judge that the application is not executing in a normal or expected way and will reset the microcontroller. A variant of the normal watchdog is a windowed watchdog. The principle of the countdown counter stays the same, but an extra condition is imposed. If the application resets the counter too soon, the windowed watchdog will suspect a malfunction too and will reset the microcontroller.
+Contiki’s watchdog interface (watchdog.c) requires ﬁve functions to be implemented:
+• void watchdog_init(void); Initializes the watchdog module.
+• void watchdog_start(void); Starts the watchdog countdown process.
+• void watchdog_stop(void); Stops the watchdog countdown process.
+• void watchdog_periodic(void); Resets the watchdog’s countdown counter.
+• void watchdog_reboot(void); Restarts the watchdog device.
+Both watchdog variants are implemented for the LoRaMote example in Appendix A.3. The windowing feature of the windowed watchdog is not used here. The STM32 watchdogs cannot be disabled once started [69, page 135 & 553], therefore this function is implemented as a stub. Some new constants are to be added to the platform conﬁguration ﬁle. These give the possibility to select the preferred variant and to control the watchdog activation and its timeout value.
+
+26
+
+VRIJE UNIVERSITEIT BRUSSEL
+
+Chapter 4. Porting Contiki to new hardware platforms
+
+1 /* LSI clock frequency */
+
+2 #define F_LSI
+
+37000
+
+3 /* Start watchdog */
+
+4 #define ENABLE_WATCHDOG
+
+1
+
+5 /* Use independant watchdog */
+
+6 #define WATCHDOG_USE_IWDG
+
+1
+
+7 /* Independant watchdog timeout in milliseconds */
+
+8 #define WATCHDOG_IWDG_TIMEOUT
+
+250
+
+4.2.5 LEDs
+
+One of the most basic ways to get some feedback from the platform is by using LEDs. Usually it is also one of the easiest components to implement. By default, Contiki recognizes up to three differently colored LEDs: red, green and yellow/blue. The control interface (leds-arch.c) makes use of bitmasks to get and set the current LED conﬁguration. The form of this bitmask can be chosen by the platform itself by deﬁning the LEDS_RED, LEDS_GREEN, LEDS_YELLOW and LEDS_BLUE constants as unique power of two values. The LEDS_ALL constant then should be deﬁned as the maximum value than can be achieved by adding all the separate LED values. The default bitmask deﬁnition can be found in the /core/dev/leds.h ﬁle. The Contiki LED interface can be used once the following three functions are implemented:
+
+• void leds_arch_init(void); Initializes the LED hardware structures.
+
+• unsigned char leds_arch_get(void); Returns a bitmask of the currently active LED conﬁguration.
+
+• void leds_arch_set(unsigned char leds); Lights the LEDs according the given bitmask.
+
+The LoRaMote example makes use of Contiki’s default bitmask and uses the LoRaMac GPIO interface to handle the LED conﬁguration. Its full implementation can be found in Appendix A.4. In order to indicate that the platform features LEDs, an extra constant can be added to the platform conﬁguration ﬁle.
+
+1 /* Indicate that LEDs are available to use */
+
+2 #define PLATFORM_HAS_LEDS
+
+1
+
+4.2.6 Serial line driver
+Solely using the LEDs as feedback is a bit restrictive. It is much more interesting to be able to get some output by the means of text messages. This can be achieved by using a hardware debugger or by conﬁguring a serial line connection to the board. The usage of a hardware debugger will be discussed in the Code upload mechanisms section (4.4), while this section will focus on the establishment of a serial line connection.
+
+JELLE AERTS
+
+27
+
+Integrating Long Range Technology into the Contiki Operating System Framework
+Whenever a printf command is executed in the C language, its parameters are passed on through several other commands until the moment it reaches a speciﬁc system call. On a machine with an operating system, the system will make sure the output is redirected correctly to an output console. On embedded systems however, such underlying I/O dispatching service is not available. Therefore the main principle of getting text output from bare metal platforms is to implement a so called ’sink’. A sink is a framework that will capture all standard I/O calls and redirect them elsewhere. The destination of this redirection or a combination of destinations can be chosen from a range of different peripheral possibilities. The message can be relayed over a network for example or it can be shown on an LCD display. The goal of this module is however to redirect the message through a UART/USART hardware device so it can be read by a connected terminal application. Such UART/USART device is responsible for translating a sequence of bits to a serial series of ’logical voltage levels’ [70]. These virtual voltages can then be used by a serial communication driver to transmit them physically. Usually, a terminal application physically connects to the board using an RS-232 serial port. On newer boards however, it is more common to use USB Virtual COM Ports which emulate RS-232 connections. So in order be capable of using printf commands in Contiki applications, this I/O intercepting sink framework needs to be implemented. The functions that are required by this framework depend on the used compiler toolchain.
+• IAR C Compiler: size_t __write(int handle, const unsigned char *buf, size_t bufsize);
+• ARM C Compiler: int fputc(int ch, FILE *f);
+• GNU C Compiler: int __io_putchar(int ch); size_t _write(int handle, const unsigned char *buffer, size_t size);
+Whereas Contiki uses the default sink framework for output redirection, it does provide an interface for user input handling [32, Section Input and Output]. The ﬁrst step should be to enable an interrupt on the UART/USART device whenever it receives data. The interrupt callback function then should pass on the received character to Contiki’s serial_line_input_byte() function. This serial line interface will buffer all received characters until it detects a newline character. Whenever the newline character is entered, Contiki will send the received text string to all active processes for further usage.
+In the LoRaMote example project the GNU C Compiler was used. The _write() function should call the __io_putchar() function for each character in its buffer. Then each character can be redirected to the desired end device, in this case the Virtual COM Port structure of the USB interface. All implementations can be found in Appendix A.5: the _write() function in syscalls.c and __io_putchar() in serial-line-arch.c. The latter ﬁle also includes the code for serial user input handling.
+
+28
+
+VRIJE UNIVERSITEIT BRUSSEL
+
+4.2.7 Sensors
+
+Chapter 4. Porting Contiki to new hardware platforms
+
+Contiki provides its users with a uniﬁed sensor interface which can be used to retrieve the current measured value or to get notiﬁed on sensor changes. This way all sensors can be accessed and controlled in a similar way regardless of the underlying peripheral technology and microcontroller. As a result of this abstraction, applications written for Contiki can become completely platform independent. The Contiki sensor structure consists of the seven functions listed below and interrupt handlers if needed. Note that only the ﬁrst four functions have to be implemented since Contiki provides the implementation of the last three.
+
+• static void init(void); Initializes the sensor’s hardware
+
+• static void activate(void); Activates the sensor.
+
+• static void deactivate(void); Deactivates the sensor.
+
+• static int value(int type); Returns the sensor’s current value.
+
+• static int active(void); Returns the sensor’s current activation status.
+
+• static int conﬁgure(int type, int value); Contiki’s interface to control the sensor.
+
+• static int status(int type); Contiki’s interface to get the sensor’s status.
+
+In the sensor showcase found in Appendix A.6, the LoRaMote’s SX9500 proximity sensor is implemented as a button. It is a device that is connected to the SX1509 I/O Expander, therefore a cascading interrupts implementation is needed. When the SX9500 detects a value higher than the conﬁgured threshold, an interrupt will be generated. The SX1509 will detect that the SX9500 ﬁred an interrupt and will generate another interrupt itself. This interrupt will be captured by the STM32 EXTI structure which will call Contiki’s sensors_changed() function in order to let the system know that a sensor event occurred. The implementation of this cascaded interrupts construction is pretty low level and required the help of the datasheets of the SX1509 I/O Expander [71], the SX9500 proximity sensor [72] and the iM880A microcontroller module [73]. Lastly, to indicate that this platform wields a button, a new entry is made in the platform conﬁguration ﬁle.
+
+1 /* Indicate that a button is present for use */
+
+2 #define PLATFORM_HAS_BUTTON
+
+1
+
+JELLE AERTS
+
+29
+
+Integrating Long Range Technology into the Contiki Operating System Framework
+4.2.8 Node MAC address & node ID
+In order to be able to connect to a device on the data link layer, it needs a unique MAC address. This MAC address will be used by the network stack to send encapsulated network packets, called frames, to other devices. Most network interfaces already come with a unique MAC address, but sometimes it can happen that they have to be generated. If a MAC address has to be generated, other unique properties of the device are to be used. Contiki’s devices also bear a node ID which is usually derived from the MAC address. It can also automatically derived from another source or even manually set. The way in which this ID is assigned can be freely chosen by the developer. Contiki requires two functions (node-id.c) related to the node’s MAC address and ID:
+• void node_id_restore(void); Globally sets the node’s MAC address and ID.
+• void node_id_burn(unsigned short id); Programs a chosen node ID to special memory location on the platform.
+The STM32L1 microcontroller features three unique ID registers for a total of 96 bits [69, page 882-883]. In the LoRaMote’s implementation in Appendix A.7, these registers are used for the generation of its MAC address and node ID.
+
+4.2.9 SLIP driver
+In Section 4.2.6 the process of redirecting the device’s input and output was described. Of course, this way of communication is a bit basic and thus restrictive. There are other technologies available which allow a more complicated way of communicating. One of them is the Serial Line Internet Protocol or SLIP in short. The protocol encapsulates IP packets in order to send TCP/IP trafﬁc over serial line connections [74].
+Contiki provides an interface (slip-arch.c) for easy SLIP implementing on new platforms which is similar to the one for serial line handling. This time the conﬁgured serial line input interrupt should call the slip_input_byte() function. On the other hand, the output redirection is handled a little differently. There are no more toolchain dependent sink functions involved anymore, just one function that is required by Contiki, namely slip_arch_writeb().
+• void slip_arch_init(unsigned long ubr); Initializes the serial connection for SLIP handling. Enable the serial input interrupt here.
+• void slip_arch_writeb(unsigned char c); Forwards all outgoing SLIP packets to the serial line connection.
+The LoRaMote’s SLIP driver implementation can be found in Appendix A.8. Once again, the USB’s capability of emulating a serial COM port has been used.
+
+30
+
+VRIJE UNIVERSITEIT BRUSSEL
+
+Chapter 4. Porting Contiki to new hardware platforms
+4.2.10 Radio driver
+When consulting Contiki’s Wiki pages on how to implement a port for a microcontroller’s radio capabilities, not much useful information will be found. All radio related pages treat higher level topics like RPL, radio duty cycling and MAC protocols. Adam Dunkels’ porting Contiki workshop only reveals a few hints [63] and in the meanwhile Contiki’s radio interface has changed. Even though radio communication is a key feature in the existence of Contiki, the steps that need to be taken to implement a new radio remains highly undocumented. By examining the source of existing radio drivers however, a radio_driver struct can be found. Each new radio implementation should use this C struct to deﬁne its own radio driver functions. The following list contains the most important functions of the data structure that are required to get a working radio device.
+• int (* init)(void); Initializes the radio hardware.
+• int (* prepare)(const void *payload, unsigned short payload_len); Prepares a packet to be sent by the radio.
+• int (* transmit)(unsigned short transmit_len); Sends the previously prepared packet.
+• int (* send)(const void *payload, unsigned short payload_len); Prepares & transmits a packet.
+• int (* read)(void *buf, unsigned short buf_len); Copies a received packet to Contiki’s input buffer.
+• int (* channel_clear)(void); Performs a Clear Channel Assessment (CCA) to ﬁnd out if another device is currently transmitting.
+• int (* receiving_packet)(void); Checks if the radio driver is currently receiving a packet.
+• int (* pending_packet)(void); Checks if the radio driver has just received a packet.
+• int (* on)(void); Turns the radio on.
+• int (* off)(void); Turns the radio off (or go to into Low Power Mode).
+Next to these interface functions provided by Contiki, some other interrupt functions should be implemented before a working radio driver can be achieved. These interrupt functions are completely platform dependent, but will usually include callbacks for radio events like received packet, transmitted packet and maybe error handling functions.
+
+JELLE AERTS
+
+31
+
+Integrating Long Range Technology into the Contiki Operating System Framework
+Since this porting project reuses parts of the LoRaMac system, the implementation of the LoRaMote’s radio driver for Contiki mainly consists of forwarding all data between Contiki and the SX1272 radio driver functions. The precise implementation is presented in Appendix A.9.
+
+4.2.11 Low power mode
+Since lots of Internet of Things and wireless sensor network applications wait for speciﬁc events to occur, the processor keeps itself busy most of the time by polling all processes to know if there are new instructions to execute. A signiﬁcant amount of power can be saved by putting the microcontroller in a low power mode (LPM). In such a low power mode several peripherals of the board are deactivated, for example the main processor. By using the low power mode capabilities of the board, its lifetime can be extended greatly since it is generally powered by a sole battery. Usually a board has several low power modes. The datasheets should then be checked to select the most suited one. When there are no more processes to run, the microcontroller should switch to the chosen low power mode. The microcontroller exits the low power mode by powering up all needed peripherals once the clock module or the rtimer detects that a process is pending. Depending on the selected low power mode it is possible that the hardware clocks on which Contiki’s clock module and rtimer are based, are deactivated as well. In this case both timers just stop ticking which will break the application’s normal execution. This is the main reason why the clock module and rtimer should be using an external clock that is not deactivated by the selected low power mode.
+The STM32L1, LoRaMote’s microcontroller, features several low power modes. After analyzing the differences between them in the STM32L1 datasheet [75], the STOP mode was chosen. It offers a fast wake up time while still greatly reducing the power consumption. The STOP mode also deactivates the main processor. Both the clock module and the rtimer use it as their clock source which means that their functionality will render useless once the low power mode is entered. Therefore these modules need to be implemented with an external clock. The STM32L1 real-time clock (RTC) is used for this purpose since it can be sourced from the low speed external oscillator (LSE). The RTC structure initialization is shown in Appendix A.10. The functions to control the low power mode can be found in Appendix A.11.
+Contiki’s new clock module implementation makes use of the RTC Wake Up interrupt. This interrupt is ﬁred a couple of times per second to fulﬁll the clock module’s purpose. The amount of ticks per second stays conﬁgurable by changing the CLOCK_CONF_SECOND constant in the platform conﬁguration ﬁle. The new code for the clock module with LPM support is set out in Appendix A.12.
+In the previous implementation of the rtimer, event scheduling was done in a similar way as in the clock module: by generating interrupts many times per second. By using the RTC Alarm structure, it is possible to schedule a callback time on the
+
+32
+
+VRIJE UNIVERSITEIT BRUSSEL
+
+Chapter 4. Porting Contiki to new hardware platforms
+
+hardware itself. The interrupt will only be ﬁred once the process’ rtimer expires. As a result, the amount of interrupts is greatly reduced. The full implementation of the rtimer with LPM support can be found in Appendix A.13.
+
+Lastly, again two extra constants are added to the platform conﬁguration ﬁle.
+
+1 /* The frequency of the LSE clock */
+
+2 #define F_LSE
+
+32768
+
+3 /* Time in microseconds to wake up from low power mode */
+
+4 #define MCU_WAKE_UP_TIME
+
+3400
+
+4.3 Main function
+
+Contiki’s main function implementation (contiki-{PLATFORM_NAME}-main.c) is rarely discussed in porting guides, although when not conﬁgured correctly it can be an unsuspected source of weird bugs. It loads the required Contiki components, initializes the platform’s hardware and conﬁgures its network capabilities. Then it will start the user processes and schedule them accordingly. Some caution is required in the order of initialization. Both the etimer and sensor modules are implemented as Contiki processes, therefore they need to be initialized after the Contiki process initialization has been completed. Since ctimers are implemented as etimers, its initialization should happen after the etimer process has started. The core of this main function is the process scheduler loop. It is an inﬁnite loop that will schedule the started processes according their cooperative context [32, Section Processes].
+
+1 // Initialize here the hardware, Contiki components & network stack
+
+2
+
+3 /* Start the process scheduler loop */ 4 while(1) {
+
+5 int r;
+
+6 do {
+
+7
+
+r = process_run();
+
+8 } while(r > 0);
+
+9
+
+10 // Enter low power mode here
+
+11 }
+
+The implementation of the LoRaMote main ﬁle for Contiki is demonstrated in Appendix A.14. Its process scheduler loop is a bit more extensive in order to integrate the low power mode and the proper execution of the standard I/O redirection.
+
+4.4 Code upload mechanisms
+Now that all components are covered, they have to be programmed on the platform somehow. The idea consists of compiling the whole project and generating a single binary ﬁle. This binary ﬁle then needs to be programmed on the microcontroller. There are two main techniques that can be used. Either the application gets ﬂash programmed to the microcontroller using a hardware programmer or a bootloader
+
+JELLE AERTS
+
+33
+
+Integrating Long Range Technology into the Contiki Operating System Framework
+that will put the device in a ﬁrmware update mode (DFU) is installed so applications can be uploaded through a USB connection.
+Such hardware programmer often comes with debug and I/O redirection capabilities and is thus indeed a great tool to use during the early stages of the porting project. A downside of this method is that applications which use the I/O redirection sink framework will not work without the hardware debugger. Since the system will not know how to handle these I/O calls as a consequence of the missing sink framework, the whole system will halt once the hardware debugger is no longer used. In order the get these applications running without such debugger, the serial line driver discussed in Section 4.2.6 must be implemented.
+When the hassle of hardware programmers is not desired, a bootloader can be used. This bootloader initially must be installed by the hardware programmer though. Once installed correctly, it is possible to load new applications to the platform by the means of a USB connection. Note that applications launched from bootloaders can require different build options than those which are not launched from a bootloader. As long as the serial line driver is not set up, the microcontroller will still require the hardware debugger in order to handle any I/O calls. Once both the bootloader and serial line driver are correctly set up, the platform can be programmed and interacted with by just a USB connection.
+To program Contiki onto the LoRaMote board, the ST-Link in-circuit debugger/programmer [76] is used. Its debug and I/O redirection capabilities are empowered by the usage of OpenOCD [77]. This I/O redirection mechanism is called semihosting on ARM targets [78, page 8-2]. The LoRaMac project [47] includes a bootloader to be used for this platform and is placed in the /tools/loramote directory. In order to open DFU capable devices and upload new ﬁrmware over USB, the dfu-util tool [79] is used. Since these three tools are usable by all STM32 devices, a new folder is created namely /tools/stm32. Each tool was downloaded and built to this directory. Further usage of these tools will be discussed in the next section when the required makeﬁles are explained. The custom OpenOCD conﬁguration ﬁle for the LoRaMote platform can be found in Appendix A.15.
+
+4.5 Makeﬁles
+
+The last step in creating a successful port of Contiki is being able to set up the makeﬁles. These ﬁles contain the instructions to compile all source ﬁles, link them into a binary and upload it to the microcontroller. As mentioned before, several makeﬁles are needed to create a working port. Contiki’s top-level makeﬁle takes care of its core components. Hence a makeﬁle for the microcontroller drivers is required alongside a separate makeﬁle for the platform dependent code. When building an application for Contiki, the desired target platform is indicated by deﬁning the TARGET environment variable. Contiki will automatically include the chosen platform’s makeﬁle. In this makeﬁle there should be a reference to the makeﬁle of
+
+34
+
+VRIJE UNIVERSITEIT BRUSSEL
+
+Chapter 4. Porting Contiki to new hardware platforms
+the platform’s microcontroller which makes the makeﬁle chain complete.
+The objective of the platform makeﬁle is to specify the target’s source ﬁles and the directories where they reside. These must respectively be deﬁned in the CONTIKI_TARGET_SOURCEFILES and CONTIKI_TARGET_DIRS variables [63]. As said before, there must be an inclusion of the CPU’s makeﬁle deﬁned. Furthermore, this ﬁle should contain the instructions to detect connected devices, to program binaries using the hardware programmer or bootloader and to connect to the device’s serial output. If the platform needs speciﬁc Contiki components or compiler ﬂags (CFLAGS), these also should be deﬁned here.
+The microcontroller’s architecture source ﬁles, like startup ﬁles, C library and CPU drivers must be listed in the CPU makeﬁle. It is also here that the support for one or more compiler toolchains and their linker scripts should be implemented. For a successful build, each toolchain requires its own set of compiler and linker ﬂags (LDFLAGS). Contiki features a default set of makeﬁle rules to compile and link all source ﬁles. If for some reason these makeﬁles rules do not sufﬁce, they can be redeﬁned here.
+The example makeﬁles for the LoRaMote platform can be found in Appendix A.16 and A.17.
+
+JELLE AERTS
+
+35
+
+5 | Testing the Contiki enabled LoRaMotes
+Once all components presented in the previous chapter were successfully implemented for the Contiki enabled LoRaMote demo platform, several tests were performed. First of all, some of the peripherals and sensors present on the board were tested. A small application was created and prints out the current temperature, altitude and atmospheric pressure when the node’s button is pressed and sequentially blinks the LEDs. This application is shown in Figure 5.1 and conﬁrms that the clock module, serial output, and LED and sensor interfaces work as expected. Note that the altitude sensor returns a weird value. It is however the ofﬁcial LoRaMac implementation of the sensor. Other test applications were created to check the correct functioning of other components such as the rtimer and serial input.
+To verify that LoRa’s radio transceiver is operational when running Contiki, the radio test application which was written in the beginning of this project was deployed to the LoRaMote platform. The correct functioning of the radio transceiver is indicated by the LED’s activity. A blinking red LED shows that frames are being transmitted, a green LED that a frame is received and the yellow LED glows when multiple frames are received consecutively. Initially, only dummy frames with arbitrary data were sent to check if a connection between two nodes could be set up. Later on, useful data like sensor readings were included for transmission as well. Lastly, some actuators that react on incoming sensor readings were implemented. In this manner this simple interactive application can act as a proof for the successful port of Contiki to the LoRaMote platform.
+5.1 LoRa’s range performance
+In order to evaluate the performance of LoRa, a comparison was made between the popular Zolertia Z1 and the LoRaMote platform. The same radio testing application was deployed to both platforms and the maximal distance that could be covered between two nodes without losing connectivity has been measured. The evaluation was executed in a residential area with a signiﬁcant amount of bushes. The maximal distance that the Zolertia Z1s could cover in these surrounding without external antenna was between 7 and 10 meters. This result did not come as a surprise since
+37
+
+Integrating Long Range Technology into the Contiki Operating System Framework
+
+Figure 5.1: Testing the LoRaMote’s peripherals & sensors
+the internal antenna of the Zolertia Z1 is sensitive to orientation, environment and weather conditions [80]. Generally, they performed better in surroundings with few obstacles or in case both communicating sensor nodes were in line-of-sight.
+When using the LoRa modulation technique for wireless communication, several settings can be changed to set up the desired conﬁguration. Two of these settings are directly related to the range of communication, namely transmit power and spreading factor. Obviously, higher transmit power can result in a larger communication range. The default setting of +14 dBM was used. This is also the maximal output power allowed by the European Telecommunications Standards Institute (ETSI) [81]. The spreading factor (SF) in a CSS modulation technique is a setting that controls how many chips will be used to represent a symbol. A higher spreading factor results in lower data rates and a longer air-time, but is more resistant to interference which leads to larger communication ranges.
+Three different spreading factors were tested on the LoRaMote: SF7, SF9 and SF12. The default radio test application was used to evaluate the communication range with SF7 and SF9. The application had to be adapted when testing SF12 however. The air-time of the transmitted frames was so long that they were constantly colliding. Therefore the bidirectional testing function was disabled when using SF12.
+During the experiment, one LoRaMote was placed in the center of a garden (see Figure 5.2) while the other LoRaMote was moved around (see Figure 5.3). To get a plausible view on LoRa’s communication range performance, two different scenarios were assessed. In the ﬁrst case the range was tested while moving away from the residential area (south) whereas in the second case the test was conducted while moving through the residential area (north). The results can be found in Table 5.1 and are depicted in Figures 5.4, 5.5 and 5.6.
+It is clear that the LoRa signal level weakens signiﬁcantly because of bushes, trees and houses on its path since much larger distances can be crossed in less densely built areas. Another notable result is the performance of spreading factor 12. It has
+
+38
+
+VRIJE UNIVERSITEIT BRUSSEL
+
+Chapter 5. Testing the Contiki enabled LoRaMotes
+Figure 5.2: LoRaMote 1 connected to the computer, LoRaMote 2 attached to a portable power bank
+
+Figure 5.3: LoRaMote 2 being moved around in the neighborhood
+
+SF7 SF9 SF12
+Moving through RA 318m 362m 608m Moving away from RA 637m 952m 1040m
+Table 5.1: Comparison of LoRa’s maximal communication ranges in a residential area (RA) using different spreading factors (SF)
+
+JELLE AERTS
+
+39
+
+Integrating Long Range Technology into the Contiki Operating System Framework
+Figure 5.4: LoRa’s maximal communication range using spreading factor 7 (Source: Google Maps imagery)
+
+Figure 5.5: LoRa’s maximal communication range using spreading factor 9 (Source: Google Maps imagery)
+
+40
+
+VRIJE UNIVERSITEIT BRUSSEL
+
+Chapter 5. Testing the Contiki enabled LoRaMotes
+
+Figure 5.6: LoRa’s maximal communication range using spreading factor 12 (Source: Google Maps imagery)
+a greater impact when used in densely built areas then in more open areas. The maximal communication distance increased with around 68% between SF9 and SF12 in dense areas, whereas it ’only’ increased with 9% in open areas. Note that these distances are measured between two LoRa end devices and not between an end device and a base station like in a classical LoRa infrastructure where base stations are located at strategical places.
+
+5.2 IPv6 & RPL support
+The Rime communication stack is a good tool for communication in wireless sensor networks. It is however not possible to communicate with other devices outside the network using Rime. Therefore it is a great added value when a platform is able to run the TCP/IP stack. This way it can communicate with external services which will extend the platform’s possibilities enormously. Since Contiki is modularly built, it sufﬁces to swap the Rime network stack with the 6LoWPAN stack.
+The RPL-UDP example project that comes with Contiki was chosen to perform a network connectivity test. The project consists of two different applications: one for data concentrators (server) and one for the other nodes which send data to the data concentrator (client). Normally, a newly activated client waits for a data concentrator to announce itself by the means of a multi-cast beacon message. If after a while no
+
+JELLE AERTS
+
+41
+
+Integrating Long Range Technology into the Contiki Operating System Framework
+beacon has been received, the client itself tries to contact a data concentrator. When a data concentrator is activated or detects a client request, it immediately sends a beacon. This beacon contains RPL routing information. So if a client receives the beacon, it knows where the data concentrator is located in the network topology and how to reach it. Once the routing table is updated, the client is able to send data to the data concentrator.
+Since the LoRaMote devices were able to communicate using the Rime stack, the 6LoWPAN stack should work as well since all underlying layers remain the same. However, the RPL-UDP example which was deployed to the LoRaMotes did not work. After thoroughly investigating this problem, it was discovered that the server does receive the requests from the client but the client never receives a beacon from the server. Debugging the network revealed that the beacon is not discarded somewhere along the parsing mechanisms as thought as ﬁrst, it just never arrives at the device physically. The sender beacon process was analyzed, but it turned out that everything went well and that the frames was transmitted correctly. A beacon that is being transmitted can even be noticed since it causes static noise in audio headphones.
+If the LoRa radio settings are changed, it is however possible to receive data. More speciﬁcally, the CRC (Cyclic Redundancy Check) has to be disabled and frames need to get a ﬁxed length. When these settings are enabled, the radio transceiver no longer discards these frames at hardware level. As a result, the client does receive the server’s beacons but they are discarded in upper layers, which is a logical consequence of disabling the CRC mechanism since these frames were faulty. The issue thus lies somewhere between the framing and transmitting of server beacon frames. Since all these layers do function perfectly when serving the Rime stack, it is not immediately clear what the cause of this issue could be nor how it should be solved.
+In this chapter, the results of the porting efforts of the two previous chapters were shown. Applications to test the board’s peripherals, sensors and radio capabilities were deployed and proved that the Contiki operating system now successfully runs on the LoRaMote platform. One component does not work however. Despite the careful analysis of this issue with the 6LoWPAN network stack, no solution has been found and will require more investigation.
+
+42
+
+VRIJE UNIVERSITEIT BRUSSEL
+
+6 | Conclusion
+In this Master’s Thesis a new wireless sensor network technology called LoRa and its capabilities were studied. It is a radio modulation technique that trades off data rate in for communication range. At the moment, this technology is researched and deployed by both ﬁeld experts and academia. LoRa technology provides a great new tool to create Low Power Wide Area Networks which are considered by the LoRa Alliance as single-hop star topologies only. The technology however allows employing it for other interesting concepts like long range multi-hop networks. Another disadvantage of the technology is its immaturity. It uses a proprietary system and thus not many applications are available whereas other embedded operating systems like Contiki have been around for quite some time and provide a great modular framework to develop applications for Internet of Things purposes.
+Since both LoRa and Contiki have interesting traits, integrating both technologies can result in several advantages. By using Contiki as operating system, a great amount of existing Internet of Things applications will become available on LoRa devices. It will also increase Contiki’s employability since only one operating system would be needed for short and long range applications. Moreover, it would also be a ﬁrst step towards the cooperation of these short and long range networks. The fact that Zolertia already built a sensor node with a dual network stack consisting of 6LoWPAN and SigFox proofs that there is deﬁnitely interest in this concept.
+As a result of these circumstances, the need to take this ﬁrst step was tangibly present. Therefore the purpose of this Master’s Thesis became creating a port of the Contiki operating system for the LoRaMote demo platform. Since no detailed or complete guide exists on how to port the Contiki operating system to new hardware platforms, the ambition of this project also included to create a uniﬁed document for the online Contiki community that covers all aspects, provides detailed explanations and gives clear examples on how to implement the necessary components.
+The outcome of this last objective is presented in Chapter 4. In this chapter, Contiki’s main structure is explained and the components that need porting are listed. For these components it is also discussed how to approach the implementation for new hardware platforms. Experiences from porting Contiki to the LoRaMote are included when generally applicable. Lastly, an explanation is given on how to build the whole project and upload it to the newly supported hardware platform. This way, any user with knowledge of the C language should be able to successfully create a Contiki
+43
+
+Integrating Long Range Technology into the Contiki Operating System Framework
+port.
+In order to demonstrate the efforts that went into taking the ﬁrst step into integrating two technologies, a couple of tests were conducted in Chapter 5. First, the correct working of the LoRaMote’s peripherals and sensors was veriﬁed by the means of a Contiki application. Using a different network-enabled Rime-driven Contiki application, the wireless communication capabilities of the LoRaMote were demonstrated and the communication range performance was examined. Another network experiment based on 6LoWPAN was attempted but did not succeed. There is still an unsolved issue regarding the framing or transmitting of frames. Since the whole system works perfectly when the modular network layer stack is swapped with Rime, the underlying cause is not clear and is as such still not found.
+Although Contiki may be ported to the LoRaMote platform, there are still a lot of interesting projects that can be done. First of all, the previously mentioned issue with the 6LoWPAN network stack should be solved. From what was observed, the problem probably lies within the lower network layers. It is possible that the whole LoRa-6LoWPAN network stack will have to be investigated though. Another project could be the creation of a dual network stack sensor node like the Zolertia RE-Mote but with LoRa technology instead. Such development would greatly improve the integration of short range and long range wireless communication technologies. Lastly, since the LoRa technology is quite new, lots of its properties and possibilities still have to be discovered. The support for multi-hop networks with LoRa end devices is already in development, but other traits can be studied like its long-term energy proﬁle, node-to-node performance in urban environments or integration possibilities with other long range technologies.
+
+44
+
+VRIJE UNIVERSITEIT BRUSSEL
+
+Bibliography
+[1] J. Westö and D. Björklund, “An overview of enabling technologies for the Internet of Things”, 2014.
+[2] Juniper Research, “’Internet of Things’ Connected Devices to Almost Triple to Over 38 Billion Units by 2020”, Juniper Press Releases, July 2015.
+[3] D. Estrin, L. Girod, G. Pottie, and M. Srivastava, “Instrumenting the world with wireless sensor networks”, in Acoustics, Speech, and Signal Processing, 2001. Proceedings. (ICASSP ’01). 2001 IEEE International Conference on, vol. 4, 2001, pp. 2033–2036.
+[4] E. H. Callaway Jr, Wireless sensor networks: architectures and protocols. CRC press, 2003.
+[5] A. L. Colina, A. Vives, A. Bagula, M. Zennaro, and E. Pietrosemoli, IoT in 5 Days. E-Book, March 2015, rev 1.0.
+[6] M. Chen, S. Mao, and Y. Liu, “Big data: A survey”, Mobile Networks and Applications, vol. 19, no. 2, pp. 171–209, 2014.
+[7] Proximus, “Proximus ﬁrst to launch commercial offer for "Internet of Things" via new LoRa-network”, Proximus Press Releases, October 2015.
+[8] ENGIE, “ENGIE launches Belgium’s ﬁrst Internet of Things network”, ENGIE Press Releases, June 2015.
+[9] imec, “21st Wireless Community Workshop”, http://www.wirelesscommunity. be/work-meetings/21st-work-meeting-connecting-everything-to-the-internetof-things/, 2016, [Wireless Community Workshop; attended April 27, 2016].
+[10] iMinds, “Antwerp becomes Europe’s place-to-be for Internet of Things (IoT) experiments”, iMinds News, December 2015.
+[11] H. M. A. Fahmy, Wireless Sensor Networks: Concepts, Applications, Experimentation and Analysis. Springer, 2016.
+[12] G. Anastasi, M. Conti, M. Di Francesco, and A. Passarella, “Energy conservation in wireless sensor networks: A survey”, Ad hoc networks, vol. 7, no. 3, pp. 537–568, 2009.
+45
+
+Integrating Long Range Technology into the Contiki Operating System Framework
+[13] O. M. Al-Kofahi and A. E. Kamal, Resilient Wireless Sensor Networks: The Case of Network Coding. Springer, 2016.
+[14] iMinds, “Investigating fundamental IoT breakthroughs”, https://www.iminds. be/en/gain-insights/iot/contribution/strategic-research, 2016, [Online; accessed May 26, 2016].
+[15] Institute of Electrical and Electronics Engineers (IEEE), “IEEE Standard for Low-Rate Wireless Personal Area Networks (WPANs)”, IEEE Std 802.15.42015, pp. 1–709, April 2016.
+[16] G. Montenegro, N. Kushalnagar, J. Hui, and D. Culler, “Transmission of IPv6 Packets over IEEE 802.15.4 Networks”, Internet Requests for Comments, RFC Editor, RFC 4944, September 2007.
+[17] R. Zurawski, Industrial communication technology handbook. CRC Press, 2014.
+[18] A. Phani, D. J. Kumar, and G. A. Kumar, “Operating systems for wireless sensor networks: A survey technical report”, 2007.
+[19] P. Levis, S. Madden, J. Polastre, R. Szewczyk, K. Whitehouse, A. Woo, D. Gay, J. Hill, M. Welsh, E. Brewer et al., “TinyOS: An operating system for sensor networks”, in Ambient intelligence. Springer, 2005, pp. 115–148.
+[20] A. Dwivedi, M. Tiwari, and O. Vyas, “Operating systems for tiny networked sensors: a survey”, International Journal of Recent Trends in Engineering, vol. 1, no. 2, pp. 152–157, 2009.
+[21] N. Riga, I. Matta, and A. Bestavros, “DIP: Density Inference Protocol for wireless sensor networks and its application to density-unbiased statistics”, in Proceedings of the Second International Workshop on Sensor and Actor Network Protocols and Applications (SANPA). Citeseer, 2004.
+[22] J. Polastre, J. Hill, and D. Culler, “Versatile low power media access for wireless sensor networks”, in Proceedings of the 2nd international conference on Embedded networked sensor systems. ACM, 2004, pp. 95–107.
+[23] I. Rhee, A. Warrier, M. Aia, J. Min, and M. L. Sichitiu, “Z-MAC: a hybrid MAC for wireless sensor networks”, IEEE/ACM Transactions on Networking (TON), vol. 16, no. 3, pp. 511–524, 2008.
+[24] M. O. Farooq and T. Kunz, “Operating systems for wireless sensor networks: A survey”, Sensors, vol. 11, no. 6, pp. 5900–5930, 2011.
+[25] S. Bhatti, J. Carlson, H. Dai, J. Deng, J. Rose, A. Sheth, B. Shucker, C. Gruenwald, A. Torgerson, and R. Han, “MANTIS OS: An embedded multithreaded operating system for wireless micro sensor platforms”, Mobile Networks and Applications, vol. 10, no. 4, pp. 563–579, 2005.
+
+46
+
+VRIJE UNIVERSITEIT BRUSSEL
+
+Bibliography
+[26] W. Ye, J. Heidemann, and D. Estrin, “An energy-efﬁcient MAC protocol for wireless sensor networks”, in INFOCOM 2002. Twenty-First Annual Joint Conference of the IEEE Computer and Communications Societies. Proceedings. IEEE, vol. 3. IEEE, 2002, pp. 1567–1576.
+[27] A. Eswaran, A. Rowe, and R. Rajkumar, “Nano-rk: an energy-aware resourcecentric rtos for sensor networks”, in Real-Time Systems Symposium, 2005. RTSS 2005. 26th IEEE International. IEEE, 2005, pp. 10–pp.
+[28] H.-k. J. Chu, “Zero-copy TCP in Solaris”, in Proceedings of the 1996 annual conference on USENIX Annual Technical Conference. Usenix Association, 1996, pp. 21–21.
+[29] A. Dunkels, B. Grönvall, and T. Voigt, “Contiki – a Lightweight and Flexible Operating System for Tiny Networked Sensors”, in Local Computer Networks, 2004. 29th Annual IEEE International Conference on. IEEE, 2004, pp. 455– 462.
+[30] A. Dunkels, “Contiki: Bringing IP to Sensor Networks”, ERCIM News, no. 76, January 2009.
+[31] A. Dunkels and O. Schmidt, “Protothreads - Lightweight Stackless Threads in C”, SICS – Swedish Institute of Computer Science, Tech. Rep. T2005:05, March 2005.
+[32] Contiki, “Contiki OS Wiki”, https://github.com/contiki-os/contiki/wiki, 2016, [Online; accessed May 17, 2016].
+[33] ISO and IEC, “ISO/IEC 7498-1: Information technology – Open Systems Interconnection – Basic Reference Model: The Basic Model”, International Standard ISO/IEC, vol. 7498-1, p. 59, 1996.
+[34] A. Dunkels, “The ContikiMAC Radio Duty Cycling Protocol”, Swedish Institute of Computer Science, Tech. Rep. T2011:13, December 2011.
+[35] M. Buettner, G. V. Yee, E. Anderson, and R. Han, “X-MAC: a short preamble MAC protocol for duty-cycled wireless sensor networks”, in Proceedings of the 4th international conference on Embedded networked sensor systems. ACM, 2006, pp. 307–320.
+[36] R. Musa˘loiu-E, C.-J. M. Liang, and A. Terzis, “Koala: Ultra-low power data retrieval in wireless sensor networks”, in Information Processing in Sensor Networks, 2008. IPSN’08. International Conference on. IEEE, 2008, pp. 421–432.
+[37] Institute of Electrical and Electronics Engineers (IEEE), “IEEE Standard for Ethernet”, IEEE Std 802.3-2012, December 2012.
+
+JELLE AERTS
+
+47
+
+Integrating Long Range Technology into the Contiki Operating System Framework
+[38] A. Dunkels, “Rime – A Lightweight Layered Communication Stack for Sensor Networks”, in Proceedings of the European Conference on Wireless Sensor Networks (EWSN), Poster/Demo session, January 2007.
+[39] Contiki, “The Rime communication stack”, http://contiki.sourceforge.net/docs/ 2.6/a01798.html#_details, 2012, [Contiki Documentation; accessed May 31, 2016].
+[40] A. Dunkels, “Full TCP/IP for 8 Bit Architectures”, in Proceedings of the First ACM/Usenix International Conference on Mobile Systems, Applications and Services (MobiSys 2003). usenix, May 2003.
+[41] T. Winter, P. Thubert, A. Brandt, J. Hui, R. Kelsey, P. Levis, K. Pister, R. Struik, J. Vasseur, and R. Alexander, “RPL: IPv6 Routing Protocol for Low-Power and Lossy Networks”, Internet Requests for Comments, RFC Editor, RFC 6550, March 2012.
+[42] M. Gamallo Gascón, “Analysis of Performance of RPL Routing Protocol for Different Radio Duty Cycling Protocols in Wireless Sensor Network Testbed”, Bachelor’s Thesis, Vrije Universiteit Brussel, 2016.
+[43] N. Tsiftes, A. Dunkels, Z. He, and T. Voigt, “Enabling Large-Scale Storage in Sensor Networks with the Coffee File System”, in Proceedings of the 8th ACM/IEEE International Conference on Information Processing in Sensor Networks (IPSN 2009), April 2009.
+[44] F. Osterlind, A. Dunkels, J. Eriksson, N. Finne, and T. Voigt, “Cross-Level Sensor Network Simulation with COOJA”, in Local computer networks, proceedings 2006 31st IEEE conference on. IEEE, 2006, pp. 641–648.
+[45] Semtech, “Introduction to LoRa”, https://www.regonline.com/lora_webex_ workshop, 2015, [Online Workshop; attended September 16, 2015].
+[46] M. Bor, J. Vidler, and U. Roedig, “LoRa for the Internet of Things”, in EWSN ’16 Proceedings of the 2016 International Conference on Embedded Wireless Systems and Networks. Junction Publishing, February 2016, pp. 361–366.
+[47] LoRa Alliance, “LoRa Network Node Code”, https://github.com/Lora-net/ LoRaMac-node, 2016, [LoRa Device System; accessed May 17, 2016].
+[48] LoRa Alliance, “Wide Area Networks for IoT”, https://www.lora-alliance.org/, 2016, [Online; accessed June 3, 2016].
+[49] Semtech, “Upcoming Events”, http://www.semtech.com/events/, 2016, [Online; accessed June 3, 2016].
+[50] LoRa Alliance, LoRaWAN Speciﬁcation, January 2015.
+[51] Semtech, LoRaMote User Guide, July 2014.
+
+48
+
+VRIJE UNIVERSITEIT BRUSSEL
+
+Bibliography
+[52] cvskill.gary, “DFU File Manager: Unable to create image from this ﬁle”, https://my.st.com/public/STe2ecommunities/mcu/Lists/STM32Discovery/ DFUFileManagerUnabletocreateimagefromthisﬁle, 2014, [Online; accessed May 29, 2016].
+[53] malroe, “CoIDE Toolchain”, https://github.com/Lora-net/LoRaMac-node/ issues/67, 2016, [Online; accessed May 17, 2016].
+[54] Smarco10, “Bootloader Issue”, https://github.com/Lora-net/LoRaMac-node/ issues/53, 2016, [Online; accessed May 17, 2016].
+[55] Contiki, “Contiki Operating System”, http://www.contiki-os.org/, 2016, [Online; accessed May 16, 2016].
+[56] Contiki, “About Contiki”, https://web.archive.org/web/20110623121408/http: //www.sics.se/contiki/about-contiki.html, 2011, [Online; accessed May 16, 2016].
+[57] Contiki, “Contiki Mailing List”, https://sourceforge.net/p/contiki/mailman/, 2016, [Online; accessed May 16, 2016].
+[58] Y. Hershkovitz and D. Lev, “Porting Contiki to the LPC2148 Education Board”, http://courses.cs.tau.ac.il/embedded/projects/fall2009/contiki_lpc2148/, 2009, [Course Final Project; accessed April 14, 2016].
+[59] W. Balin, “Contiki OS port for ez430-RF2500”, http://wincent.balin.at/ ofdigitalmusic/wp-content/uploads/2010/04/Contiki-OS-port-to-ez430RF2500.pdf, 2010, [MSP430 Design Contest Entry; accessed April 14, 2016].
+[60] C. Schluep, “Porting Contiki to the BTnode System”, http://www.cds.unibe.ch/ teaching/hs09_seminar/seminar_hs09_schluep.pdf, 2009, [Seminar; accessed November 16, 2015].
+[61] G. Oikonomou and I. Phillips, “Experiences from Porting the Contiki Operating System to a Popular Hardware Platform”, in Proc. 2011 International Conference on Distributed Computing in Sensor Systems and Workshops (DCOSS), 2011, pp. 54–59.
+[62] Z. Shen, D. O. Afolabi, H.-N. Liang, N. Zhang, D. Liu, K. L. Man, E. G. Lim, C.-U. Lei, Y. Yang, and L. Cheng, “Porting LooCI from the Contiki Platform to the Zigduino Platform: An Working Approach”, IAENG International Journal of Computer Science, vol. 40, no. 2, pp. 104–109, 2013.
+[63] A. Dunkels, “Porting Contiki - Crash Course”, https://web.archive.org/ web/20110623121533/http://www.sics.se/%7Eadam/contiki-workshop2007/workshop07porting.ppt, 2007, [Workshop Presentation; accessed April 14, 2016].
+[64] A. Stan, “Porting the Core of the Contiki operating system to the TelosB and MicaZ platforms”, Bachelor’s Thesis, University of Bremen, 2007.
+
+JELLE AERTS
+
+49
+
+Integrating Long Range Technology into the Contiki Operating System Framework
+[65] ST Microelectronics, “STM32L1XX Standard Peripherals Library”, http://www.st.com/web/catalog/tools/FM147/CL1794/SC961/SS1743/ LN1939/PF257913, 2015, [Driver Library; accessed April 14, 2016].
+[66] Contiki, “Contiki OS Code”, https://github.com/contiki-os/contiki, 2016, [Contiki Device System; accessed May 17, 2016].
+[67] I. L. Crawford and K. R. Wadleigh, Software Optimization for High Performance Computing. Prentice Hall PTR, 2000.
+[68] N. Murphy and M. Barr, “Watchdog Timers”, Embedded Systems Programming, vol. 13, no. 12, pp. 112–124, 2000.
+[69] ST Microelectronics, STM32L1XX Reference Manual, July 2015.
+[70] P. Priyadarshan and B. R. Mundari, “Serial Communication using UART”, Bachelor’s Thesis, National Institute of Technology, Rourkela, 2008.
+[71] Semtech, SX1509 Data Sheet, October 2009.
+[72] Semtech, SX9500 Data Sheet, February 2014.
+[73] IMST, iM880A Data Sheet, July 2013.
+[74] J. Romkey, “Nonstandard for transmission of IP datagrams over serial lines: SLIP”, Internet Requests for Comments, RFC Editor, STD 47, June 1988.
+[75] ST Microelectronics, STM32L1XX Data Sheet, January 2015.
+[76] ST Microelectronics, ST-LINK/V2 in-circuit debugger/programmer for STM8 and STM32, October 2012.
+[77] D. Rath, Open On-Chip Debugger, May 2015.
+[78] ARM, RealView Compilation Tools Developer Guide, December 2010.
+[79] S. Schmidt and T. Volden, “dfu-util”, http://dfu-util.sourceforge.net/, 2016, [Online; accessed May 17, 2016].
+[80] M.-P. Uwase, N. T. Long, J. Tiberghien, K. Steenhaut, and J.-M. Dricot, Poster Abstract: Outdoors Range Measurements with Zolertia Z1 Motes and Contiki. Springer International Publishing, 2014, pp. 79–83.
+[81] LoRa Alliance, “A technical overview of LoRa and LoRaWAN”, White Paper, November 2015.
+
+50
+
+VRIJE UNIVERSITEIT BRUSSEL
+
+Appendix A Porting Contiki to LoRaMote
+
+A.1 Clock module
+
+This clock module should be located at /cpu/arm/stm32l1/clock.c.
+
+1 #include <stdio.h>
+
+2 #include "contiki.h"
+
+3 #include "stm32l1xx_conf.h"
+
+4 #include "stm32l1xx_systick.h"
+
+5 /*---------------------------------------------------------------------------*/
+
+6 /* After how many clock cycles should the systick interrupt be fired */
+
+7 #define RELOAD_VALUE
+
+((F_CPU/CLOCK_CONF_SECOND) - 1)
+
+8 /*---------------------------------------------------------------------------*/ 9 static volatile unsigned long seconds;
+
+10 static volatile clock_time_t ticks;
+
+11 /*---------------------------------------------------------------------------*/ 12 /* This interrupt function will increase the tick counter */ 13 void SysTick_Handler(void)
+
+14 {
+
+15 ENERGEST_ON(ENERGEST_TYPE_IRQ);
+
+16
+
+17 ticks++;
+
+18 if((ticks % CLOCK_SECOND) == 0) {
+
+19
+
+seconds++;
+
+20
+
+energest_flush();
+
+21
+
+}
+
+22
+
+23 /* If an etimer expired, continue its process */ 24 if(etimer_pending()) {
+
+25
+
+etimer_request_poll();
+
+26
+
+}
+
+27
+
+28 ENERGEST_OFF(ENERGEST_TYPE_IRQ);
+
+29 }
+
+30 /*---------------------------------------------------------------------------*/ 31 void clock_init(void)
+
+32 {
+
+33 ticks = 0;
+
+34 seconds = 0;
+
+35
+
+36 /* Select the main processor as systick clock source */ 37 SysTick_CLKSourceConfig(SysTick_CLKSource_HCLK);
+
+38
+
+39 /* Set the reload value */ 40 SysTick_SetReload(RELOAD_VALUE);
+
+41
+
+42 /* Enable the systick interrupt */ 43 SysTick_ITConfig(ENABLE);
+
+51
+
+Integrating Long Range Technology into the Contiki Operating System Framework
+
+44
+
+45 /* Enable the systick timer */
+
+46 SysTick_CounterCmd(SysTick_Counter_Enable);
+
+47 }
+
+48 /*---------------------------------------------------------------------------*/
+
+49 unsigned long clock_seconds(void)
+
+50 {
+
+51 return seconds;
+
+52 }
+
+53 /*---------------------------------------------------------------------------*/
+
+54 void clock_set_seconds(unsigned long sec)
+
+55 {
+
+56 seconds = sec;
+
+57 }
+
+58 /*---------------------------------------------------------------------------*/
+
+59 clock_time_t clock_time(void)
+
+60 {
+
+61 return ticks;
+
+62 }
+
+63 /*---------------------------------------------------------------------------*/
+
+64 /* Busy-wait the CPU for a duration depending on CPU speed */
+
+65 void clock_delay(unsigned int i)
+
+66 {
+
+67 for(; i > 0; i--) {
+
+68
+
+unsigned int j;
+
+69
+
+for(j = 50; j > 0; j--) {
+
+70
+
+__NOP();
+
+71
+
+}
+
+72
+
+}
+
+73 }
+
+74 /*---------------------------------------------------------------------------*/
+
+75 /* Wait for a multiple of clock ticks (3.9ms per tick at 256Hz) */
+
+76 void clock_wait(clock_time_t i)
+
+77 {
+
+78 clock_time_t start;
+
+79 start = clock_time();
+
+80 while(clock_time() - start < i);
+
+81 }
+
+82 /*---------------------------------------------------------------------------*/
+
+A.2 Rtimer
+
+This rtimer module should be located at /cpu/arm/stm32l1/rtimer-arch. c.
+
+1 #include "rtimer-arch.h"
+
+2 /*---------------------------------------------------------------------------*/
+
+3 /* The prescaler assumes the timer is sourced with same clock speed as the CPU */
+
+4 #define RTIMER_PRESCALER
+
+(F_CPU / (RTIMER_SECOND*2))
+
+5 /*---------------------------------------------------------------------------*/
+
+6 static volatile rtimer_clock_t rtimer_clock;
+
+7 static volatile rtimer_clock_t timeout_value;
+
+8 /*---------------------------------------------------------------------------*/
+
+9 void TIM2_IRQHandler(void)
+
+10 {
+
+11 ENERGEST_ON(ENERGEST_TYPE_IRQ);
+
+12
+
+13 rtimer_clock++;
+
+14
+
+15 /* Clear interrupt pending flag */
+
+16 TIM_ClearITPendingBit(TIM2, TIM_IT_Update);
+
+17
+
+18 /* Check for, and run, any expired rtimers */
+
+19 if(rtimer_clock==timeout_value){
+
+52
+
+VRIJE UNIVERSITEIT BRUSSEL
+
+Appendix A. Porting Contiki to LoRaMote
+
+20
+
+rtimer_run_next();
+
+21
+
+}
+
+22
+
+23 ENERGEST_OFF(ENERGEST_TYPE_IRQ);
+
+24 }
+
+25 /*---------------------------------------------------------------------------*/ 26 void rtimer_arch_init(void)
+
+27 {
+
+28 rtimer_clock = 0;
+
+29 timeout_value = 0;
+
+30
+
+31 /* To init, we use structures that are filled in and passed to the HAL */
+
+32 NVIC_InitTypeDef
+
+NVIC_InitStructure;
+
+33 TIM_TimeBaseInitTypeDef
+
+TIM_TimeBaseStructure;
+
+34
+
+35 /* Enable TIM2 peripheral clock */ 36 RCC_APB1PeriphClockCmd(RCC_APB1Periph_TIM2, ENABLE);
+
+37
+
+38 /* Enable the TIM2 Interrupt in the NVIC */ 39 NVIC_InitStructure.NVIC_IRQChannel = TIM2_IRQn;
+
+40 NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 0;
+
+41 NVIC_InitStructure.NVIC_IRQChannelSubPriority = 0;
+
+42 NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
+
+43 NVIC_Init(&NVIC_InitStructure);
+
+44
+
+45 /* Configure TIM2 */ 46 TIM_TimeBaseStructure.TIM_Period = 1;
+
+47 TIM_TimeBaseStructure.TIM_Prescaler = RTIMER_PRESCALER;
+
+48 TIM_TimeBaseStructure.TIM_ClockDivision = TIM_CKD_DIV1;
+
+49 TIM_TimeBaseStructure.TIM_CounterMode = TIM_CounterMode_Up;
+
+50 TIM_TimeBaseInit(TIM2, &TIM_TimeBaseStructure);
+
+51
+
+52 /* Enable TIM2 & TIM2 Update interrupt */ 53 TIM_ClearFlag(TIM2, TIM_FLAG_Update);
+
+54 TIM_ITConfig(TIM2, TIM_IT_Update, ENABLE);
+
+55 TIM_Cmd(TIM2, ENABLE);
+
+56 }
+
+57 /*---------------------------------------------------------------------------*/ 58 rtimer_clock_t rtimer_arch_now(void)
+
+59 {
+
+60 return rtimer_clock;
+
+61 }
+
+62 /*---------------------------------------------------------------------------*/ 63 void rtimer_arch_schedule(rtimer_clock_t t)
+
+64 {
+
+65 timeout_value = rtimer_clock + t;
+
+66 }
+
+67 /*---------------------------------------------------------------------------*/
+
+A.3 Watchdog
+The watchdog implementation should be located at /cpu/arm/stm32l1/watchdog. c.
+1 #include "dev/watchdog.h" 2 #include "stm32l1xx_conf.h" 3 #include "contiki-conf.h" 4 /*---------------------------------------------------------------------------*/ 5 static uint8_t counterValue; 6 /*---------------------------------------------------------------------------*/ 7 void watchdog_init(void) 8{ 9 #if WATCHDOG_USE_IWDG 10 /* Get the LSI frequency: 37kHz according to stm32l1x datasheet,
+
+JELLE AERTS
+
+53
+
+Integrating Long Range Technology into the Contiki Operating System Framework
+
+11
+
+but can be measured with a high speed oscillator for greater precision */
+
+12 uint32_t LsiFreq = F_LSI;
+
+13
+
+14 /* Enable write access to IWDG_PR and IWDG_RLR registers */ 15 IWDG_WriteAccessCmd(IWDG_WriteAccess_Enable);
+
+16
+
+17 /* IWDG counter clock: LSI/32 */ 18 IWDG_SetPrescaler(IWDG_Prescaler_32);
+
+19
+
+20 /* Set counter reload value to obtain 250ms IWDG TimeOut.
+
+21
+
+(the timeout may varies due to LSI frequency dispersion)
+
+22
+
+Counter Reload Value = IWDG counter clock period/250ms
+
+23
+
+= (LSI/32) / 250ms
+
+24
+
+= (LsiFreq/32) / 0.25s
+
+25
+
+= LsiFreq / (32 * 4)
+
+26
+
+= LsiFreq / 128
+
+27
+
+*/
+
+28 IWDG_SetReload(LsiFreq/(32 * (1000/WATCHDOG_IWDG_TIMEOUT)));
+
+29 #else
+
+30 /* Enable WWDG clock */ 31 RCC_APB1PeriphClockCmd(RCC_APB1Periph_WWDG, ENABLE);
+
+32
+
+33 /* WWDG clock counter = (PCLK1 (32MHz)/4096)/8 = 977 Hz (~1024 us) */ 34 WWDG_SetPrescaler(WWDG_Prescaler_8);
+
+35
+
+36 /* Set Window value to 127; WWDG counter should be refreshed only when the counter
+
+37
+
+is below 127 (and greater than 64) otherwise a reset will be generated */
+
+38 WWDG_SetWindowValue(127);
+
+39
+
+40 /* Set counter value to 127; WWDG timeout = ~1024 us * 64 = 65.53 ms
+
+41
+
+In this case the refresh window is:
+
+42
+
+~1024us * (127-127) = 0 ms < refresh window < ~1024us * 64 = 65.53ms */
+
+43 counterValue = 127;
+
+44 #endif
+
+45 }
+
+46 /*---------------------------------------------------------------------------*/ 47 void watchdog_start(void)
+
+48 {
+
+49 #if ENABLE_WATCHDOG
+
+50 /* We setup the watchdog to reset the device after a specific time,
+
+51
+
+unless watchdog_periodic() is called */
+
+52 #if WATCHDOG_USE_IWDG
+
+53
+
+IWDG_ReloadCounter();
+
+54
+
+IWDG_Enable();
+
+55 #else
+
+56
+
+WWDG_Enable(counterValue);
+
+57 #endif
+
+58 #endif
+
+59 }
+
+60 /*---------------------------------------------------------------------------*/ 61 void watchdog_periodic(void)
+
+62 {
+
+63 /* This function is called periodically to restart the watchdog timer */ 64 #if WATCHDOG_USE_IWDG
+
+65 IWDG_ReloadCounter();
+
+66 #else
+
+67 WWDG_SetCounter(counterValue);
+
+68 #endif
+
+69 }
+
+70 /*---------------------------------------------------------------------------*/ 71 void watchdog_stop(void)
+
+72 {
+
+73 /* Impossible to stop watchdogs once started */ 74 }
+
+75 /*---------------------------------------------------------------------------*/ 76 void watchdog_reboot(void)
+
+77 {
+
+78 watchdog_stop();
+
+54
+
+VRIJE UNIVERSITEIT BRUSSEL
+
+Appendix A. Porting Contiki to LoRaMote
+79 watchdog_init(); 80 watchdog_start(); 81 } 82 /*---------------------------------------------------------------------------*/
+
+A.4 LEDs
+
+This LED module should be located at /platform/loramote/dev/ledsarch.c.
+
+1 #include "dev/leds.h"
+
+2 #include "lora-contiki-interface.h"
+
+3 /*---------------------------------------------------------------------------*/
+
+4 void leds_arch_init(void)
+
+5{
+
+6 /* Initialize LED structures */
+
+7 GpioInit(&Led1, LED_1, PIN_OUTPUT, PIN_PUSH_PULL, PIN_NO_PULL, 0);
+
+8 GpioInit(&Led2, LED_2, PIN_OUTPUT, PIN_PUSH_PULL, PIN_NO_PULL, 0);
+
+9 GpioInit(&Led3, LED_3, PIN_OUTPUT, PIN_PUSH_PULL, PIN_NO_PULL, 0);
+
+10 }
+
+11 /*---------------------------------------------------------------------------*/
+
+12 unsigned char leds_arch_get(void)
+
+13 {
+
+14 /* Create LED bitmask using bitwise OR’ing the seperate values */
+
+15 return (GpioRead(&Led1) ? LEDS_RED : 0)
+
+16
+
+| (GpioRead(&Led2) ? LEDS_GREEN : 0)
+
+17
+
+| (GpioRead(&Led3) ? LEDS_YELLOW : 0);
+
+18 }
+
+19 /*---------------------------------------------------------------------------*/
+
+20 void leds_arch_set(unsigned char leds)
+
+21 {
+
+22 /* Test the LED bitmask and set the LEDs accordingly */
+
+23 GpioWrite(&Led1, (leds & LEDS_RED) ? 0 : 1);
+
+24 GpioWrite(&Led2, (leds & LEDS_GREEN) ? 0 : 1);
+
+25 GpioWrite(&Led3, (leds & LEDS_YELLOW) ? 0 : 1);
+
+26 }
+
+27 /*---------------------------------------------------------------------------*/
+
+A.5 Serial line driver
+
+This I/O redirection module should be located at /cpu/arm/stm32l1/syscalls. c.
+
+1 #include <stdio.h>
+
+2 #include <errno.h>
+
+3 #include "contiki.h"
+
+4 /*---------------------------------------------------------------------------*/
+
+5 /* Register name faking - works in collusion with the linker */
+
+6 register char *stack_ptr asm ("sp");
+
+7 extern int errno;
+
+8 /*---------------------------------------------------------------------------*/
+
+9 extern int __io_putstring(const unsigned char *buffer, int size);
+
+10 extern int __io_putchar(int ch);
+
+11 /*---------------------------------------------------------------------------*/
+
+12 #if defined(REDIRECT_STDIO)
+
+13 /*---------------------------------------------------------------------------*/
+
+14 /* Write a character to a file. ’libc’ subroutines will use this system routine
+
+15
+
+for output to all files, including stdout. Returns number of bytes sent */
+
+JELLE AERTS
+
+55
+
+Integrating Long Range Technology into the Contiki Operating System Framework
+
+16 size_t _write(int handle, const unsigned char *buffer, size_t size) 17 {
+
+18 int data_idx;
+
+19
+
+20 #ifdef REDIRECT_STDIO_STRINGMODE
+
+21
+
+__io_putstring(buffer, size);
+
+22 #else
+
+23
+
+for(data_idx = 0; data_idx < size; data_idx++) {
+
+24
+
+__io_putchar(*buffer++);
+
+25
+
+}
+
+26 #endif
+
+27 return size;
+
+28 }
+
+29 /*---------------------------------------------------------------------------*/
+
+30 caddr_t _sbrk(int incr)
+
+31 {
+
+32 extern char end; // Defined by the linker
+
+33 static char *heap_end;
+
+34 char *prev_heap_end;
+
+35
+
+36 if(heap_end == 0) {
+
+37
+
+heap_end = &end;
+
+38
+
+}
+
+39 prev_heap_end = heap_end;
+
+40 if(heap_end + incr > stack_ptr) {
+
+41
+
+_write(1, "Heap and stack collision\n", 25);
+
+42
+
+//abort();
+
+43
+
+errno = ENOMEM;
+
+44
+
+return (caddr_t)-1;
+
+45
+
+}
+
+46
+
+47 heap_end += incr;
+
+48 return (caddr_t)prev_heap_end;
+
+49 }
+
+50 /*---------------------------------------------------------------------------*/
+
+51 #endif /* REDIRECT_STDIO */
+
+52 /*---------------------------------------------------------------------------*/
+
+This I/O redirection module should be located at /platform/loramote/dev/ serial-line-arch.c.
+
+1 #include "serial-line-arch.h"
+
+2 /*---------------------------------------------------------------------------*/
+
+3 /* Retarget stdio */ 4 #ifdef __GNUC__
+
+5 /* With GCC/RAISONANCE, small printf (option LD Linker->Libraries->Small printf
+
+6
+
+set to ’Yes’) calls __io_putchar() */
+
+7 #define PUTSTRING_PROTOTYPE int __io_putstring(const unsigned char *buffer, int
+
+size)
+
+8 #define PUTCHAR_PROTOTYPE int __io_putchar(int ch)
+
+9 #else
+
+10 #define PUTCHAR_PROTOTYPE int fputc(int ch, FILE * f)
+
+11 #endif /* __GNUC__ */ 12 /*---------------------------------------------------------------------------*/
+
+13 extern bool Virtual_ComPort_IsOpen(void);
+
+14 /*---------------------------------------------------------------------------*/ 15 void serial_line_arch_input_callback(UartNotifyId_t id){
+
+16 watchdog_periodic();
+
+17 if(id == UART_NOTIFY_RX){
+
+18
+
+uint8_t ch = 0;
+
+19
+
+while(UartGetChar(&UartUsb, &ch));
+
+20
+
+serial_line_input_byte(ch);
+
+21
+
+}
+
+22 }
+
+23 /*---------------------------------------------------------------------------*/ 24 void serial_line_arch_init(void)
+
+25 {
+
+26 UartUsb.IrqNotify = serial_line_arch_input_callback;
+
+56
+
+VRIJE UNIVERSITEIT BRUSSEL
+
+Appendix A. Porting Contiki to LoRaMote
+
+27 }
+
+28 /*---------------------------------------------------------------------------*/
+
+29 PUTCHAR_PROTOTYPE
+
+30 {
+
+31 watchdog_periodic();
+
+32 /* Does not work during hardware interrupts */
+
+33 if(Virtual_ComPort_IsOpen()){
+
+34
+
+while(UartPutChar(&UartUsb, ch));
+
+35
+
+}
+
+36 return ch;
+
+37 }
+
+38 /*---------------------------------------------------------------------------*/
+
+39 PUTSTRING_PROTOTYPE
+
+40 {
+
+41 watchdog_periodic();
+
+42 if(Virtual_ComPort_IsOpen()){
+
+43
+
+while(UartPutBuffer(&UartUsb, (uint8_t*)buffer, size));
+
+44
+
+}
+
+45 return size;
+
+46 }
+
+47 /*---------------------------------------------------------------------------*/
+
+48 void uart1_set_input(int (*input)(unsigned char c)){}
+
+49 /*---------------------------------------------------------------------------*/
+
+A.6 Button sensor
+
+This button sensor implementation should be located at /platform/loramote/ dev/button-sensor.c.
+
+1 #include "lib/sensors.h"
+
+2 #include "dev/button-sensor.h"
+
+3 #include "lora-contiki-interface.h"
+
+4 /*---------------------------------------------------------------------------*/
+
+5 static int _initialized = 0;
+
+6 static int _active = 0;
+
+7 extern Gpio_t NIrqSx9500;
+
+8 extern Gpio_t TxEnSx9500;
+
+9 /*---------------------------------------------------------------------------*/
+
+10 void cascaded_button_interrupt(void)
+
+11 {
+
+12 ENERGEST_ON(ENERGEST_TYPE_IRQ);
+
+13
+
+14 uint8_t statusSX1509 = 0;
+
+15 uint8_t statusSX9500 = 0;
+
+16
+
+17 SX1509Read(RegInterruptSourceB, &statusSX1509);
+
+18 SX9500Read(SX9500_REG_IRQSRC, &statusSX9500);
+
+19
+
+20 /* Check if interrupt is generated by SX1509 IOE8 pin & SX9500 close proximity sensor */
+
+21 if(((statusSX1509 & 0x01) == 0x01) && ((statusSX9500 & 0x40) == 0x40)){
+
+22
+
+sensors_changed(&button_sensor);
+
+23
+
+}
+
+24
+
+25 /* Clear NINT interrupt */ 26 /* (NIRQ interrupt is automatically cleared by reading interrupt source register
+
+) */
+
+27 SX1509Read(RegInterruptSourceB, &statusSX1509);
+
+28 SX1509Write(RegInterruptSourceB, (statusSX1509 & 0xFE));
+
+29
+
+30 ENERGEST_OFF(ENERGEST_TYPE_IRQ);
+
+31 }
+
+32 /*---------------------------------------------------------------------------*/
+
+33 static void init(void)
+
+JELLE AERTS
+
+57
+
+Integrating Long Range Technology into the Contiki Operating System Framework
+
+34 {
+
+35 uint8_t status = 0;
+
+36
+
+37 /* Initialize the SX9500 proximity sensor */ 38 GpioInit(&NIrqSx9500, N_IRQ_SX9500, PIN_INPUT, PIN_PUSH_PULL, PIN_NO_PULL, 1);
+
+39 GpioInit(&TxEnSx9500, TX_EN_SX9500, PIN_OUTPUT, PIN_PUSH_PULL, PIN_NO_PULL, 1);
+
+40
+
+41 SX9500Init();
+
+42 SX9500Write(SX9500_REG_IRQMSK, 0x10);
+
+43 SX9500Write(SX9500_REG_IRQSRC, 0x10);
+
+44
+
+45
+
+do {
+
+46
+
+SX9500Read(SX9500_REG_IRQSRC, &status);
+
+47 }while((status & 0x10) == 0x00); /* While compensation for CS0 is pending */
+
+48
+
+49
+
+50 /* Enable SX9500 close proximity interrupt (NIRQ) */ 51 SX9500Write(SX9500_REG_IRQMSK, 0x40);
+
+52 SX9500Write(SX9500_REG_IRQSRC, 0x00);
+
+53 /* Increase proximity detection threshold */ 54 SX9500Write(SX9500_REG_PROXCTRL6, 0x1F);
+
+55
+
+56 /* Enable the SX1509 IO Expander interrupt (NINT) */ 57 SX1509Write(RegInterruptMaskB, 0xFE);
+
+58 /* Set edge detection to falling */ 59 SX1509Write(RegSenseLowB, 0x02);
+
+60 SX1509Read(RegPullUpB, &status);
+
+61 SX1509Write(RegPullUpB, (status | 0x01));
+
+62
+
+63 /* Initialize WKUP1/EXTI0 interrupt */ 64 Gpio_t IrqSX1509;
+
+65 GpioInit(&IrqSX1509, WKUP1, PIN_INPUT, PIN_PUSH_PULL, PIN_NO_PULL, 0);
+
+66 GpioSetInterrupt(&IrqSX1509, IRQ_FALLING_EDGE, IRQ_VERY_LOW_PRIORITY, &
+
+cascaded_button_interrupt);
+
+67
+
+68 _initialized = 1;
+
+69 _active = 1;
+
+70 }
+
+71 /*---------------------------------------------------------------------------*/ 72 static void activate(void)
+
+73 {
+
+74 if(!_initialized){
+
+75
+
+init();
+
+76
+
+}
+
+77 _active = 1;
+
+78 }
+
+79 /*---------------------------------------------------------------------------*/ 80 static void deactivate(void)
+
+81 {
+
+82 _active = 0;
+
+83 }
+
+84 /*---------------------------------------------------------------------------*/ 85 static int active(void)
+
+86 {
+
+87 return _active;
+
+88 }
+
+89 /*---------------------------------------------------------------------------*/ 90 static int value(int type)
+
+91 {
+
+92 uint8_t regValue = 0;
+
+93 uint16_t offset = 0;
+
+94
+
+95 /* Read 1st sensor offset */ 96 SX9500Read(SX9500_REG_OFFSETMSB, (uint8_t*)&regValue); 97 offset = regValue << 8;
+
+98 SX9500Read(SX9500_REG_OFFSETLSB, (uint8_t*)&regValue); 99 offset |= regValue;
+
+100
+
+101 return (offset > 2000);
+
+58
+
+VRIJE UNIVERSITEIT BRUSSEL
+
+Appendix A. Porting Contiki to LoRaMote
+
+102 }
+
+103 /*---------------------------------------------------------------------------*/ 104 static int configure(int type, int value)
+
+105 {
+
+106 switch(type) {
+
+107 case SENSORS_HW_INIT:
+
+108
+
+init();
+
+109
+
+return 1;
+
+110 case SENSORS_ACTIVE:
+
+111
+
+if(value) {
+
+112
+
+activate();
+
+113
+
+} else {
+
+114
+
+deactivate();
+
+115
+
+}
+
+116
+
+return 1;
+
+117
+
+}
+
+118
+
+119 return 0;
+
+120 }
+
+121 /*---------------------------------------------------------------------------*/ 122 static int status(int type)
+
+123 {
+
+124 switch(type) {
+
+125 case SENSORS_READY:
+
+126
+
+return active();
+
+127
+
+}
+
+128
+
+129 return 0;
+
+130 }
+
+131 /*---------------------------------------------------------------------------*/ 132 SENSORS_SENSOR(button_sensor, BUTTON_SENSOR, value, configure, status);
+
+133 /*---------------------------------------------------------------------------*/
+
+A.7 Node MAC address & node ID
+
+This node MAC and ID restorer functions should be located at /cpu/arm/stm32l1/ node-id.c.
+
+1 #include <string.h>
+
+2 #include "sys/node-id.h"
+
+3 #include "contiki-conf.h"
+
+4 /*---------------------------------------------------------------------------*/
+
+5 #define DEVICE_ID_REG0
+
+(*((volatile uint32_t *)0x1FF80050))
+
+6 #define DEVICE_ID_REG1
+
+(*((volatile uint32_t *)0x1FF80054))
+
+7 #define DEVICE_ID_REG2
+
+(*((volatile uint32_t *)0x1FF80064))
+
+8 /*---------------------------------------------------------------------------*/
+
+9 unsigned short node_id = 0;
+
+10 unsigned char node_mac[8];
+
+11 volatile uint32_t device_id[3];
+
+12 /*---------------------------------------------------------------------------*/
+
+13 void node_id_restore(void)
+
+14 {
+
+15 device_id[0] = DEVICE_ID_REG0;
+
+16 device_id[1] = DEVICE_ID_REG1;
+
+17 device_id[2] = DEVICE_ID_REG2;
+
+18
+
+19 (*(uint32_t *)node_mac) = DEVICE_ID_REG1; 20 (*(((uint32_t *)node_mac) + 1)) = DEVICE_ID_REG2 + DEVICE_ID_REG0;
+
+21 node_id = (unsigned short)DEVICE_ID_REG2;
+
+22 }
+
+23 /*---------------------------------------------------------------------------*/
+
+24 void node_id_burn(unsigned short id){}
+
+25 /*---------------------------------------------------------------------------*/
+
+JELLE AERTS
+
+59
+
+Integrating Long Range Technology into the Contiki Operating System Framework
+A.8 SLIP driver
+
+The SLIP driver should be placed at /platform/loramote/dev/slip-arch. c.
+
+1 #include "dev/slip.h"
+
+2 #include "lora-contiki-interface.h"
+
+3 /*---------------------------------------------------------------------------*/
+
+4 extern bool Virtual_ComPort_IsOpen(void);
+
+5 /*---------------------------------------------------------------------------*/
+
+6 void slip_arch_input_callback(UartNotifyId_t id){
+
+7 watchdog_periodic();
+
+8 if(id == UART_NOTIFY_RX){
+
+9
+
+uint8_t ch = 0;
+
+10
+
+while(UartGetChar(&UartUsb, &ch));
+
+11
+
+slip_input_byte(ch);
+
+12
+
+}
+
+13 }
+
+14 /*---------------------------------------------------------------------------*/
+
+15 void slip_arch_init(unsigned long ubr)
+
+16 {
+
+17 UartUsb.IrqNotify = slip_arch_input_callback;
+
+18 }
+
+19 /*---------------------------------------------------------------------------*/
+
+20 void slip_arch_writeb(unsigned char ch)
+
+21 {
+
+22 watchdog_periodic();
+
+23 if(Virtual_ComPort_IsOpen()){
+
+24
+
+while(UartPutChar(&UartUsb, ch));
+
+25
+
+}
+
+26 }
+
+27 /*---------------------------------------------------------------------------*/
+
+A.9 Radio driver
+
+The radio driver should be placed at /platform/loramote/net/lora-radioarch.c. Related ﬁles like radio conﬁgurations also should reside in this directory.
+
+1 #include "lora-radio-arch.h"
+
+2 /*---------------------------------------------------------------------------*/
+
+3 #define DEBUG 0
+
+4 #if DEBUG
+
+5 #define PRINTF(...) printf(__VA_ARGS__)
+
+6 #else
+
+7 #define PRINTF(...)
+
+8 #endif
+
+9 /*---------------------------------------------------------------------------*/
+
+10 #define CLEAR_RXBUF()
+
+(lora_radio_rxbuf[0] = 0)
+
+11 #define IS_RXBUF_EMPTY()
+
+(lora_radio_rxbuf[0] == 0)
+
+12 /*---------------------------------------------------------------------------*/
+
+13 /* Incoming data buffer, the first byte will contain the length of the packet */
+
+14 static uint8_t lora_radio_rxbuf[LORA_MAX_PAYLOAD_SIZE + 1];
+
+15 static RadioEvents_t RadioEvents;
+
+16 static int packet_is_prepared = 0;
+
+17 static const void *packet_payload;
+
+18 static unsigned short packet_payload_len = 0;
+
+19 static packetbuf_attr_t last_rssi = 0;
+
+20 /*---------------------------------------------------------------------------*/
+
+21 static int lora_radio_init(void);
+
+22 static int lora_radio_prepare(const void *payload, unsigned short payload_len);
+
+60
+
+VRIJE UNIVERSITEIT BRUSSEL
+
+Appendix A. Porting Contiki to LoRaMote
+
+23 static int lora_radio_transmit(unsigned short payload_len);
+
+24 static int lora_radio_send(const void *data, unsigned short len);
+
+25 static int lora_radio_read(void *buf, unsigned short bufsize);
+
+26 static int lora_radio_channel_clear(void);
+
+27 static int lora_radio_receiving_packet(void);
+
+28 static int lora_radio_pending_packet(void);
+
+29 static int lora_radio_on(void);
+
+30 static int lora_radio_off(void);
+
+31 void OnTxDone(void);
+
+32 void OnRxDone(uint8_t *payload, uint16_t size, int16_t rssi, int8_t snr); 33 void OnTxTimeout(void);
+
+34 void OnRxTimeout(void);
+
+35 void OnRxError(void);
+
+36 /*---------------------------------------------------------------------------*/
+
+37 PROCESS(lora_radio_process, "LoRa radio driver process");
+
+38 /*---------------------------------------------------------------------------*/ 39 const struct radio_driver lora_radio_driver =
+
+40 {
+
+41 lora_radio_init,
+
+42 lora_radio_prepare,
+
+43 lora_radio_transmit,
+
+44 lora_radio_send,
+
+45 lora_radio_read,
+
+46 lora_radio_channel_clear,
+
+47 lora_radio_receiving_packet,
+
+48 lora_radio_pending_packet,
+
+49 lora_radio_on,
+
+50 lora_radio_off,
+
+51 };
+
+52 /*---------------------------------------------------------------------------*/
+
+53 static int lora_radio_init(void)
+
+54 {
+
+55 PRINTF("\nRADIO INIT IN\n");
+
+56
+
+57 SpiInit(&SX1272.Spi, RADIO_MOSI, RADIO_MISO, RADIO_SCLK, NC);
+
+58 SX1272IoInit();
+
+59
+
+60 /* Radio initialization */
+
+61 RadioEvents.TxDone = OnTxDone;
+
+62 RadioEvents.RxDone = OnRxDone;
+
+63 RadioEvents.TxTimeout = OnTxTimeout;
+
+64 RadioEvents.RxTimeout = OnRxTimeout;
+
+65 RadioEvents.RxError = OnRxError;
+
+66
+
+67 Radio.Init(&RadioEvents);
+
+68 Radio.SetChannel(RF_FREQUENCY);
+
+69
+
+70 #if defined(USE_MODEM_LORA)
+
+71 Radio.SetTxConfig(MODEM_LORA, TX_OUTPUT_POWER, 0, LORA_BANDWIDTH,
+
+72
+
+LORA_SPREADING_FACTOR, LORA_CODINGRATE,
+
+73
+
+LORA_PREAMBLE_LENGTH, LORA_FIX_LENGTH_PAYLOAD_ON, LORA_CRC_ON,
+
+74
+
+LORA_FREQUENCY_HOPPING_ON, LORA_HOPPING_PERIOD,
+
+75
+
+LORA_IQ_INVERSION_ON, TX_TIMEOUT_VALUE);
+
+76 Radio.SetRxConfig(MODEM_LORA, LORA_BANDWIDTH, LORA_SPREADING_FACTOR,
+
+77
+
+LORA_CODINGRATE, 0, LORA_PREAMBLE_LENGTH,
+
+78
+
+LORA_SYMBOL_TIMEOUT, LORA_FIX_LENGTH_PAYLOAD_ON,
+
+79
+
+LORA_FIXED_PAYLOAD_LENGTH, LORA_CRC_ON,
+
+80
+
+LORA_FREQUENCY_HOPPING_ON, LORA_HOPPING_PERIOD,
+
+81
+
+LORA_IQ_INVERSION_ON, RX_CONTINUOUS_MODE);
+
+82 #elif defined(USE_MODEM_FSK)
+
+83 Radio.SetTxConfig(MODEM_FSK, TX_OUTPUT_POWER, FSK_FDEV, 0,
+
+84
+
+FSK_DATARATE, 0,
+
+85
+
+FSK_PREAMBLE_LENGTH, FSK_FIX_LENGTH_PAYLOAD_ON,
+
+86
+
+FSK_CRC_ON, 0, 0, 0, TX_TIMEOUT_VALUE);
+
+87 Radio.SetRxConfig(MODEM_FSK, FSK_BANDWIDTH, FSK_DATARATE,
+
+88
+
+0, FSK_AFC_BANDWIDTH, FSK_PREAMBLE_LENGTH,
+
+89
+
+0, FSK_FIX_LENGTH_PAYLOAD_ON, FSK_FIXED_PAYLOAD_LENGTH,
+
+90
+
+FSK_CRC_ON, 0, 0, 0, RX_CONTINUOUS_MODE);
+
+91 #else
+
+JELLE AERTS
+
+61
+
+Integrating Long Range Technology into the Contiki Operating System Framework
+
+92 #error "Please define a modem in the compiler options."
+
+93 #endif
+
+94
+
+95 process_start(&lora_radio_process, NULL);
+
+96
+
+97 PRINTF("RADIO INIT OUT\n");
+
+98 return 0;
+
+99 }
+
+100 /*---------------------------------------------------------------------------*/ 101 static int lora_radio_prepare(const void *payload, unsigned short payload_len) 102 {
+
+103 PRINTF("PREPARE IN: %u bytes\n", payload_len);
+
+104 packet_is_prepared = 0;
+
+105
+
+106 /* Checks if the payload length is supported */ 107 if(payload_len > LORA_MAX_PAYLOAD_SIZE) {
+
+108
+
+return RADIO_TX_ERR;
+
+109
+
+}
+
+110
+
+111 packet_payload = payload;
+
+112 packet_payload_len = payload_len;
+
+113 packet_is_prepared = 1;
+
+114
+
+115 PRINTF("PREPARE OUT\n");
+
+116 return RADIO_TX_OK;
+
+117 }
+
+118 /*---------------------------------------------------------------------------*/ 119 static int lora_radio_transmit(unsigned short payload_len)
+
+120 {
+
+121 PRINTF("TRANSMIT IN\n");
+
+122
+
+123 if(!packet_is_prepared) {
+
+124
+
+return RADIO_TX_ERR;
+
+125
+
+}
+
+126
+
+127 Radio.Send((uint8_t *)packet_payload, packet_payload_len); 128 packet_is_prepared = 0;
+
+129
+
+130 PRINTF("TRANSMIT OUT\n");
+
+131 return RADIO_TX_OK;
+
+132 }
+
+133 /*---------------------------------------------------------------------------*/ 134 static int lora_radio_send(const void *payload, unsigned short payload_len) 135 {
+
+136 if(lora_radio_prepare(payload, payload_len) == RADIO_TX_ERR) {
+
+137
+
+return RADIO_TX_ERR;
+
+138
+
+}
+
+139 return lora_radio_transmit(payload_len);
+
+140 }
+
+141 /*---------------------------------------------------------------------------*/ 142 static int lora_radio_read(void *buf, unsigned short bufsize) 143 {
+
+144 PRINTF("READ IN\n");
+
+145
+
+146 /* Checks if the RX buffer is empty */ 147 if(IS_RXBUF_EMPTY()) {
+
+148
+
+PRINTF("READ OUT: RX BUFFER EMPTY\n");
+
+149
+
+return 0;
+
+150
+
+}
+
+151
+
+152 /* Checks if buffer has the correct size */ 153 if(bufsize < lora_radio_rxbuf[0]) {
+
+154
+
+PRINTF("READ OUT: TOO SMALL BUFFER\n");
+
+155
+
+return 0;
+
+156
+
+}
+
+157
+
+158 /* Copies the packet received */ 159 memcpy(buf, lora_radio_rxbuf+1, lora_radio_rxbuf[0]);
+
+160 packetbuf_set_attr(PACKETBUF_ATTR_RSSI, last_rssi);
+
+62
+
+VRIJE UNIVERSITEIT BRUSSEL
+
+Appendix A. Porting Contiki to LoRaMote
+
+161 bufsize = lora_radio_rxbuf[0];
+
+162 CLEAR_RXBUF();
+
+163
+
+164 PRINTF("READ OUT\n");
+
+165 return bufsize;
+
+166 }
+
+167 /*---------------------------------------------------------------------------*/ 168 static int lora_radio_channel_clear(void)
+
+169 {
+
+170 PRINTF("CHANNEL CLEAR IN\n");
+
+171 bool channel_clear;
+
+172
+
+173 #if defined(USE_MODEM_LORA)
+
+174 channel_clear = Radio.IsChannelFree(MODEM_LORA, RF_FREQUENCY, CCA_THRESHOLD);
+
+175 #elif defined(USE_MODEM_FSK)
+
+176 channel_clear = Radio.IsChannelFree(MODEM_FSK, RF_FREQUENCY, CCA_THRESHOLD);
+
+177 #else
+
+178 #error "Please define a modem in the compiler options."
+
+179 #endif
+
+180
+
+181 PRINTF("CHANNEL CLEAR OUT\n");
+
+182 return channel_clear;
+
+183 }
+
+184 /*---------------------------------------------------------------------------*/ 185 static int lora_radio_receiving_packet(void)
+
+186 {
+
+187 return 0;
+
+188 }
+
+189 /*---------------------------------------------------------------------------*/ 190 static int lora_radio_pending_packet(void)
+
+191 {
+
+192 PRINTF("PENDING PACKET\n");
+
+193 return !IS_RXBUF_EMPTY();
+
+194 }
+
+195 /*---------------------------------------------------------------------------*/ 196 static int lora_radio_off(void)
+
+197 {
+
+198 Radio.Sleep();
+
+199 PRINTF("RADIO OFF\n");
+
+200 return 0;
+
+201 }
+
+202 /*---------------------------------------------------------------------------*/ 203 static int lora_radio_on(void)
+
+204 {
+
+205 Radio.Rx(RX_TIMEOUT_VALUE);
+
+206 PRINTF("RADIO ON\n");
+
+207 return 0;
+
+208 }
+
+209 /*---------------------------------------------------------------------------*/ 210 PROCESS_THREAD(lora_radio_process, ev, data)
+
+211 {
+
+212 PROCESS_BEGIN();
+
+213
+
+214 PRINTF("LoRa radio: process started\n");
+
+215 int len;
+
+216
+
+217 while(1) {
+
+218
+
+PROCESS_YIELD_UNTIL(ev == PROCESS_EVENT_POLL);
+
+219
+
+220
+
+PRINTF("LoRa radio: polled\n");
+
+221
+
+packetbuf_clear();
+
+222
+
+len = lora_radio_read(packetbuf_dataptr(), PACKETBUF_SIZE);
+
+223
+
+224
+
+if(len > 0) {
+
+225
+
+packetbuf_set_datalen(len);
+
+226
+
+NETSTACK_RDC.input();
+
+227
+
+}
+
+228
+
+229
+
+if(!IS_RXBUF_EMPTY()) {
+
+JELLE AERTS
+
+63
+
+Integrating Long Range Technology into the Contiki Operating System Framework
+
+230
+
+process_poll(&lora_radio_process);
+
+231
+
+}
+
+232
+
+}
+
+233
+
+234 PROCESS_END();
+
+235 }
+
+236 /*---------------------------------------------------------------------------*/ 237 void OnTxDone(void)
+
+238 {
+
+239 PRINTF("PACKET SENT\n");
+
+240 Radio.Rx(RX_TIMEOUT_VALUE);
+
+241 }
+
+242 /*---------------------------------------------------------------------------*/ 243 void OnRxDone(uint8_t *payload, uint16_t size, int16_t rssi, int8_t snr)
+
+244 {
+
+245 memcpy(lora_radio_rxbuf+1, payload, size);
+
+246 lora_radio_rxbuf[0] = size;
+
+247 PRINTF("PACKET RECEIVED\n");
+
+248 process_poll(&lora_radio_process);
+
+249 last_rssi = (packetbuf_attr_t)rssi;
+
+250 }
+
+251 /*---------------------------------------------------------------------------*/ 252 void OnTxTimeout(void)
+
+253 {
+
+254 PRINTF("TX TIMEOUT\n");
+
+255 Radio.Rx(RX_TIMEOUT_VALUE);
+
+256 }
+
+257 /*---------------------------------------------------------------------------*/ 258 void OnRxTimeout(void)
+
+259 {
+
+260 PRINTF("RX TIMEOUT\n");
+
+261 Radio.Rx(RX_TIMEOUT_VALUE);
+
+262 }
+
+263 /*---------------------------------------------------------------------------*/ 264 void OnRxError(void)
+
+265 {
+
+266 PRINTF("RX ERROR\n");
+
+267 Radio.Rx(RX_TIMEOUT_VALUE);
+
+268 }
+
+269 /*---------------------------------------------------------------------------*/
+
+A.10 External clock
+
+This external clock implementation should be located at /cpu/arm/stm32l1/ rtc-arch.c.
+
+1 #include "rtc-arch.h"
+
+2 /*---------------------------------------------------------------------------*/
+
+3 /* The prescaler assumes the RTC timer is sourced with the LSE
+
+4
+
+and uses the minimum asynchronous division factor (2) */
+
+5 #define RTC_PRESCALER
+
+((F_LSE/2) / RTIMER_SECOND)
+
+6 /*---------------------------------------------------------------------------*/ 7 static int rtcInitialized = 0;
+
+8 /*---------------------------------------------------------------------------*/
+
+9 void init_rtc(void)
+
+10 {
+
+11 if(rtcInitialized){
+
+12
+
+return;
+
+13
+
+}
+
+14
+
+15 /* Initialize the RTC */ 16 RTC_InitTypeDef RTC_InitStructure;
+
+17 RTC_TimeTypeDef RTC_TimeStruct;
+
+18 RTC_DateTypeDef RTC_DateStruct;
+
+64
+
+VRIJE UNIVERSITEIT BRUSSEL
+
+Appendix A. Porting Contiki to LoRaMote
+19
+20 /* Enable the PWR clock */ 21 RCC_APB1PeriphClockCmd(RCC_APB1Periph_PWR, ENABLE);
+22
+23 /* Allow access to RTC */ 24 PWR_RTCAccessCmd(ENABLE);
+25
+26 /* Reset RTC Domain */ 27 RCC_RTCResetCmd(ENABLE); 28 RCC_RTCResetCmd(DISABLE);
+29
+30 /* Enable the LSE OSC */ 31 RCC_LSEConfig(RCC_LSE_ON);
+32
+33 /* Wait till LSE is ready */ 34 while(RCC_GetFlagStatus(RCC_FLAG_LSERDY) == RESET){}
+35
+36 /* Select the RTC Clock Source */ 37 RCC_RTCCLKConfig(RCC_RTCCLKSource_LSE);
+38
+39 /* Enable the RTC Clock */ 40 RCC_RTCCLKCmd(ENABLE); 41 RTC_TimeStructInit(&RTC_TimeStruct); 42 RTC_DateStructInit(&RTC_DateStruct); 43 RTC_SetTime(RTC_Format_BIN, &RTC_TimeStruct); 44 RTC_SetDate(RTC_Format_BIN, &RTC_DateStruct);
+45
+46 /* Wait for RTC APB registers synchronisation */ 47 RTC_WaitForSynchro();
+48
+49 /* Configure the RTC data register and RTC prescaler */ 50 RTC_InitStructure.RTC_AsynchPrediv = 0x01; 51 RTC_InitStructure.RTC_SynchPrediv = RTC_PRESCALER-1; 52 RTC_InitStructure.RTC_HourFormat = RTC_HourFormat_24; 53 RTC_Init(&RTC_InitStructure);
+54
+55 /* Wait for RTC APB registers synchronisation */ 56 RTC_WaitForSynchro();
+57
+58 rtcInitialized = 1; 59 } 60 /*---------------------------------------------------------------------------*/
+
+A.11 Low power controller
+The low power control functions should be located at /cpu/arm/stm32l1/lpmarch.c.
+1 #include "lpm-arch.h" 2 /*---------------------------------------------------------------------------*/ 3 static int stopModeActivated = 0; 4 /*---------------------------------------------------------------------------*/ 5 void lpm_enter_stopmode(void) 6{ 7 stopModeActivated = 1;
+8
+9 /* Disable the Power Voltage Detector */ 10 PWR_PVDCmd(DISABLE);
+11
+12 /* Set MCU in ULP (Ultra Low Power) */ 13 PWR_UltraLowPowerCmd(ENABLE);
+14
+15 /* Disable fast wakeUp */ 16 PWR_FastWakeUpCmd(DISABLE);
+
+JELLE AERTS
+
+65
+
+Integrating Long Range Technology into the Contiki Operating System Framework
+
+17
+
+18 /* Enter Stop Mode */
+
+19 PWR_EnterSTOPMode(PWR_Regulator_LowPower, PWR_STOPEntry_WFI);
+
+20 }
+
+21 /*---------------------------------------------------------------------------*/
+
+22 void lpm_exit_stopmode(void)
+
+23 {
+
+24 if(!stopModeActivated){
+
+25
+
+return;
+
+26
+
+}
+
+27
+
+28 /* Disable IRQ while the MCU is not running on HSE */
+
+29 __disable_irq();
+
+30
+
+31 /* Enable HSE */
+
+32 RCC_HSEConfig(RCC_HSE_ON);
+
+33
+
+34 /* Wait till HSE is ready */
+
+35 while (RCC_GetFlagStatus(RCC_FLAG_HSERDY) == RESET){}
+
+36
+
+37 /* Enable PLL */
+
+38 RCC_PLLCmd(ENABLE);
+
+39
+
+40 /* Wait till PLL is ready */
+
+41 while (RCC_GetFlagStatus(RCC_FLAG_PLLRDY) == RESET){}
+
+42
+
+43 /* Select PLL as system clock source */
+
+44 RCC_SYSCLKConfig(RCC_SYSCLKSource_PLLCLK);
+
+45
+
+46 /* Wait till PLL is used as system clock source */
+
+47 while (RCC_GetSYSCLKSource() != 0x0C){}
+
+48
+
+49 /* Set MCU in ULP (Ultra Low Power) */
+
+50 PWR_UltraLowPowerCmd(DISABLE); // add up to 3ms wakeup time
+
+51
+
+52 /* Enable the Power Voltage Detector */
+
+53 PWR_PVDCmd(ENABLE);
+
+54
+
+55 __enable_irq();
+
+56
+
+57 stopModeActivated = 0;
+
+58 }
+
+59 /*---------------------------------------------------------------------------*/
+
+A.12 Low power clock module
+
+The low power clock module replaces the /cpu/arm/stm32l1/clock.c ﬁle.
+
+1 #include "contiki.h"
+
+2 #include "stm32l1xx_conf.h"
+
+3 #include "rtc-arch.h"
+
+4 #include "lpm-arch.h"
+
+5 /*---------------------------------------------------------------------------*/
+
+6 #define DEBUG 0
+
+7 #if DEBUG
+
+8 #define PRINTF(...) printf(__VA_ARGS__)
+
+9 #else
+
+10 #define PRINTF(...)
+
+11 #endif
+
+12 /*---------------------------------------------------------------------------*/
+
+13 /* The counter assumes the timer is sourced with the LSE and uses Div16 */
+
+14 #define RTC_WKUPCOUNTER
+
+((F_LSE/16) / CLOCK_SECOND)
+
+15 /*---------------------------------------------------------------------------*/
+
+16 static volatile unsigned long seconds;
+
+66
+
+VRIJE UNIVERSITEIT BRUSSEL
+
+Appendix A. Porting Contiki to LoRaMote
+
+17 static volatile clock_time_t ticks;
+
+18 /*---------------------------------------------------------------------------*/ 19 void RTC_WKUP_IRQHandler(void)
+
+20 {
+
+21 ENERGEST_ON(ENERGEST_TYPE_IRQ);
+
+22
+
+23 /* Check on the WakeUp flag */ 24 if(RTC_GetITStatus(RTC_IT_WUT) != RESET)
+
+25
+
+{
+
+26
+
+ticks++;
+
+27
+
+if((ticks % CLOCK_SECOND) == 0){
+
+28
+
+seconds++;
+
+29
+
+energest_flush();
+
+30
+
+PRINTF("second %i (%i ticks)\n", seconds, ticks);
+
+31
+
+}
+
+32
+
+33
+
+/* If an etimer expired, continue its process */
+
+34
+
+if(etimer_pending()){
+
+35
+
+lpm_exit_stopmode();
+
+36
+
+etimer_request_poll();
+
+37
+
+}
+
+38
+
+39
+
+/* Clear RTC WakeUp flags */
+
+40
+
+RTC_ClearITPendingBit(RTC_IT_WUT);
+
+41
+
+}
+
+42
+
+43 /* Clear the EXTI line 20 */ 44 EXTI_ClearITPendingBit(EXTI_Line20);
+
+45
+
+46 ENERGEST_OFF(ENERGEST_TYPE_IRQ);
+
+47 }
+
+48 /*---------------------------------------------------------------------------*/ 49 void clock_init(void)
+
+50 {
+
+51 seconds = 0;
+
+52 ticks = 0;
+
+53
+
+54 /* Initialize the RTC clock */ 55 init_rtc();
+
+56
+
+57 /* Initialize the RTC WakeUp interrupt */ 58 EXTI_InitTypeDef EXTI_InitStructure;
+
+59 NVIC_InitTypeDef NVIC_InitStructure;
+
+60
+
+61 /* EXTI configuration */ 62 EXTI_ClearITPendingBit(EXTI_Line20);
+
+63 EXTI_InitStructure.EXTI_Line = EXTI_Line20;
+
+64 EXTI_InitStructure.EXTI_Mode = EXTI_Mode_Interrupt;
+
+65 EXTI_InitStructure.EXTI_Trigger = EXTI_Trigger_Rising;
+
+66 EXTI_InitStructure.EXTI_LineCmd = ENABLE;
+
+67 EXTI_Init(&EXTI_InitStructure);
+
+68
+
+69 /* Enable the RTC Wakeup Interrupt */ 70 NVIC_InitStructure.NVIC_IRQChannel = RTC_WKUP_IRQn;
+
+71 NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 0;
+
+72 NVIC_InitStructure.NVIC_IRQChannelSubPriority = 0;
+
+73 NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
+
+74 NVIC_Init(&NVIC_InitStructure);
+
+75
+
+76 /* RTC Wakeup Interrupt Generation: Clock Source: RTCDiv_16, Wakeup Time Base: 7.8ms at 128Hz */
+77 RTC_WakeUpClockConfig(RTC_WakeUpClock_RTCCLK_Div16);
+
+78 RTC_SetWakeUpCounter(RTC_WKUPCOUNTER-1);
+
+79
+
+80 /* Enable the Wakeup Interrupt */ 81 RTC_ITConfig(RTC_IT_WUT, ENABLE);
+
+82
+
+83 /* Enable Wakeup Counter */ 84 RTC_WakeUpCmd(ENABLE);
+
+JELLE AERTS
+
+67
+
+Integrating Long Range Technology into the Contiki Operating System Framework
+
+85 }
+
+86 /*---------------------------------------------------------------------------*/
+
+87 unsigned long clock_seconds(void)
+
+88 {
+
+89 return seconds;
+
+90 }
+
+91 /*---------------------------------------------------------------------------*/
+
+92 void clock_set_seconds(unsigned long sec)
+
+93 {
+
+94 seconds = sec;
+
+95 }
+
+96 /*---------------------------------------------------------------------------*/
+
+97 clock_time_t clock_time(void)
+
+98 {
+
+99 return ticks;
+
+100 }
+
+101 /*---------------------------------------------------------------------------*/
+
+102 /* Busy-wait the CPU for a duration depending on CPU speed */
+
+103 void clock_delay(unsigned int i)
+
+104 {
+
+105 for(; i > 0; i--) {
+
+106
+
+unsigned int j;
+
+107
+
+for(j = 50; j > 0; j--) {
+
+108
+
+__NOP();
+
+109
+
+}
+
+110
+
+}
+
+111 }
+
+112 /*---------------------------------------------------------------------------*/
+
+113 /* Wait for a multiple of clock ticks (7.8ms per tick at 128Hz) */
+
+114 void clock_wait(clock_time_t i)
+
+115 {
+
+116 clock_time_t start;
+
+117 start = clock_time();
+
+118 while(clock_time() - start < i);
+
+119 }
+
+120 /*---------------------------------------------------------------------------*/
+
+A.13 Low power rtimer
+
+The low power rtimer replaces the /cpu/arm/stm32l1/rtimer-arch.c ﬁle.
+
+1 #include "rtimer-arch.h"
+
+2 /*---------------------------------------------------------------------------*/
+
+3 #define MCU_WAKE_UP_TIME_TICKS
+
+(MCU_WAKE_UP_TIME / (1000000/RTIMER_SECOND
+
+))
+
+4 /*---------------------------------------------------------------------------*/
+
+5 static const uint8_t SecondsInMinute = 60;
+
+6 static const uint16_t SecondsInHour = 3600;
+
+7 static const uint32_t SecondsInDay = 86400;
+
+8 static const uint8_t HoursInDay = 24;
+
+9 static const uint16_t DaysInYear = 365;
+
+10 static const uint16_t DaysInLeapYear = 366;
+
+11 static const double DaysInCentury = 36524.219;
+
+12 static const uint8_t DaysInMonth[] = {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30,
+
+31};
+
+13 static const uint8_t DaysInMonthLeapYear[] = {31, 29, 31, 30, 31, 30, 31, 31, 30,
+
+31, 30, 31};
+
+14 static uint8_t PreviousYear = 0;
+
+15 static uint8_t Century = 0;
+
+16 /*---------------------------------------------------------------------------*/
+
+17 void RTC_Alarm_IRQHandler(void)
+
+18 {
+
+19 ENERGEST_ON(ENERGEST_TYPE_IRQ);
+
+68
+
+VRIJE UNIVERSITEIT BRUSSEL
+
+Appendix A. Porting Contiki to LoRaMote
+
+20
+
+21 /* Check on the AlarmA flag */ 22 if(RTC_GetITStatus(RTC_IT_ALRA) != RESET)
+
+23
+
+{
+
+24
+
+lpm_exit_stopmode();
+
+25
+
+rtimer_run_next();
+
+26
+
+27
+
+/* Clear RTC AlarmA Flags */
+
+28
+
+RTC_ClearITPendingBit(RTC_IT_ALRA);
+
+29
+
+}
+
+30
+
+31 /* Clear the EXTI line 17 */ 32 EXTI_ClearITPendingBit(EXTI_Line17);
+
+33
+
+34 ENERGEST_OFF(ENERGEST_TYPE_IRQ);
+
+35 }
+
+36 /*---------------------------------------------------------------------------*/ 37 void rtimer_arch_init(void)
+
+38 {
+
+39 /* Initialize the RTC clock */ 40 init_rtc();
+
+41
+
+42 /* Initialize the RTC Alarm interrupt */ 43 EXTI_InitTypeDef EXTI_InitStructure;
+
+44 NVIC_InitTypeDef NVIC_InitStructure;
+
+45
+
+46 /* EXTI configuration */ 47 EXTI_ClearITPendingBit(EXTI_Line17);
+
+48 EXTI_InitStructure.EXTI_Line = EXTI_Line17;
+
+49 EXTI_InitStructure.EXTI_Mode = EXTI_Mode_Interrupt;
+
+50 EXTI_InitStructure.EXTI_Trigger = EXTI_Trigger_Rising;
+
+51 EXTI_InitStructure.EXTI_LineCmd = ENABLE;
+
+52 EXTI_Init(&EXTI_InitStructure);
+
+53
+
+54 /* Enable the RTC Alarm Interrupt */ 55 NVIC_InitStructure.NVIC_IRQChannel = RTC_Alarm_IRQn;
+
+56 NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 0;
+
+57 NVIC_InitStructure.NVIC_IRQChannelSubPriority = 0;
+
+58 NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
+
+59 NVIC_Init(&NVIC_InitStructure);
+
+60
+
+61 /* Disable AlarmA interrupt */ 62 RTC_ITConfig(RTC_IT_ALRA, ENABLE);
+
+63
+
+64 /* Disable the AlarmA */ 65 RTC_AlarmCmd(RTC_Alarm_A, DISABLE);
+
+66 }
+
+67 /*---------------------------------------------------------------------------*/ 68 rtimer_clock_t rtimer_arch_now(void)
+
+69 {
+
+70 rtimer_clock_t calendarValue = 0;
+
+71 uint8_t i = 0;
+
+72
+
+73 RTC_TimeTypeDef RTC_TimeStruct;
+
+74 RTC_DateTypeDef RTC_DateStruct;
+
+75 RTC_GetTime(RTC_Format_BIN, &RTC_TimeStruct);
+
+76 RTC_GetDate(RTC_Format_BIN, &RTC_DateStruct);
+
+77 RTC_WaitForSynchro();
+
+78
+
+79 if((PreviousYear == 99) && (RTC_DateStruct.RTC_Year == 0)){
+
+80
+
+Century++;
+
+81
+
+}
+
+82 PreviousYear = RTC_DateStruct.RTC_Year;
+
+83
+
+84 /* Centuries */ 85 for(i = 0; i < Century; i++){
+
+86
+
+calendarValue += (rtimer_clock_t)(DaysInCentury * SecondsInDay);
+
+87
+
+}
+
+88
+
+JELLE AERTS
+
+69
+
+Integrating Long Range Technology into the Contiki Operating System Framework
+
+89 /* Years */ 90 for(i = 0; i < RTC_DateStruct.RTC_Year; i++){
+
+91
+
+if((i == 0) || (i % 4 == 0)){
+
+92
+
+calendarValue += DaysInLeapYear * SecondsInDay;
+
+93
+
+}else{
+
+94
+
+calendarValue += DaysInYear * SecondsInDay;
+
+95
+
+}
+
+96
+
+}
+
+97
+
+98 /* Months */ 99 if((RTC_DateStruct.RTC_Year == 0) || (RTC_DateStruct.RTC_Year % 4 == 0)){
+
+100
+
+for(i = 0; i < (RTC_DateStruct.RTC_Month - 1); i++){
+
+101
+
+calendarValue += DaysInMonthLeapYear[i] * SecondsInDay;
+
+102
+
+}
+
+103
+
+}else{
+
+104
+
+for(i = 0; i < (RTC_DateStruct.RTC_Month - 1); i++){
+
+105
+
+calendarValue += DaysInMonth[i] * SecondsInDay;
+
+106
+
+}
+
+107
+
+}
+
+108
+
+109
+
+/* Days */
+
+110 calendarValue += ((uint32_t)RTC_TimeStruct.RTC_Seconds +
+
+111
+
+((uint32_t)RTC_TimeStruct.RTC_Minutes * SecondsInMinute) +
+
+112
+
+((uint32_t)RTC_TimeStruct.RTC_Hours * SecondsInHour) +
+
+113
+
+((uint32_t)(RTC_DateStruct.RTC_Date * SecondsInDay)));
+
+114
+
+115 return calendarValue;
+
+116 }
+
+117 /*---------------------------------------------------------------------------*/ 118 void rtimer_arch_schedule(rtimer_clock_t wakeup_time)
+
+119 {
+
+120 uint16_t rtcSeconds = 0;
+
+121 uint16_t rtcMinutes = 0;
+
+122 uint16_t rtcHours = 0;
+
+123 uint16_t rtcDays = 0;
+
+124
+
+125 uint8_t rtcAlarmSeconds = 0;
+
+126 uint8_t rtcAlarmMinutes = 0;
+
+127 uint8_t rtcAlarmHours = 0;
+
+128 uint16_t rtcAlarmDays = 0;
+
+129
+
+130 RTC_AlarmTypeDef RTC_AlarmStructure;
+
+131 RTC_TimeTypeDef RTC_TimeStruct;
+
+132 RTC_DateTypeDef RTC_DateStruct;
+
+133
+
+134 /* Clear Previous Alarm */ 135 RTC_ClearFlag(RTC_FLAG_ALRAF);
+
+136 RTC_AlarmCmd(RTC_Alarm_A, DISABLE);
+
+137
+
+138
+
+139 RTC_GetTime(RTC_Format_BIN, &RTC_TimeStruct);
+
+140 RTC_GetDate(RTC_Format_BIN, &RTC_DateStruct);
+
+141
+
+142 wakeup_time = wakeup_time - floor(MCU_WAKE_UP_TIME_TICKS + 0.5);
+
+//
+
+Round ticks
+
+143
+
+144 rtcSeconds = (wakeup_time % SecondsInMinute) + RTC_TimeStruct.RTC_Seconds;
+
+145 rtcMinutes = ((wakeup_time/SecondsInMinute) % SecondsInMinute) + RTC_TimeStruct.
+
+RTC_Minutes;
+
+146 rtcHours = ((wakeup_time/SecondsInHour) % HoursInDay) + RTC_TimeStruct.RTC_Hours
+
+;
+
+147 rtcDays = (wakeup_time/SecondsInDay) + RTC_DateStruct.RTC_Date;
+
+148
+
+149 rtcAlarmSeconds = (rtcSeconds) % SecondsInMinute;
+
+150 rtcAlarmMinutes = ((rtcSeconds/SecondsInMinute) + rtcMinutes) % SecondsInMinute;
+
+151 rtcAlarmHours = ((((rtcSeconds/SecondsInMinute) + rtcMinutes) /
+
+SecondsInMinute) + rtcHours) % HoursInDay;
+
+152 rtcAlarmDays = (((((rtcSeconds/SecondsInMinute) + rtcMinutes) / SecondsInMinute
+
+) + rtcHours) / HoursInDay) + rtcDays;
+
+70
+
+VRIJE UNIVERSITEIT BRUSSEL
+
+Appendix A. Porting Contiki to LoRaMote
+
+153
+
+154 if((RTC_DateStruct.RTC_Year == 0) || (RTC_DateStruct.RTC_Year % 4 == 0))
+
+155
+
+{
+
+156
+
+if(rtcAlarmDays > DaysInMonthLeapYear[RTC_DateStruct.RTC_Month-1])
+
+157
+
+{
+
+158
+
+rtcAlarmDays = rtcAlarmDays % DaysInMonthLeapYear[RTC_DateStruct.RTC_Month
+
+-1];
+
+159
+
+}
+
+160
+
+}
+
+161
+
+else
+
+162
+
+{
+
+163
+
+if(rtcAlarmDays > DaysInMonth[RTC_DateStruct.RTC_Month-1])
+
+164
+
+{
+
+165
+
+rtcAlarmDays = rtcAlarmDays % DaysInMonth[RTC_DateStruct.RTC_Month-1];
+
+166
+
+}
+
+167
+
+}
+
+168
+
+169 RTC_AlarmStructure.RTC_AlarmTime.RTC_Seconds = rtcAlarmSeconds;
+
+170 RTC_AlarmStructure.RTC_AlarmTime.RTC_Minutes = rtcAlarmMinutes;
+
+171 RTC_AlarmStructure.RTC_AlarmTime.RTC_Hours = rtcAlarmHours;
+
+172 RTC_AlarmStructure.RTC_AlarmDateWeekDay
+
+= (uint8_t)rtcAlarmDays;
+
+173 RTC_AlarmStructure.RTC_AlarmDateWeekDaySel = RTC_AlarmDateWeekDaySel_Date;
+
+174 RTC_AlarmStructure.RTC_AlarmMask
+
+= RTC_AlarmMask_None;
+
+175
+
+176 /* Enable the AlarmA */ 177 RTC_SetAlarm(RTC_Format_BIN, RTC_Alarm_A, &RTC_AlarmStructure);
+
+178 RTC_AlarmCmd(RTC_Alarm_A, ENABLE);
+
+179 }
+
+180 /*---------------------------------------------------------------------------*/
+
+A.14 Contiki main
+
+This main function ﬁle should be located at /platform/loramote/contikiloramote-main.c.
+
+1 #include "lora-contiki-interface.h"
+
+2 /*---------------------------------------------------------------------------*/ 3 SENSORS(&button_sensor,
+
+4
+
+&radio_sensor,
+
+5
+
+&temperature_sensor,
+
+6
+
+&altitude_sensor,
+
+7
+
+&pressure_sensor,
+
+8
+
+&battery_sensor);
+
+9 /*---------------------------------------------------------------------------*/
+
+10 extern unsigned char node_mac[8];
+
+11 static linkaddr_t rime_addr;
+
+12 static uip_ipaddr_t ipaddr;
+
+13 /*---------------------------------------------------------------------------*/
+
+14 static void print_processes(struct process * const processes[]); 15 static void print_device_config(void);
+
+16 static void set_rime_addr(void);
+
+17 extern bool Virtual_ComPort_IsOpen(void);
+
+18 /*---------------------------------------------------------------------------*/
+
+19 int main(int argc, char **argv)
+
+20 {
+
+21 /* Initialize hardware */
+
+22 BoardInitMcu_Contiki();
+
+23 leds_init();
+
+24 rtimer_init();
+
+25 serial_line_arch_init();
+
+26 printf("\nInitializing hardware... Done!\n");
+
+27
+
+28 /* Initialize Contiki */
+
+29 printf("Initializing Contiki... "); fflush(stdout);
+
+JELLE AERTS
+
+71
+
+Integrating Long Range Technology into the Contiki Operating System Framework
+
+30 clock_init();
+
+31 watchdog_init();
+
+32 process_init();
+
+33 process_start(&etimer_process, NULL);
+
+34 ctimer_init();
+
+35 serial_line_init();
+
+36 process_start(&sensors_process, NULL);
+
+37 printf("Done!\n");
+
+38
+
+39 /* Initialize networking */ 40 printf("Initializing network... "); fflush(stdout);
+
+41 /* Restore node id if such has been stored in external mem */ 42 #ifdef NODEID
+
+43 node_id = NODEID;
+
+44 #else/* NODE_ID */ 45 node_id_restore(); /* also configures node_mac[] */ 46 #endif /* NODE_ID */ 47 set_rime_addr();
+
+48 random_init(node_id);
+
+49 netstack_init();
+
+50 #if UIP_CONF_IPV6
+
+51 memcpy(&uip_lladdr.addr, node_mac, sizeof(uip_lladdr.addr));
+
+52 queuebuf_init();
+
+53 process_start(&tcpip_process, NULL);
+
+54 uip_ipaddr_t ipaddr;
+
+55 uip_ip6addr(&ipaddr, 0xfc00, 0, 0, 0, 0, 0, 0, 0);
+
+56 uip_ds6_set_addr_iid(&ipaddr, &uip_lladdr);
+
+57 uip_ds6_addr_add(&ipaddr, 0, ADDR_AUTOCONF);
+
+58 #endif /* UIP_CONF_IPV6 */ 59 printf("Done!\n");
+
+60
+
+61 /* Initialize energy estimation */ 62 energest_init();
+
+63 ENERGEST_ON(ENERGEST_TYPE_CPU);
+
+64
+
+65 /* Start user processes */ 66 print_device_config();
+
+67 leds_off(LEDS_ALL);
+
+68 printf("----------[ Running %s on LoRaMote ]----------\n\n",
+
+CONTIKI_VERSION_STRING);
+
+69 print_processes(autostart_processes);
+
+70 autostart_start(autostart_processes);
+
+71
+
+72 /* Start the process scheduler loop */ 73 watchdog_start();
+
+74 while(1) {
+
+75
+
+76
+
+int r;
+
+77
+
+do {
+
+78
+
+watchdog_periodic();
+
+// Reset watchdog
+
+79
+
+r = process_run();
+
+80
+
+} while(r > 0);
+
+81
+
+82
+
+/* Avoid LPM when a device is connected to serial I/O */
+
+83
+
+if(process_nevents() == 0 && !Virtual_ComPort_IsOpen()){
+
+84
+
+ENERGEST_OFF(ENERGEST_TYPE_CPU);
+
+85
+
+ENERGEST_ON(ENERGEST_TYPE_LPM);
+
+86
+
+watchdog_stop();
+
+87
+
+lpm_enter_stopmode();
+
+// Enter LPM: Stop mode with RTC
+
+88
+
+watchdog_start();
+
+89
+
+ENERGEST_OFF(ENERGEST_TYPE_LPM);
+
+90
+
+ENERGEST_ON(ENERGEST_TYPE_CPU);
+
+91
+
+}
+
+92
+
+93
+
+}
+
+94
+
+95 return 0;
+
+96 }
+
+97 /*---------------------------------------------------------------------------*/
+
+72
+
+VRIJE UNIVERSITEIT BRUSSEL
+
+Appendix A. Porting Contiki to LoRaMote
+
+98 static void print_processes(struct process * const processes[]) 99 {
+
+100 /* const struct process * const * p = processes; */ 101 printf("Starting");
+
+102 while(*processes != NULL) {
+
+103
+
+printf(" ’%s’", (*processes)->name);
+
+104
+
+processes++;
+
+105
+
+}
+
+106 printf("\n");
+
+107 }
+
+108 /*---------------------------------------------------------------------------*/ 109 static void print_device_config(void)
+
+110 {
+
+111
+
+int i;
+
+112 uint8_t longaddr[8];
+
+113 uint16_t shortaddr;
+
+114
+
+115 printf("Rime started with address ");
+
+116 for(i = 0; i < sizeof(rime_addr.u8) - 1; i++) {
+
+117
+
+printf("%d.", rime_addr.u8[i]);
+
+118
+
+}
+
+119 printf("%d\n", rime_addr.u8[i]);
+
+120
+
+121 shortaddr = (linkaddr_node_addr.u8[0] << 8) + linkaddr_node_addr.u8[1];
+
+122 memset(longaddr, 0, sizeof(longaddr));
+
+123 linkaddr_copy((linkaddr_t *)&longaddr, &linkaddr_node_addr); 124 printf("MAC %02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x ",
+
+125
+
+longaddr[0], longaddr[1], longaddr[2], longaddr[3],
+
+126
+
+longaddr[4], longaddr[5], longaddr[6], longaddr[7]);
+
+127
+
+128 if(node_id) {
+
+129
+
+printf("Node id is set to %u\n", node_id);
+
+130
+
+}else{
+
+131
+
+printf("Node id not set.\n");
+
+132
+
+}
+
+133
+
+134 printf("%s, %s, radio frequency %iMHz\n",
+
+135
+
+NETSTACK_MAC.name, NETSTACK_RDC.name, RF_FREQUENCY/1000000);
+
+136
+
+137 #if UIP_CONF_IPV6
+
+138 printf("Tentative link-local IPv6 address ");
+
+139
+
+{
+
+140
+
+uip_ds6_addr_t *lladdr;
+
+141
+
+int i;
+
+142
+
+lladdr = uip_ds6_get_link_local(-1);
+
+143
+
+for(i = 0; i < 7; ++i) {
+
+144
+
+printf("%02x%02x:", lladdr->ipaddr.u8[i * 2], lladdr->ipaddr.u8[i * 2 + 1]);
+
+145
+
+}
+
+146
+
+printf("%02x%02x\n", lladdr->ipaddr.u8[14], lladdr->ipaddr.u8[15]);
+
+147
+
+}
+
+148
+
+149 if(!UIP_CONF_IPV6_RPL) {
+
+150
+
+printf("Tentative global IPv6 address ");
+
+151
+
+for(i = 0; i < 7; ++i) {
+
+152
+
+printf("%02x%02x:", ipaddr.u8[i * 2], ipaddr.u8[i * 2 + 1]);
+
+153
+
+}
+
+154
+
+printf("%02x%02x\n", ipaddr.u8[7 * 2], ipaddr.u8[7 * 2 + 1]);
+
+155
+
+}
+
+156 #endif /* UIP_CONF_IPV6 */ 157 }
+
+158 /*---------------------------------------------------------------------------*/ 159 static void set_rime_addr(void)
+
+160 {
+
+161 memset(&rime_addr, 0, sizeof(linkaddr_t));
+
+162 #if UIP_CONF_IPV6
+
+163 memcpy(rime_addr.u8, node_mac, sizeof(rime_addr.u8));
+
+164 #else
+
+165 if(node_id == 0) {
+
+166
+
+for(int i = 0; i < sizeof(linkaddr_t); ++i) {
+
+JELLE AERTS
+
+73
+
+Integrating Long Range Technology into the Contiki Operating System Framework
+
+167
+
+rime_addr.u8[i] = node_mac[7 - i];
+
+168
+
+}
+
+169
+
+} else {
+
+170
+
+rime_addr.u8[0] = node_id & 0xff;
+
+171
+
+rime_addr.u8[1] = node_id >> 8;
+
+172
+
+}
+
+173 #endif /* UIP_CONF_IPV6 */
+
+174 linkaddr_set_node_addr(&rime_addr);
+
+175 }
+
+176 /*---------------------------------------------------------------------------*/
+
+A.15 OpenOCD conﬁguration ﬁle
+This conﬁguration ﬁle is to be placed at /tools/loramote/loramote.cfg.
+1 # This is the OpenOCD config file for a LoRaMote Demo board with a single STM32L151C8 chip
+2 source [find interface/stlink-v2.cfg] 3 transport select hla_swd 4 set WORKAREASIZE 0x4000 5 source [find target/stm32l1.cfg]
+6
+7 # Use hardware reset, connect under reset 8 reset_config srst_only
+9
+10 # Print stdout to console (GDB commands) 11 init 12 arm semihosting enable
+
+A.16 CPU Makeﬁle
+
+This make should be located at /cpu/arm/stm32l1/Makefile.stm32l151.
+
+1 # Makefile for the STM32L151C8 Cortex M3 medium-density microcontroller
+
+2
+
+3 .SUFFIXES:
+
+4
+
+5
+
+6 # CPU folder
+
+7 CONTIKI_CPU = $(CONTIKI)/cpu/arm/stm32l1
+
+8
+
+9 # Source folders for Contiki CPU files, ARM CMSIS and STM32L1 libraries
+
+10 CONTIKI_CPU_DIRS = . \
+
+11
+
+../common/CMSIS
+
+\
+
+12
+
+$(CONTIKI_MCU_DIRS)
+
+13
+
+14 # Source files: proprietary sources for startup. Refer to CMSIS docs.
+
+15 PROP_SYS_ARCH_C = system_stm32l1xx.c
+
+16 PROP_SYS_ARCH_S = startup_stm32l1xx_md.s
+
+17
+
+18
+
+19 ifndef IAR
+
+20 GCC = 1
+
+21 endif
+
+22
+
+23
+
+24 # Source files: Contiki arch source files
+
+25 CONTIKI_CPU_ARCH = \
+
+26
+
+clock.c
+
+\
+
+74
+
+VRIJE UNIVERSITEIT BRUSSEL
+
+Appendix A. Porting Contiki to LoRaMote
+
+27
+
+watchdog.c
+
+\
+
+28
+
+lpm-arch.c
+
+\
+
+29
+
+rtimer-arch.c
+
+\
+
+30
+
+rtc-arch.c
+
+\
+
+31
+
+uart-arch.c
+
+32
+
+33 ifdef GCC
+
+34 CONTIKI_CPU_PORT = syscalls.c
+
+35 STM32_TOOLS ?= $(CONTIKI)/tools/stm32
+
+36 GCC_BINS ?= $(STM32_TOOLS)/gcc-arm-none-eabi/bin
+
+37 else
+
+38 CONTIKI_CPU_PORT =
+
+39 endif
+
+40
+
+41 UIPDRIVERS = uip-arch.c
+
+42
+
+43 # To be implemented
+
+44 ELFLOADER =
+
+45
+
+46 # Source files: STM32L1 libraries
+
+47 CONTIKI_MCU_DIRS = \
+
+48
+
+STM32L1xx_StdPeriph_Driver/inc
+
+\
+
+49
+
+STM32L1xx_StdPeriph_Driver/src
+
+\
+
+50
+
+../../stm32_common/
+
+\
+
+51
+
+../../stm32_common/STM32_USB-FS-Device_Driver/inc
+
+\
+
+52
+
+../../stm32_common/STM32_USB-FS-Device_Driver/src
+
+53
+
+54 FULL_MCU_DIRS = ${wildcard ${addprefix $(CONTIKI_CPU)/, $(CONTIKI_MCU_DIRS)}}
+
+55 CONTIKI_MCU_SOURCEFILES = ${foreach d, $(FULL_MCU_DIRS), ${subst ${d}/,,${wildcard
+
+$(d)/*.c}}}
+
+56
+
+57
+
+58 # Add CPU folder to search path for .s (assembler) files
+
+59 ifdef GCC
+
+60 vpath %.s $(CONTIKI_CPU)/arm-gcc
+
+61 else
+
+62 vpath %.s $(CONTIKI_CPU)/arm-std
+
+63 endif
+
+64
+
+65 # Include all files above
+
+66 ssubst = ${patsubst %.s,%.o,${patsubst %.s79,%.o,$(1)}}
+
+67 CONTIKI_SOURCEFILES += $(PROP_SYS_ARCH_C) $(CONTIKI_CPU_ARCH) $(CONTIKI_CPU_PORT)
+
+$(ELFLOADER) $(UIPDRIVERS) $(CONTIKI_MCU_SOURCEFILES)
+
+68 PROJECT_OBJECTFILES += ${addprefix $(OBJECTDIR)/,$(CONTIKI_TARGET_MAIN:.c=.o)}
+
+69 PROJECT_OBJECTFILES += ${addprefix $(OBJECTDIR)/,${call ssubst, $(PROP_SYS_ARCH_S)
+
+}}
+
+70 #CONTIKI_OBJECTFILES += ${addprefix $(OBJECTDIR)/,${call ssubst, $(PROP_SYS_ARCH_S
+
+)}}
+
+71
+
+72
+
+73 # Defines common for IAR and GCC ------------------------------------------------
+
+74
+
+75 # Set CPU speed in Hz, NB this might have unexpected side-effects if not at 32
+
+76 # Mhz as it is not immediately clear how specialized the startup code etc is.
+
+77 # That being said, setting to 24MHz seems to work fine, looking at Contiki clocks
+
+78 # at least.
+
+79 F_CPU = 32000000
+
+80
+
+81 CFLAGS += \
+
+82
+
+-DHSE_VALUE=$(F_CPU)ul
+
+\
+
+83
+
+-DUSE_STDPERIPH_DRIVER
+
+\
+
+84
+
+-DSTM32L1XX_MD
+
+\
+
+85
+
+-DIAR_ARM_CM3
+
+86
+
+87
+
+88 # IAR ---------------------------------------------------------------------------
+
+89
+
+90 # GCC ---------------------------------------------------------------------------
+
+91
+
+JELLE AERTS
+
+75
+
+Integrating Long Range Technology into the Contiki Operating System Framework
+
+92 ### Compiler definitions
+
+93 GCC
+
+=1
+
+94 CC
+
+= $(GCC_BINS)/arm-none-eabi-gcc
+
+95 #LD
+
+= $(GCC_BINS)/arm-none-eabi-ld
+
+96 LD
+
+= $(GCC_BINS)/arm-none-eabi-gcc
+
+97 SIZE = $(GCC_BINS)/arm-none-eabi-size
+
+98 AS
+
+= $(GCC_BINS)/arm-none-eabi-as
+
+99 AR
+
+= $(GCC_BINS)/arm-none-eabi-ar
+
+100 NM
+
+= $(GCC_BINS)/arm-none-eabi-nm
+
+101 OBJCOPY = $(GCC_BINS)/arm-none-eabi-objcopy
+
+102 STRIP = $(GCC_BINS)/arm-none-eabi-strip
+
+103 GDB
+
+= $(GCC_BINS)/arm-none-eabi-gdb
+
+104
+
+105 ASFLAGS += -mcpu=cortex-m3 -mthumb
+
+106
+
+107 # This platform wields a STM32L151C8 medium-density device
+
+108 CFLAGS += -DSTM32L1XX_MD=1
+
+109
+
+110 CFLAGS += \
+
+111
+
+-I.
+
+\
+
+112
+
+-I$(CONTIKI)/core
+
+\
+
+113
+
+-I$(CONTIKI_CPU)
+
+\
+
+114
+
+-I$(CONTIKI)/platform/$(TARGET)
+
+\
+
+115
+
+${addprefix -I,$(APPDIRS)}
+
+\
+
+116
+
+${addprefix -I,$(CONTIKI_CPU_DIRS)}
+
+\
+
+117
+
+-Wall -g -g2
+
+\
+
+118
+
+-DWITH_UIP -DWITH_ASCII
+
+\
+
+119
+
+-mcpu=cortex-m3
+
+\
+
+120
+
+-mthumb
+
+\
+
+121
+
+-mfix-cortex-m3-ldrd
+
+\
+
+122
+
+-std=gnu99
+
+\
+
+123
+
+-Wno-strict-aliasing
+
+\
+
+124
+
+-Wno-pointer-sign
+
+\
+
+125
+
+-Wno-unused-function
+
+\
+
+126
+
+-Wno-unused-variable
+
+\
+
+127
+
+-Wno-unused-but-set-variable
+
+128
+
+129 LDFLAGS += \
+
+130
+
+-L$(CONTIKI_CPU)/arm-gcc
+
+\
+
+131
+
+-T$(LDSCRIPT)
+
+\
+
+132
+
+-mcpu=cortex-m3
+
+\
+
+133
+
+-mthumb
+
+\
+
+134
+
+-mfloat-abi=soft
+
+\
+
+135
+
+-nostartfiles
+
+\
+
+136
+
+--specs=nosys.specs
+
+\
+
+137
+
+-Wl,-Map=$(OBJECTDIR)/contiki-$(TARGET).map,--cref
+
+\
+
+138
+
+$(LDLIBS)
+
+139
+
+140 LDLIBS = -lc -lm
+
+141
+
+142 ifeq ($(strip $(REDIRECT_STDIO)),1)
+
+143 CFLAGS += -DREDIRECT_STDIO
+
+144 else #REDIRECT_STDIO
+
+145 LDFLAGS += --specs=rdimon.specs
+
+146 LDLIBS += -lrdimon
+
+147 endif #REDIRECT_STDIO
+
+148
+
+149 ifeq ($(strip $(SMALL)),1)
+
+150 CFLAGS += -Os -ffunction-sections -fdata-sections
+
+151 LDFLAGS += -Wl,--gc-sections --specs=nano.specs
+
+152 LDFLAGS += -Wl,--undefined=_reset_vector__,--undefined=InterruptVectors,--
+
+undefined=_copy_data_init__,--undefined=_clear_bss_init__,--undefined=
+
+_end_of_init__
+
+153 endif #SMALL
+
+154
+
+155
+
+156 # Build rules ------------------------------------------------------------------
+
+157 CUSTOM_RULE_C_TO_OBJECTDIR_O=yes
+
+158 CUSTOM_RULE_C_TO_CE=yes
+
+76
+
+VRIJE UNIVERSITEIT BRUSSEL
+
+Appendix A. Porting Contiki to LoRaMote
+
+159 CUSTOM_RULE_C_TO_CO=yes
+
+160 CUSTOM_RULE_C_TO_O=yes
+
+161 CUSTOM_RULE_S_TO_OBJECTDIR_O=yes
+
+162 CUSTOM_RULE_LINK=yes
+
+163
+
+164 %.o: %.c
+
+165
+
+$(TRACE_CC)
+
+166
+
+$(Q)$(CC) $(CFLAGS) -c $< -o $@
+
+167
+
+168 %.o: %.s
+
+169
+
+$(TRACE_AS)
+
+170
+
+$(Q)$(AS) $(ASFLAGS) -c $< -o $@\
+
+171
+
+172 define FINALIZE_CYGWIN_DEPENDENCY
+
+173 sed -e ’s/ \([A-Z]\):\\/ \/cygdrive\/\L\1\//’ -e ’s/\\\([^ ]\)/\/\1/g’ \
+
+174
+
+<$(@:.o=.P) >$(@:.o=.d); \
+
+175 rm -f $(@:.o=.P)
+
+176 endef
+
+177
+
+178 $(OBJECTDIR)/%.o: %.c | $(OBJECTDIR)
+
+179
+
+$(TRACE_CC)
+
+180
+
+$(Q)$(CC) $(CFLAGS) -c $< -o $@
+
+181
+
+182 $(OBJECTDIR)/%.o: %.s | $(OBJECTDIR)
+
+183
+
+$(TRACE_AS)
+
+184
+
+$(Q)$(AS) $(ASFLAGS) $< -o $@
+
+185
+
+186 %.co: %.c
+
+187
+
+$(TRACE_CC)
+
+188
+
+$(Q)$(CC) $(CFLAGS) -c -DAUTOSTART_ENABLE -c $< -o $@
+
+189
+
+190 %.ce: %.o
+
+191
+
+$(TRACE_LD)
+
+192
+
+$(Q)$(LD) $(LDFLAGS) --relocatable -T $(CONTIKI_CPU)/merge-rodata.ld $< -o
+
+$@ $(LDLIBS)
+
+193
+
+$(STRIP) -K _init -K _fini --strip-unneeded -g -x $@
+
+194
+
+195 %-stripped.o: %.c
+
+196
+
+$(TRACE_CC)
+
+197
+
+$(Q)$(CC) $(CFLAGS) -c $< -o $@
+
+198
+
+$(STRIP) --strip $@
+
+199
+
+200 %-stripped.o: %.o
+
+201
+
+$(STRIP) --strip $@ $<
+
+202
+
+203 %.o: ${CONTIKI_TARGET}/loader/%.S
+
+204
+
+$(TRACE_AS)
+
+205
+
+$(Q)$(AS) -o $(notdir $(<:.S=.o)) $<
+
+206
+
+207 ifdef IAR
+
+208 %.$(TARGET): %.co $(PROJECT_OBJECTFILES) contiki-$(TARGET).a $(STARTUPFOLDER) #
+
+$(OBJECTDIR)/empty-symbols.o
+
+209
+
+$(TRACE_LD)
+
+210
+
+$(Q)$(LD) $(LDFLAGS) -o $@ $(filter-out %.a,$^) $(filter %.a,$^) $(LDLIBS)
+
+211 else
+
+212 CONTIKI_CPU_OBJS=$(CONTIKI_CPU_PORT:%.c=$(OBJECTDIR)/%.o)
+
+213 %.$(TARGET): %.co $(PROJECT_OBJECTFILES) $(PROJECT_LIBRARIES) contiki-$(TARGET).
+
+a $(OBJECTDIR)/symbols.o
+
+214
+
+$(TRACE_LD)
+
+215
+
+$(Q)$(LD) $(LDFLAGS) $(TARGET_STARTFILES) ${filter-out %.a,$^} -Wl,-\( ${
+
+filter %.a,$^} $(TARGET_LIBFILES) -Wl,-\) $(CONTIKI_CPU_OBJS) -o $@ $(LDLIBS)
+
+216
+
+@echo >> $(OBJECTDIR)/contiki-$(TARGET).map
+
+217
+
+$(Q)$(SIZE) $(SIZEFLAGS) $@ >> $(OBJECTDIR)/contiki-$(TARGET).map
+
+218 endif
+
+219
+
+220 %.ihex: %.$(TARGET)
+
+221
+
+$(Q)$(OBJCOPY) -O ihex $^ $@
+
+222
+
+223 %.hex: %.ihex
+
+JELLE AERTS
+
+77
+
+Integrating Long Range Technology into the Contiki Operating System Framework
+
+224
+
+#@rm $*.hex
+
+225
+
+@mv -f $*.ihex $*.hex
+
+226
+
+227 %.bin: %.$(TARGET)
+
+228
+
+$(Q)$(OBJCOPY) -O binary $^ $@
+
+229
+
+230 .PHONY: symbols.c
+
+231
+
+232 symbols.c:
+
+233
+
+$(Q)cp ${CONTIKI}/tools/empty-symbols.c symbols.c
+
+234
+
+$(Q)cp ${CONTIKI}/tools/empty-symbols.h symbols.h
+
+235
+
+236 # Don’t use core/loader/elfloader.c, use elfloader-otf.c instead
+
+237 $(OBJECTDIR)/elfloader.o:
+
+238
+
+echo -n >$@
+
+A.17 Platform Makeﬁle
+
+The LoRaMote platform makeﬁle should be located at /platform/loramote/ Makefile.loramote.
+
+1 # User settings -----------------------------------------------------------
+
+2
+
+3 VERBOSE = 0
+
+# Verbosity control
+
+4 SMALL = 1
+
+# Create small binaries
+
+5 REDIRECT_STDIO ?= 1
+
+# Redirect standard I/O to USART/USB
+
+6 USER_CFLAGS +=
+
+7
+
+8
+
+9 # Target settings -----------------------------------------------------------
+
+10
+
+11 STM32_TOOLS = $(CONTIKI)/tools/stm32
+
+12 LORA_TOOLS = $(CONTIKI)/tools/loramote
+
+13 STLINK = $(STM32_TOOLS)/stlink
+
+14 DFU_UTIL = $(STM32_TOOLS)/dfu-util
+
+15 OPENOCD = $(STM32_TOOLS)/openocd
+
+16 SERIALDUMP = $(STM32_TOOLS)/serialdump
+
+17
+
+18
+
+19 CONTIKIVERSIONX:=${shell git --git-dir ${CONTIKI}/.git describe --tags --always}
+
+20 ifneq ($(findstring 3.,$(CONTIKIVERSIONX)),)
+
+21 CONTIKI3 = 1
+
+22 CFLAGS += -DCONTIKI3=1
+
+23 endif
+
+24
+
+25 ifeq ($(strip $(VERBOSE)),1)
+
+26
+
+V ?= 1
+
+27 endif
+
+28
+
+29 ifneq ($(strip $(CONTIKI_WITH_RIME)),1)
+
+30 UIP_CONF_IPV6 = 1
+
+31 CONTIKI_WITH_IPV6 = 1
+
+32 CFLAGS += -DWITH_UIP6=1 -DUIP_CONF_IPV6=1
+
+33 endif
+
+34
+
+35 CFLAGS += -DUSE_DEBUGGER -DUSE_NO_TIMER -DLOW_POWER_MODE_ENABLE -DUSE_BAND_868 -
+
+DUSE_MODEM_LORA -DUSE_USB_CDC $(USER_CFLAGS)
+
+36
+
+37 MODULES += core/net core/net/mac core/net/mac/contikimac
+
+38
+
+39 ifdef CONTIKI3
+
+40 MODULES += core/net/llsec
+
+41 else
+
+42 MODULES += core/net/ip core/net/ipv6 core/net/rime core/net/rpl
+
+78
+
+VRIJE UNIVERSITEIT BRUSSEL
+
+Appendix A. Porting Contiki to LoRaMote
+
+43 endif
+
+44
+
+45 CONTIKI_TARGET_DIRS = . apps dev LoRaMac net \
+
+46
+
+LoRaMac/board LoRaMac/mac LoRaMac/peripherals LoRaMac/
+
+system LoRaMac/system/crypto \
+
+47
+
+LoRaMac/board/usb/cdc/inc LoRaMac/board/usb/cdc/src \
+
+48
+
+LoRaMac/radio LoRaMac/radio/sx1272
+
+49
+
+50 CONTIKI_TARGET_MAIN = contiki-loramote-main.c
+
+51
+
+52 FULL_TARGET_DIRS = ${wildcard ${addprefix $(CONTIKI)/platform/loramote/, $(
+
+CONTIKI_TARGET_DIRS)}}
+
+53 CONTIKI_TARGET_SOURCEFILES = altitude-sensor.c battery-sensor.c button-sensor.c
+
+leds-arch.c lora-contiki-interface.c pressure-sensor.c radio-sensor.c serial-
+
+line-arch.c slip-arch.c temperature-sensor.c \
+
+54
+
+adc-board.c board.c gpio-board.c i2c-board.c spi-
+
+board.c rtc-board.c sx1272-board.c timer-board.c uart-board.c uart-usb-board.c
+
+usb-cdc-board.c \
+
+55
+
+usb_desc.c usb_endp.c usb_istr.c usb_prop.c
+
+usb_pwr.c \
+
+56
+
+gpio-ioe.c mpl3115.c sx1509.c sx9500.c \
+
+57
+
+adc.c fifo.c gpio.c i2c.c loratimer.c uart.c \
+
+58
+
+sx1272.c lora-radio-arch.c
+
+59 #CONTIKI_TARGET_SOURCEFILES = ${foreach d, $(FULL_TARGET_DIRS), ${subst ${d}/,,${
+
+wildcard $(d)/*.c}}}
+
+60
+
+61 include $(CONTIKI)/cpu/arm/stm32l1/Makefile.stm32l151
+
+62 CONTIKI_SOURCEFILES += node-id.c $(CONTIKI_TARGET_SOURCEFILES)
+
+63
+
+64
+
+65 ifndef MOTELIST
+
+66 USBDEVPREFIX =
+
+67 MOTELIST = $(LORA_TOOLS)/motelist-lora
+
+68 MOTES = $(shell $(MOTELIST) -c 2>&- | \
+
+69
+
+cut -f 2 -d , | \
+
+70
+
+perl -ne ’print $$1 . " " if(m-(/dev/\w+)-);’)
+
+71 CMOTES = $(MOTES)
+
+72 endif
+
+73
+
+74
+
+75
+
+76 # Build rules -----------------------------------------------------------
+
+77
+
+78 CLEAN += *.loramote symbols.c symbols.h
+
+79
+
+80
+
+81 # Show connected motes
+
+82 motelist:
+
+83
+
+$(Q)$(MOTELIST)
+
+84
+
+85 motes:
+
+86
+
+@echo $(CMOTES)
+
+87
+
+88
+
+89 # Compile flashable binary
+
+90 flash-init:
+
+91
+
+$(Q)[ -f latest_build_dfu~ ] && rm -f ./obj_loramote/lora-contiki-
+
+interface.o || :
+
+# Make sure that the previously built DFU object is not
+
+used
+
+92
+
+$(Q)rm latest_build_dfu~ -f
+
+93
+
+$(Q)touch latest_build_flash~
+
+94
+
+95 %.flash: LDSCRIPT = stm32l1xx_md_flash.ld
+
+96 %.flash: | flash-init %.bin
+
+97
+
+$(Q)mv $(@:.flash=.$(TARGET)) $(@:.flash=.flash.$(TARGET))
+
+98
+
+$(Q)cp $(@:.flash=.bin) $(@:.flash=.flash.bin)
+
+99
+
+$(Q)$(MAKE) flash $(@:.flash=.flash.bin)
+
+100
+
+101
+
+JELLE AERTS
+
+79
+
+Integrating Long Range Technology into the Contiki Operating System Framework
+
+102 # Compile DFU-uploadable binary
+
+103 upload-init:
+
+104
+
+$(Q)[ -f latest_build_flash~ ] && rm -f ./obj_loramote/lora-contiki-
+
+interface.o || : # Make sure that the previously built flash object is not
+
+used
+
+105
+
+$(Q)rm latest_build_flash~ -f
+
+106
+
+$(Q)touch latest_build_dfu~
+
+107
+
+108 %.upload: LDSCRIPT = stm32l1xx_md_flash_offset.ld
+
+109 %.upload: CFLAGS += -DUSE_BOOTLOADER
+
+110 %.upload: | upload-init %.bin
+
+111
+
+$(Q)mv $(@:.upload=.$(TARGET)) $(@:.upload=.dfu.$(TARGET))
+
+112
+
+$(Q)cp $(@:.upload=.bin) $(@:.upload=.dfu.bin)
+
+113
+
+$(Q)$(MAKE) upload $(@:.upload=.dfu.bin)
+
+114
+
+115
+
+116 # Erase flash memory
+
+117 erase-flash:
+
+118
+
+$(Q)$(STLINK)/st-flash erase
+
+119
+
+120 # Install bootloader
+
+121 install-bootloader:
+
+122
+
+$(Q)$(MAKE) erase-flash
+
+123
+
+$(Q)$(STLINK)/st-flash --reset write $(LORA_TOOLS)/loramote-bootloader/
+
+loramote_bootloader.bin 0x8000000
+
+124
+
+125 # Flash executable code to loramote
+
+126 flash:
+
+127
+
+$(Q)$(STLINK)/st-flash --reset write $(filter $(wildcard *.flash.bin),$(
+
+MAKECMDGOALS)) 0x8000000
+
+128
+
+129 # Flash executable code to loramote, when a bootloader is present
+
+130 bootloader-flash:
+
+131
+
+$(Q)$(STLINK)/st-flash --reset write $(filter $(wildcard *.dfu.bin),$(
+
+MAKECMDGOALS)) 0x8003000
+
+132
+
+133 # Upload executable code to loramote
+
+134 upload:
+
+135
+
+$(Q)$(DFU_UTIL)/src/dfu-suffix --add $(filter $(wildcard *.dfu.bin),$(
+
+MAKECMDGOALS)) --pid df11 --vid 0483 > /dev/null
+
+136
+
+$(Q)$(DFU_UTIL)/src/dfu-util --device 0483:df11 --dfuse-address 0x8003000:
+
+leave --download $(filter $(wildcard *.dfu.bin),$(MAKECMDGOALS))
+
+137
+
+138
+
+139 # Start serialview to show output
+
+140 ifdef MOTE
+
+141 serialview:
+
+142
+
+$(Q)sleep .5
+
+143
+
+$(Q)$(SERIALDUMP)/serialdump-linux -b115200 $(USBDEVPREFIX)$(MOTE) | $(
+
+CONTIKI)/tools/timestamp
+
+144 else
+
+145 serialview:
+
+146 ifeq ($(strip $(CMOTES)),)
+
+147
+
+$(Q)$(MAKE) --no-print-directory serialview
+
+148 endif
+
+149
+
+$(Q)$(SERIALDUMP)/serialdump-linux -b115200 $(USBDEVPREFIX)$(firstword $(
+
+CMOTES)) | $(CONTIKI)/tools/timestamp
+
+150 endif
+
+151
+
+152 # Start openocd to debug
+
+153 openocd:
+
+154
+
+@echo "REMARK: Set the REDIRECT_STDIO variable in the makefile’s user
+
+settings section to 0 and rebuild the project before using the OpenOCD
+
+debugger!"
+
+155
+
+$(Q)($(GDB) -ex ’target extended-remote localhost:3333’ -ex ’monitor reset
+
+halt’ -ex ’continue’ -ex ’quit’ &) # Merge output of both commands to same
+
+CLI window
+
+156
+
+$(Q)$(OPENOCD)/src/openocd -f $(LORA_TOOLS)/loramote.cfg -s $(OPENOCD)/tcl
+
+80
+
+VRIJE UNIVERSITEIT BRUSSEL
+

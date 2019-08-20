@@ -1,0 +1,171 @@
+Linux Wi-Fi open source drivers -mac80211, ath9k/ath5k-
+Daniel Camps Mur
+
+1. General Driver Overview
+hostapd wpa_supplicant
+
+1. Transmission Path: kernelmac80211ath9k
+
+Kernel hands the packet to the virtual interface
+ieee80211_subif_start_xmit (tx.c): -Adds the 802.11 header. -Initializes transmission time in devtrans_start
+
+ieee80211_xmit (tx.c): -Makes headroom for encryption
+
+ieee80211_set_qos_header (wme.c): -Sets TID in Wi-Fi header according to skbpriority
+ieee80211_tx (tx.c): -Obtains the proper transmission queue. -Prepares transmission -If the packet can not be transmitted, it is queued  timestamp queue entry. -Queues are maintained per sub-interface, in the structure qdata[4] in ieee80211_sub_if_data -Calls drv_tx() to pass the frame to the actual driver for transmission
+drv_tx() (driver-ops.h): -This is the entry point to the actual driver! -It is called for each packet to be transmitted. -Receives struct ieee80211_local -Receives the sk_buff (the data)
+
+struct ieee80211_local: -This struct contains information about the real hardware, and is created when the interface is first added (ieee80211_register_hw() in main.c) - This data structure is created from the structure ieee80211_hw in mac80211.h -This data structure probably allows the hardware driver to register with mac80211 the proper function to be called by drv_tx(). - The driver and mac80211 communicate through this structure.
+skb_get_queue_mapping (?.c):
+ieee80211_tx_prepare (tx.c):
+invoke_tx_handlers(tx.c): -In an AP checks if the data has to be to be buffered -Many other stuff …
+struct qdata(ieee80211_i.h): -enqueued -max_enqueued -ewma tserv_ns_avg (can this be useful?)
+
+1a. Transmission Path: ath9khardware
+
+drv_tx() in mac80211
+ath9k_tx() (main.c): -Loads details of the hardware in struct ath_softc. -Updates the PM bit (not set by mac80211). -Wakes up hardware if it was sleeping. -Uses data struct ath_tx_control to track the status of the transmission -Starts transmission in ath_tx_start()
+ath_tx_start() (xmit.c): -Receives a pointer to an struct ath_tx_control containing a pointer to the queue that contains the frame? -If the destination is HT capable tries aggregation.
+
+-The ath9k driver registers the functions to interface with mac80211 in struct ieee80211_ops ath9k_ops. The input of this struct is then loaded in mac80211 using the function ieee80211_alloc_hw() in main.c of mac80211. - The function interfacing with drv_tx() is ath9k_tx() -The common data also contains other info like the number of hw queues
+
+ath9k_ps_wakeup() (x.c):
+struct ath_softc (ath9k.h): struct ieee80211_hw *hw; struct device *dev; bool ps_enabled; struct ath_config config; struct ath_rx rx; struct ath_tx tx; struct ath_beacon beacon;
+
+struct ath_tx (ath9k.h): struct ath_txq txq[ATH9K_NUM_TX_QUEUES]; struct ath_txq *txq_map[WME_NUM_AC]; -Contains the hw transmission queues. Ath9k has 10 hw tx queues. -Points to the mac80211 tx queues
+struct ath_txq(ath9k.h): -Contains the equivalent mac80211 queue -Contains the hw queue number -Actual queue.
+
+ath_tx_send_ampdu() (xmit.c):
+
+ath_tx_send_normal() (xmit.c): -Receives as argument a txq -Selects the data rate -Adds the data to be transmitted in the txq ath_tx_txqaddbuf
+
+ath_tx_txqaddbuf() (xmit.c): -Receives as parameter a txq, then inserts the frame into the outbound list, and sends it out to the hardware. The hardware physical queues seem to support only 8 frames! -If the packet can not be inserted in the physical queue then it is held here.
+
+ath9k_hw_txstart() (mac.c): -Writes the proper register in the hardware to trigger the transmission in a given queue. -The hardware is the one performing the CSMA-CA according to the configured parameters on that queue.
+
+1b. Transmission Path: ath5khardware
+
+drv_tx() in mac80211
+
+-The ath5k driver registers the functions to interface with mac80211 in struct ieee80211_ops ath5k_hw_ops in mac80211-ops.c. The input of this struct is then loaded in mac80211 using the function ieee80211_alloc_hw() in main.c of mac80211. - The function interfacing with drv_tx() is ath5k_tx() in mac80211-ops.c
+
+ath5k_tx() in mac80211-ops.c -Receives the skb to be transmitted. -Finds the appropriate hw queue for that skb
+
+ath5k_tasklet_tx() in base.c -Tasklet that is called when the following interrupts happen: AR5K_INT_TXOK, AR5K_INT_TXDESC, AR5K_INT_TXERR, AR5K_INT_TXEOL
+
+ath5k_tx_queue() in base.c -If the queue is already at its maximum size (max is 50 pkts) it sends a signal back to mac80211 so that this stops his queues (ieee80211_stop_queue). It also may drop the packet -Copies the data to be transmitted in the txqueues. struct ath5k_buf represents a single queued frame (buffer).
+
+ath5k_tx_processq() in base.c
+
+ieee80211_stop_queue() in ?
+
+ath5k_tx_frame_completed() in base.c -Check a timestamp here ?
+
+ath5k_txbuf_setup() in base.c -Obtains data rate for this transmission -Prepare for transmission
+ath5k_hw_start_tx_dma() in dma.c -Starts a transmission in the hw. -My understanding is that the hw may already be trying to transmit other frames that were previously submitted.
+AR5K_REG_WRITE_Q() in dma.c -Writes a certain register in the hw, so that the transmission on a certain queue starts
+
+ah_setup_tx_desc() in desc.c ath5k_hw_setup_mrr_tx_desc() in desc.c
+
+Ieee80211_tx_status() iin mac80211
+
+1a. Reception Path: hardwareath9k
+
+When receiving a packet, and also for other reasons, the hardware sends an interruption that ath9k has previously registered. The function in charge of handling the interruption seems to be irqreturn_t ath_isr in main.c. This function discovers the type of interruption and asks the kernel to schedule the execution of a tasklet, ath9k_tasklet in main.c. This function in turn calls the the receive tasklet ath_rx_tasklet()
+ath_rx_tasklet (recv.c) -Obtains the frame header -Obtains the current tsf value -Records info about received packet in struct ieee80211_rx_status -Insert received data in the receive buffer -Creates a new skb to contain the received data -Passes the skb to ieee80211_rx() -Can we compute the airtime duration of the received frame in this function, as “airtime = tsf - rxs->mactime” ?
+
+struct ieee80211_hdr (include/linux/ieee80211.h)
+struct ieee80211_rx_status (mac80211.h) u64 mactime : value in microseconds of the 64-bit Time Synchronization Function (TSF) timer when the first data symbol (MPDU) arrived at the hardware. enum ieee80211_band band; int rate_idx; unsigned int rx_flags; …
+ath9k_rx_skb_preprocess (recv.c) -Checks if the received data has CRC errors and in that case drops it. However, crypto errors are still passed up to mac80211 -Populates ath_rx_status
+ath9k_rx_skb_postprocess (recv.c) -Remove padding from the received header
+
+struct ath_rx_status (mac.h) u32 rs_tstamp; This is given by the hardware and eventually carried on to mactime in ieee80211_rx_status u16 rs_datalen; u8 rs_status; u8 rs_phyerr; int8_t rs_rssi; u8 rs_keyix; u8 rs_rate; u8 rs_antenna; …
+
+ieee80211_rx() (mac80211 rx.c) -This is the entry point to mac80211
+
+1b. Reception Path: hardwareath5k
+
+ath5k_tasklet_rx in base.c -Receives the interruption that a new frame has been received
+
+ath5k_receive_frame_ok in base.c
+
+ath5k_receive_frame in base.c - rxs->mactime contains the time the first bit was received in the air
+
+ieee80211_rx() (mac80211 rx.c) -This is the entry point to mac80211
+
+1. Reception Path: mac80211kernel
+
+ieee80211_rx() (mac80211 rx.c) -Removes the radiotap header -Parses QoS from header. -Decides if this packet is addressed to this interface or to another STA in the BSS -Calls ieee80211_prepare_and_rx_handle()
+ieee80211_prepare_and_rx_handle() -Receives as input an ieee80211_rx_data -Calls the rx handlers
+ieee80211_rx_handlers(rx.c) -Among other calls the following functions: ieee80211_rx_h_decrypt ieee80211_rx_h_check_more_data ieee80211_rx_h_sta_process ieee80211_rx_h_data ieee80211_rx_h_ctrl …
+
+ieee80211_parse_qos() (x.c):
+
+struct ieee80211_rx_data (ieee80211_i.h) struct sk_buff *skb; struct ieee80211_local *local; struct ieee80211_sub_if_data *sdata; struct sta_info *sta; struct ieee80211_key *key; int queue ….
+ieee80211_rx_h_sta_process() (rx.c): -Updates the sta_info struct that contains information about this station
+ieee80211_rx_h_data() (rx.c): -Removes the 802.11 header and passes up the 802.3 frame
+
+struct sta_info (sta_info.h): -Info about this station, like: -TX and RX statistics -PS buffers if we are an AP struct ieee80211_sta sta;
+
+ieee80211_deliver_skb() (rx.c): -Receives a frame with an Ethernet header -Decides if the frame has to go up to the stack, or must be reflected back to the wireless medium (if we are an AP).
+
+netif_receive_skb() (x.c): -Delivers the skb to the local stack (kernel)
+dev_queue_xmit() (x.c): -Resends the skb to the wireless medium
+
+1. Beacon Tx path: from ath9k to mac80211
+
+The hardware seems to be in charge of generating Beacon interruption when the proper time comes, and then there is a beacon tasklet defined to handle that interruption, ath_beacon_tasklet
+
+ath_beacon_generate (beacon.c): -Gets a new Beacon from mac80211, ieee80211_beacon_get -Sets the proper timestamp and SN in the Beacon -This function seems a good candiate to modify a NoA element in the Beacon! -Updates TIM and DTIM, using ieee80211_get_buffered_bc -Prepares transmission, ath_beacon_setup
+
+ath_beacon_tasklet (beacon.c): -If the previous beacon is not out, do nothing -Seems to implement on some Beacon time scheduling to avoid Beaconing at the same time that other BSSs -Generates the beacon with ath_beacon_generate -Inserts the Beacon in the hardware beacon queue
+ath9k_hw_txstart (mac.c): -Writes a register to start the transmission in the hardware
+struct beacon parameters (/include/net/cfg80211.h) u8 *head, *tail; int interval, dtim_period; int head_len, tail_len; Contains pointers to the static parts before and after the TIM
+
+ath_beacon_setup (beacon.c): -Sets up the proper rate to use with the Beacon
+ieee80211_beacon_get (mac80211.h in include/): -Wrapper for ieee80211_beacon_get_tim()
+ieee80211_beacon_get_tim (tx.c): -Generates the beacon - The actual beacon is contained within an structure called struct ieee80211_if_ap associated to the interface (struct ieee80211_sub_if_data. -Adds the TIM with ieee80211_beacon_add_tim
+ieee80211_add_beacon (mac80211 cfg.c): -This function is called from the configuration interface cfg80211 or wext -Calls ieee80211_config_beacon that configures the beacon based on given parameters
+
+But where is the Beacon actually constructed ? This is done by hostapd, next …
+
+1. Beacon set up: hostapd/wpa_supplicant
+
+• hostpad creates all the STATIC template of the Beacon frame (i.e., SSID, supported rates, …) and then passes it down to mac80211.
+• The low level driver (ath9k) is the one in control of the DYNAMIC parts of the Beacon (SNs, Timestamp, TIM).
+
+ieee802_11_set_beacon (beacon.c) -This function allocates all the IEs in the HEAD and TAIL parts of the Beacon, which then will be used by mac80211 to construct the Beacon and pass it down to the driver. -In P2P mode hostapd adds to the Beacon a P2P IE and calls the function hostapd_eid_p2p_manage
+
+hostapd_eid_p2p_manage (p2p_hostapd.c) -This function builds the P2P IE that goes in the Beacon -Right now the function only adds the P2P Manageability element within the P2P IE -We need to modify this function to also add a Notice of Absence Element in the Beacon with one NoA Descriptor. -Then in ath_beacon_generate() from ath9k we have to be able to access the memory allocated to the NoA element and overwrite it with the duration/interval values computed by our algorithm.
+
+• When including the NoA element in the Beacon, we should reuse the definition already provided by hostap. Note that the current P2P implementation can already send a P2P Presence Request frame which contains NoA descriptors.
+
+p2p_build_presence_req (hostap/src/p2p.c) -Build a presence request which is an Action frame that includes a NoA IE
+p2p_add_noa (hostap/src/p2p_build.c) -Adds an NoA element to a struct wpa_buf
+
+struct p2p_noa_desc (p2p_i.h) u8 count_type; u32 duration; u32 interval; u32 start_time;
+
+1. Beacon Rx path: mac80211
+
+Same as any received frame, until ieee80211_rx_handlers
+ieee80211_rx_handlers(rx.c) -The interesting here is: … ieee80211_rx_h_mgmt …
+ieee80211_rx_h_mgmt (rx.c): -Takes care of received mgmt frames -Calls ieee80211_work_rx_mgmt (work.c) which calls ieee80211_queue_work to scheduled th actual beacon processing
+ieee80211_queue_work(util.c) -Adds work to be done in a workqueue maintained in struct ieee80211_local
+Somehow the work inserted in workqueue gets done …
+struct struct ieee802_11_elems (ieee80211_i.h) Contains all the Beacon IEs to be parsed Add NoA element here!
+
+ieee80211_work_init (work.c)
+
+ieee80211_iface_work (iface.c)
+
+ieee80211_work_work (work.c)
+
+ieee80211_sta_rx_queued_mgmt (mlme.c) Processes pending received management frames
+
+ieee80211_work_rx_queued_mgmt (work.c) Processes pending received management frames
+
+ieee80211_rx_mgmt_beacon (mlme.c) -Implements the logic of receiving a Beacon -Receives the TIM and sets the WMM parameters -Decides to generate a PS-Poll if necessary, ieee80211_send_pspoll Modify to parse the received NoA
+
+Enforce the tx suspension for the time indicated in the NoA. How ???? -Can we write to the AR_NAV register from software ? -ieee80211_stop_queues (util.c) ? -ieee80211_wake_queues (util.c) ? -Can we reused the processing done for the quiet element? Seems defined but not implemented …
+ieee802_11_parse_elems (util.c) Parses the element in the received Beacon Modify to also parse a NoA
+
