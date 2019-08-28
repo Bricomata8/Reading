@@ -1,0 +1,151 @@
+\section{Background}
+
+The goal of the implementation phase is to have a working prototype for future assessment.
+To make the process of implementing the prototype possible,
+	the first part of the implementation process will be to create a set of requirements.
+When these are set,
+	the process will continue by comparing the data from chapter 2 to find the candidates that fulfil the requirements.
+After the technologies are selected,
+	the process will continue with setting up the workspace,
+	which includes the platform for development and the required tools to build,
+	debug and test the prototype.
+Finally,
+	when these three steps have been performed,
+	the next step will be to start with the actual prototype development.
+	
+\subsection*{Requirements}
+As the time dedicated for development is limited,
+	the requirements have to make sure that the development process does not run into any major obstacles.
+All parts of the total prototype need to fit together seamlessly.
+However,
+	the hardware platform and the operating system are tied most closely together.
+Therefore,
+	they need requirements that complement each other,
+	so that they can act as a platform for software development.
+Naturally,
+	both the hardware and the operating system requirements might have to be altered slightly to enable the best match.
+
+\subsection{Hardware}
+Each platform examined in chapter 2 has different strengths and weaknesses.
+When looking at the MCU,
+	OpenMote has a ARM Cortex-M3 which is more powerful compared to the other two alternatives:
+	it features a 32bit 32MHz core with 32KB RAM and 512KB flash memory compared to the MSP430 16bit 25MHz core with ∼10KB/∼100KB memory configuration.
+In terms of peripherals all three platforms are comparable,
+	with similar amount of DAC,
+	GPIO pins,
+	and external busses.
+All of the platforms have a temperature sensor and an accelerometer,
+	but OpenMote also features an light/uv-light sensor and a voltage sensor built into the MCU’s ADC.
+The MSB430 platform has a somewhat lower power consumption in active RF mode thanks to the less power-hungry sub-GHz transceiver.
+On the other hand,
+	the less powerful MSP430 MCU has a better deep sleep power consumption,
+	but as the radio is not integrated in the chip as it is in the CC2538 SoC,
+	that advantage is offset by the external transceiver.
+Comparing the transceivers,
+	there are two 2.4GHz models and one subGHz model;
+	the sub-GHz CC1100 has a higher transmit power of 10dBm compared to 0dBm for CC2420 and 7dBm for CC2538.
+Also the sensitivity is similar for all the alternatives but gives a slight advantage to CC2538 with -97dBm compared to -95dBm and -93dBm for CC2420 and CC1100.
+Using these numbers and Friis range equation (equation 4.1) the range of each transceiver with a Fade margin (FM) of 20dB can be seen in figure 3.1.
+The benefits of working with lower frequencies can clearly be seen as the theoretical range of CC1100 is almost 3 times longer than the 2.4GHz transceivers.
+
+Adding all this information together,
+	the choice of platform will land on OpenMote with the CC2538SoC.
+It both has a MCU with more memory and better performance,
+	and a transceiver with really good characteristics both in terms of energy consumption and range.
+Also OpenMote is the only option that can act as a border router using OpenBase;
+	it lets the SoC interface with USB,
+	UART,
+	JTAG,
+	and Ethernet,
+	which enables the standalone border router mode without the need to be connected to a computer or other hardware.
+The OpenBattery extension lets the SoC operate as a node in a mesh network and provides a dual AAA battery slot connected to the PCB.
+
+\subsubsection*{Resume}
+• Transceiver with IEEE 802.15.4 or IEEE 802.15.1
+• Integrated sensor/sensors
+• MCU with low power mode under 5MicroA
+• Wakeup from low power mode with timer
+• Border router ability
+• Joint Test Action Group (JTAG) support
+
+\subsection{Operating system}
+
+As a modern operating system can be compiled to match almost any hardware,
+	the most important thing to have in mind is the out-of-the-box hardware support.
+Only RIOT and Contiki have full support for the ARM Cortex-M3 of the considered operating systems and thus both TinyOS and freeRTOS are directly eliminated as developing the support would take too much time.
+Compared to RIOT,
+	Contiki also has full driver support for the sensors and transceiver,
+	which should decrease the implementation time significantly.
+When compiled into binary form,
+	RIOT uses less RAM and ROM and thus probably is a bit faster compared to Contiki,
+	which could be important if the application consumes much resources.
+The lower memory usage might also give RIOT an advantage in being future-proof.
+Contiki also has support for soft real-time scheduling compared to the hard real-time scheduling of RIOT;
+	this is however not crucial,
+	as the software that will be running on the OS does not have any hard real-time constraints.
+Both RIOT and Contiki have support for 6LoWPAN but no support for either ZigBee or BLE;
+	this is due to the fact that these are proprietary stacks.
+Support could be added but would take some time to customize for the given OS.
+What gives Contiki the largest advantage is that it also have border router software ready for deployment,
+	which in the RIOT case would have to be developed.
+All in all,
+	as the project has such a limited time frame,
+	Contiki will be selected as the OS;
+	this,
+	mainly because Contiki comes with most advantages time-wise;
+	this choice means that the focus of the software development will be the creation of a test and evaluation system.
+
+\subsubsection*{Resume}
+• Support for the SoC/MCU and transceiver
+• 6LoWPAN, ZigBee or BLE stack
+• Soft real-time
+• RAM and ROM footprint matching the hardware
+
+
+\subsection{Communication protocol}
+
+
+The OpenMote platform has a IEEE 802.15.4 transceiver and thus supports both ZigBee and 6LoWPAN;
+	this means that BLE is not an option.
+As ZigBee does not have full IPv6 support yet and is not integrated into Contiki,
+	the natural choice is 6LoWPAN.
+This choice will not only save some development time but also enables evaluation of the header compression.
+As seen in figure 3.2,
+	the 6LoWPAN stack in Contiki will replace the IP stack while maintaining the same functionality.
+As the functionality is the same,
+	TCP and HTTP will work with 6LoWPAN,
+	but including them in the source increases the OS build size considerably.
+On top of the UDP layer,
+	Contiki also has a working implementation of CoAP that can be used for retrieving data from the nodes in a power efficient manner.
+CoAP is a stateless protocol that uses the HTTP response headers to achieve a very low overhead in transmissions while using application level reliability methods to ensure packet delivery.
+
+\subsubsection*{Resume}
+• IPv6 addressing support
+• Existing OS support
+• Network type is mesh
+• UDP
+
+
+\subsection{Workspace and tools}
+
+The ARM Cortex-M3 chip that OpenMote and CC2538 is built upon requires the GCC ARM Embedded compiler.
+This tool-chain is free and runs on both Linux,
+	OSX,
+	and Windows;
+	however,
+	there is no bundled development application so a secondary application for programming is needed.
+In Windows,
+	there are several Integrated Development Environments (IDEs) such as IAR Workbench ARM [30],
+	Code Composer Studio [31] and the Eclipse plug-in ARM DS-5 [32, 33];
+	these IDEs use various proprietary toolchains and have a price tag ranging from free to several thousand SEK.
+Most of the IDEs also have a code size restriction for the free versions.
+To minimize the costs,
+	the development machine development machine used in this project will run Ubuntu 14.04 LTS,
+	the used tool-chain is GCC ARM Embedded,
+	and Geany is used as the code development application.
+To analyse the network traffic in real-time,
+	the open source tool Wireshark is used together with a IEEE 802.15.4 packet sniffer.
+Together with a laptop,
+	the packet sniffer will grant the ability to traverse the mesh network and analyse the network in real-time as it is seen by the nodes.
+
+

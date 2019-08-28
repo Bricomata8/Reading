@@ -1,0 +1,122 @@
+\section{Proposed ...} \label{sec:Approach}
+
+The goal of the development process is to have a functional border router and at least two nodes to be able to test how response time and throughput differs with each hop in a mesh network.
+To be able to measure response time and throughput,
+	each node needs to have a CoAP server which can respond to ping and also receive an arbitrary amount of data for throughput measurement.
+It is desirable for each node to be able to send information about each sensor so the project can be used as a tech-demo.
+The first part of the development was to set-up of the workspace and tools mentioned in section 3.1.5.
+Ubuntu OS was installed in a VirtualBox Virtual Machine to make it easier to duplicate and backup;
+	this procedure gave a noticeable decrease in performance and it is recommended to have a dedicated native Ubuntu machine for this type of development.
+Even though Ubuntu uses an easy-to-use package system,
+	there were some problems in finding a version of GCC ARM Embedded tool-chain that was compatible with Contiki’s built-in simulator Cooja [34, 35];
+	eventually,
+	version 4.82 was used to successfully build Contiki.
+Cooja is a useful tool for testing and debugging network configurations but does not have support for the CC2538 MCU;
+	instead,
+	nodes called Cooja Motes are simulated with generic hardware.
+As Cooja is written in Java and runs in a JVM,
+	Oracle Java 1.8 was also installed.
+	
+\subsection{Drivers and firmware}
+
+Figure 3.3 shows an overview of the full system.
+The foundation is the SoC with the MCU,
+	transceiver,
+	and sensors.
+The Contiki operating system implements the soft real-time kernel together with the firmware for the SoC/MCU and the drivers for the peripherals and sensors.
+The last part is the communication stack,
+	which provides TCP and UDP connectivity over 6LoWPAN.
+On top of the TCP and UDP protocols,
+	HTTP and/or CoAP can be implemented.
+The firmware required for the OS to work properly on the hardware platform was already implemented.
+However,
+	the drivers for the I 2 C bus and the sensors were not implemented.
+The I 2 C driver is required for the sensor drivers which in turn enables the MCU to communicate with the sensors on the OpenBattery platform.
+
+\subsection{CoAP server}
+
+In order to make each node’s sensor data accessible,
+	a CoAP sever was implemented as an application running on top of Contiki.
+A CoAP server in general can handle any number of resources;
+	in this implementation,
+	one resource was made for each sensor value i.e.
+temperature,
+	light,
+	humidity,
+	and core voltage.
+The temperature,
+	light,
+	and humidity sensors all work in a similar fashion.
+When their value is requested,
+	the I 2 C bus is initialized and then a request is sent over the bus.
+When the response with the value arrives,
+	that data is put into either a plain-text or JavaScript Object Notation (JSON) formatted message depending on the request and then sent back to the requester.
+As the core voltage sensor is part of the MCU’s ADC,
+	that value is retrieved by simply getting data from a register (a somewhat faster operation).
+As a buffer for testing throughput speed was also needed,
+	a resource with a circular buffer was implemented.
+This resource is configured with CoAP’s block-wise transfer functionality for arbitrary data size;
+	however,
+	the buffer in itself is only 1024Kb to allow the program variables to fit into the ultra low leakage SRAM.
+For testing purposes,
+	the data could have been discarded instead of actually saved into the buffer,
+	but then the transfer can not be verified.
+Resources are defined by paths as CoAP works in a very similar way as HTTP.
+
+Each resource is registered in the server with its path,
+	media type,
+	and content type.
+When a package arrives on the CoAP port,
+	the server starts to break down the package to be able to direct it to the right resource.
+It starts with verifying that the package is actually a CoAP package,
+	and then it checks the path and sends it to the correct resource.
+The resource then inspects the method field in the package header to direct the incoming data to the right function.
+CoAP package method can be either GET,
+	PUT,
+	POST or DELETE.
+This function then inspects the request media type and answer content type so that the function can parse the request and send a correctly formatted answer.
+If the resource does not implement the received method,
+	the server responds with ”405 Method not allowed” and if the content/media type is not supported the answer is ”415 Unsupported Media Type”.
+The content/media types are text/plain,
+	application/json,
+	application/exi,
+	and application/xml.
+
+\subsubsection{Testing}
+Contiki is shipped with a simulation tool called Cooja which is written in Java;
+	it can simulate an arbitrary number of nodes with different roles and configurations.
+All simulation data,
+	such as radio packages and node serial output may be viewed through different windows and exported to various formats.
+Unfortunately Cooja did not have support for ARM Cortex-M3,
+	but the general set-up was still tested by using Cooja Motes,
+	which are nodes without specified hardware,
+	and MSP430 nodes such as Wismote or Skymotes.
+With this simulator the basic understanding of the communication between nodes was gained;
+	also,
+	before the hardware arrived,
+	early testing was performed to test the OS and application software.
+
+\subsubsection{Final prototype}
+The final prototype consists of four OpenBattery nodes and one OpenBase border router.
+Both the nodes and the border router are deployed with Contiki.
+Each node runs a CoAP server,
+	described in section 3.2.2,
+	on top of the OS in its own thread.
+The border router runs a router software called 6lbr that acts a as translator between Ethernet and IEEE 802.15.4 [36].
+Both types of hardware are configured with a 8Hz Radio Duty Cycle (RDC) driver to keep the power consumption to a minimum.
+RDC is a OS driver that cycles the listening mode of the transceiver to reduce power consumption.
+As Contiki puts the MCU into Low Power Mode (LPM) when no function is running and the transceiver is off,
+	the RDC driver indirectly controls when the MCU is in LPM.
+When using the RDC protocol,
+	the nodes repeatedly send messages until the target node wakes up and sends an Acknowledge packet (ACK);
+	this makes communication seamless,
+	even though most of the time the nodes’ transceivers are not active.
+Also,
+	an always-on RDC driver,
+	where the transceiver is constantly listening,
+	will be used to be able to look at the performance impact of the 8Hz RDC.
+
+
+
+
+
