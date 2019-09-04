@@ -1,0 +1,451 @@
+Confirmed Traffic in LoRaWAN: Pitfalls and Countermeasures
+Martina Capuzzo, Davide Magrin, Andrea Zanella
+To cite this version:
+Martina Capuzzo, Davide Magrin, Andrea Zanella. Confirmed Traffic in LoRaWAN: Pitfalls and Countermeasures. 17th Annual Mediterranean Ad Hoc Networking Workshop (Med-Hoc-Net 2018), Jun 2018, Capri Island, Italy. pp.87-93. ￿hal-01832534￿
+
+HAL Id: hal-01832534 https://hal.inria.fr/hal-01832534
+Submitted on 8 Jul 2018
+
+HAL is a multi-disciplinary open access archive for the deposit and dissemination of scientific research documents, whether they are published or not. The documents may come from teaching and research institutions in France or abroad, or from public or private research centers.
+
+L’archive ouverte pluridisciplinaire HAL, est destinée au dépôt et à la diffusion de documents scientifiques de niveau recherche, publiés ou non, émanant des établissements d’enseignement et de recherche français ou étrangers, des laboratoires publics ou privés.
+
+Distributed under a Creative Commons Attribution| 4.0 International License
+
+Conﬁrmed Trafﬁc in LoRaWAN: Pitfalls and Countermeasures
+Martina Capuzzo∗, Davide Magrin∗, and Andrea Zanella∗† ∗Department of Information Engineering (DEI), University of Padova, Italy †Human Inspired Technologies (HIT) Research Centre, University of Padova, Italy
+Email: {capuzzom, magrinda, zanella}@dei.unipd.it
+
+Abstract—LoRaWAN networks are growing in popularity and adoption, mainly thanks to the inexpensive devices, the affordable gateway costs, and the possibility to opt for a private deployment or the use of global network providers. While the main use case for these networks is sensor data collection, the standard also deﬁnes conﬁrmed messages, for which downlink transmissions are required. In this paper we show that an incautious use of this feature can bring a sharp decrease in the performance of the network, especially for large scale deployments. Additionally, we present some insights on how certain design choices for downlink communication in LoRaWAN are impairing conﬁrmed trafﬁc usage and propose some solutions to mitigate the issue.
+
+TABLE I: Main transmission features for the different SFs.
+
+SF Data rate [kbit/s] Sensitivity [dBm] Transmission time [s]
+
+7 5.470 8 3.125 9 1.760 10 0.980 11 0.440 12 0.250
+
+-130.0 -132.5 -135.0 -137.5 -140.0 -142.5
+
+0.074 0.136 0.247 0.493 0.888 1.777
+
+I. INTRODUCTION
+Low Power Wide Area Networks (LPWANs) are gaining momentum as a readily available solution to the demand for Internet of Things (IoT) connectivity, mainly thanks to the low deployment costs and the current absence of cellular-based competitors for low-demand IoT use cases [1]. Backed by the LoRa Alliance,1 the LoRaWAN standard is an example of such networks which has lately been experiencing a consistent growth, fueled by the good performance of the technology, the ease of deployment and management [2], and the availability of publicly accessible network servers, like those provided by The Things Network (TTN) [3].
+One of the most important characteristics that distinguishes LoRaWAN networks from competitors like Sigfox is the availability of conﬁrmed data messages.2 This network feature has not been investigated in the literature yet, except for a few very recent works. In [4], the authors propose an interesting analytical model of the LoRaWAN system, accounting also for conﬁrmed trafﬁc, while simulative studies are presented in [5, 6]. All these works, however, consider only simple scenarios and overlook some details of the LoRa system that, based on our study, turn out to have a signiﬁcant impact on the actual system performance.
+In this work, we provide some insights into the behavior of LoRaWAN networks in presence of conﬁrmed trafﬁc, in different scenarios and under realistic trafﬁc patterns and channel propagation models. By setting up a simulator that accounts for some realistic features of the LoRaWAN devices, we are able to estimate the achievable performance for different network sizes and usage of conﬁrmed trafﬁc, and thus provide guidelines for the design of future deployments. The development of such a realistic simulator allowed us to gain insights into the system behavior and spot some design issues, for which we propose some feasible solutions. Our ﬁndings show that the use of conﬁrmed trafﬁc may severely affect the capacity of the system and the reliability of unconﬁrmed uplink trafﬁc, mainly because of the duty-cycle limitations at the Gateway (GW), the uplink/downlink packet collisions, and other practical aspects that will be discussed in detail in the following, together with some possible workarounds and countermeasures.
+1https://www.lora-alliance.org/ 2Sigfox plans only support a limited number of acknowledgments per day.
+ISBN 978-3-903176-05-8 c 2018 IFIP
+
+The rest of the paper is structured as follows: in Section II we give an overview of the LoRa and LoRaWAN technologies, and we introduce the ns-3 module that was used throughout this work. Section III describes a simulation campaign aimed at estimating the performance of a LoRaWAN cell in presence of downlink (DL) trafﬁc and in a realistic urban scenario, while in Section IV we give some insights about possible pitfalls in the deployment and parameter settings of LoRaWAN networks. In order to better appreciate the impact of some speciﬁc protocol aspects on the system performance, in Section V we compare the network performance predicted by the model in [4] with those given by our simulator under different settings of the system parameters. Finally, Section VI draws the conclusions of this work.
+II. TECHNOLOGY OVERVIEW
+This section discusses the most relevant aspects of the LoRa modulation, the LoRaWAN standard and the enhanced lorawan ns-3 module that we used in this study.
+A. The LoRa modulation
+Long Range (LoRa) is a Chirp Spread Spectrum (CSS) modulation technology patented by Semtech. The modulation is designed to wirelessly transmit information at low data rates and long distances (typically up to 2 km in urban scenarios and 10 km in rural areas). The PHY layer supports different transmission bitrates, which are obtained by changing the Spreading Factor (SF) parameter that takes integer values from 7 to 12. Higher SFs correspond to lower bitrates and longer ranges, thanks to a lower required sensitivity at the receiver. Table I provides a summary of the data rate, sensitivity and typical on-air time for the transmission of a packet of 25 bytes for each available SF. The sensitivity values refer to the GW chip SX1301, manufactured by Semtech, while the transmission time considers the explicit header mode, a code rate equal to 2 and the default values for the remaining parameters.
+A major feature of the SFs is that they are almost orthogonal: overlapping transmissions can still be demodulated correctly, provided that their relative powers are sufﬁciently spread apart, as shown in [7].
+
+Fig. 1: LoRaWAN network topology.
+
+B. The LoRaWAN standard
+The LoRaWAN standard [8] is deﬁned by the LoRa Alliance organization. The standard describes three kinds of devices in a LoRaWAN network:
+• the Network Server (NS), which is the central network controller;
+• the End Devices (EDs), which are basic nodes, typically consisting in sensors or actuators, that can transmit data through the LoRa modulation;
+• the GWs, which receive the radio packets transmitted by the EDs and forward them through a reliable connection to the NS and vice-versa, i.e., receive the NS’s acknowledgements (ACK) or MAC commands and forward them to the intended EDs through the LoRa wireless interface.
+In this study, we consider EDs of Class A, which are by far the most common today. These devices access the shared wireless channel for uplink (UL) transmissions (towards the GW) following an ALOHA scheme. Reception of DL packets is only possible during the two consecutive receive windows that are opened immediately after each UL transmission. We consider networks operating in the 868 MHz band, for which the standard deﬁnes four sub-channels with carriers at 868.1 MHz, 868.3 MHz, 868.5 MHz, which can be used for both UL and DL transmissions, and a channel at 869.525 MHz that is reserved for DL-only transmissions. The 868 MHz unlicensed frequency band is regulated through duty cycle limitations, such that the devices can only transmit for a given fraction of the time, with a limited maximum power, as reported in Table II. Note that the duty cycle restrictions are shared by all the three UL frequencies, since they are located in the same sub-band. Therefore, if a transmission is performed in one of these frequencies, the waiting time due to the duty cycle must be respected also on the other two. Instead, the DL channel at 869.525 MHz resides in a different sub-band that allows for a duty cycle of 10% and a larger transmission power.
+
+TABLE II: LoRaWAN default channels and duty cycle limitations.
+
+Frequency (MHz)
+868.1 868.3 868.5 869.525
+
+Direction
+DL, UL DL, UL DL, UL DL
+
+Duty cycle
+1% 1% 1% 10%
+
+Power limit (dBm)
+14 14 14 27
+
+C. Simulation software
+The ns-3 simulator is a popular discrete-event network simulator written in C++. The ns-3 module used in this analysis3 is based on that described in [9], which we extended to add support for downlink trafﬁc. The rest of this section highlights the main features of the lorawan module, and discusses its differences with respect to other LoRaWAN simulators such as those used in [5, 6].
+3Available at https://github.com/signetlabdei/lorawan
+
+The lorawan module consists in a collection of C++ classes, each representing a component of the network. Additionally, these classes leverage “helper” objects to keep track of interference, correctly manage the state of the duty cycle, update the list of available channels, compute the path loss between two locations and perform other similar tasks. The interference between multiple LoRa packets is modeled according to [7], in order to account for the quasiorthogonality of different SFs. The amount of overlap between two packets is also taken into account in the interference model, which is described in detail in [9].
+The Gateway PHY layer module class, which simulates the GW behavior, features a realistic modeling of the parallel decoding capabilities available in Semtech’s SX1301 chip (which is currently employed in GWs). More speciﬁcally, the module considers that commercial GWs feature 8 parallel receive paths, which can be singularly allocated to the different channel frequencies. A receive path can lock on one signal at a time, irrespective of its SF, provided that it is sent on the associated frequency band. For example, assuming that the number of receive paths allocated to the three uplink frequency bands are three, three, and two, respectively, then the GW may be able to simultaneously decode up to three signals sent on the ﬁrst frequency band, three on the second frequency band, and two on the last frequency band, irrespective of their SF. However, the SFs of the received signals do have an impact on the probability of successful decoding, as discussed in [7]. These features are correctly modeled in the lorawan ns-3 module described in [9]. Incidentally, we observe that the simulators used in [5, 6] model the GW reception capabilities in a different way, considering one receiver for each SF on each uplink frequency band, for a total of 18 parallel receivers, each one capable of locking on one signal transmitted on a speciﬁc frequency with a speciﬁc SF. In this way, however, the GW will not be able to receive two or more signals sent with the same SF on the same frequency, irrespective of their relative received power, thus being more conservative than a real GW. On the contrary, the simulated GW may be able to successfully decode up to 18 signals, provided that the SFs of the signals in the same band are different, while a practical GW can only decode up to 8 signals.
+With respect to the previous version of the lorawan module, in this work we expanded the LoraMac classes to handle conﬁrmed trafﬁc. MAC layers of EDs which use conﬁrmed uplink packets retransmit the packet until an Acknowledgment (ACK) is received from the GW, or a (conﬁgurable) maximum number of attempts is reached. We remark that retransmissions are also subject to duty cycle limitations, as any other transmission.
+III. SIMULATION RESULTS
+In this section we report the results of our simulation analysis of a simple LoRaWAN cell in a realistic urban scenario, which reveals how the presence of conﬁrmed trafﬁc can affect the performance of the system.
+For this analysis, we consider an elementary LoRAWAN cell, consisting of a single GW, surrounded by N EDs uniformly distributed in a circular area of radius 1200 m. The EDs are conﬁgured to use the highest bitrate that guarantee good reception probabilities, i.e., such that the mean received power at the GW is above the sensitivity associated to that rate (see Tab. I). Besides the log distance path loss model, we add spatially correlated shadowing and losses due to the presence of buildings, as described in [9].
+We consider both conﬁrmed and unconﬁrmed trafﬁc. In the case of unconﬁrmed trafﬁc, the EDs will transmit each packet only once, irrespective of its correct reception by the GW. For conﬁrmed
+
+transmissions, instead, packets are retransmitted by the EDs until successfully acknowledged by the GW, or the maximum number m of allowed transmission attempts is reached. Therefore, the incorrect reception of ACK packets may trigger the retransmission of packets that had actually been successfully delivered to the GW. We consider the trafﬁc source model described in the Mobile Autonomous Reporting (MAR) periodic reports [10].
+In our simulations, we have considered different combinations of the following parameters:
+• N : number of EDs in the network; • m: maximum number of allowed packet transmissions;4 • c: percentage of EDs using conﬁrmed trafﬁc.
+The exact values used in the different cases are reported in Table III, with some other details on the employed simulation methodology.
+The scenario with only unconﬁrmed trafﬁc (c = 0%) provides the baseline for our performance analysis.
+Fig. 2 contains the contour lines of the packet success rate when varying N and c, while the three plots are obtained for different values of m. In these plots, we mark unconﬁrmed packets as successful when they are correctly received by the GW, while conﬁrmed packets are considered successful when an ACK is received by the ED.
+Fig. 2a, obtained with m = 2 (i.e., allowing a single retransmission), shows that the packet success rate decreases quickly when the majority of nodes generate conﬁrmed trafﬁc. It is indeed interesting to observe that, for a given N , the performance degrades quite rapidly by increasing c, i.e., the percentage of nodes that require conﬁrmedtrafﬁc, while the loss is smoother when increasing N for a ﬁxed c. For example, for N = 1000 and c = 20%, the packet delivery ratio is slightly less than 0.94. Doubling N for the same c, the packet delivery ratio drops to slightly less than 0.93. Instead, doubling c for the same N the performance index becomes lower than 0.91.
+From Fig. 2b and Fig. 2c we note that by increasing the maximum number of allowed transmission attempts the packet delivery ratio progressively improves. This means that, even if retransmissions increase the network load, the overall offered trafﬁc is still small enough for the GW to process all the packet arrivals and the corresponding replies. For example, we can see that in a network of 500 devices, the baseline case with only unconﬁrmed trafﬁc (c = 0%) achieves a packet success rate of 0.95, which is basically maintained as c increases up to 10% with m = 2, up to 40% when m = 4, and up to 70% when m = 8. Therefore, in this scenario, packet losses are mainly due to repeated collisions of UL packets with either UL or DL (ACK) transmissions, so that increasing the number of allowed attempts enhances the success probability.
+This holds true for scenarios in which the network is not very crowded. However, for a large number of nodes, allowing a greater number of transmission attempts can become detrimental. For example, considering the scenario with N = 2000 devices and c = 20%, we can see that the packet delivery ratio is indeed the same for m = 4 and m = 8, which means that the beneﬁt of increasing the transmission persistence is actually balanced by a higher collision probability due to the increased network trafﬁc.
+IV. DISCUSSION
+The results presented in the previous section have revealed some peculiar network behavior in the presence of conﬁrmed trafﬁc that is worth further investigation. In order to better understand the causes
+4Note that, for m = 1, a packet can be transmitted only once, but in case of conﬁrmed trafﬁc, the GW is required to send back an ACK.
+
+% of devices using conﬁrmed trafﬁc
+
+% of devices using conﬁrmed trafﬁc
+
+% of devices using conﬁrmed trafﬁc
+
+0.85 0.9
+
+100
+
+0.8 0.75
+
+0.7
+
+0.65
+
+0.6 0.55 0.5
+
+80
+
+0.85
+
+0.75
+
+60
+
+0.92 0.91
+40
+
+0.9 0.92 0.91
+0.93
+
+20
+
+0.94
+
+0.95
+0 500
+
+1,000
+
+0.8 0.85
+
+0.92 0.901.9
+0.93 0.94 0.95
+1,500
+
+2,000
+
+Number of devices
+
+(a) m = 2.
+
+0.94
+
+0.93
+
+0.91
+
+100
+80
+0.92
+60
+0.95 0.94
+40
+20
+0 500
+
+0.9
+
+0.8 0.85
+
+0.75
+
+0.7 0.650.60.55
+
+0.9 0.93 0.920.91
+
+0.8 0.85
+
+0.94
+
+0.93 0.902.910.9
+
+0.95
+
+0.94
+
+0.95
+
+1,000
+
+1,500
+
+Number of devices
+
+(b) m = 4.
+
+2,000
+
+100
+0.92
+
+0.93
+
+80
+0.94
+
+0.95
+
+60
+
+0.94
+
+40
+0.95
+20
+
+0.9 0.901.902.93
+
+0.8
+
+0.75 0.70.650.6
+
+0.85
+
+0.91 0.9
+
+0.93 0.92 0.95 0.94
+
+0 500
+
+1,000
+
+1,500
+
+Number of devices
+
+2,000
+
+(c) m = 8.
+
+Fig. 2: Packet success rate for different values of m.
+
+TABLE III: Simulation parameters
+
+(a) Network parameters
+Variable
+N : Number of EDs m: Maximum number of transmissions c: Percentage of devices using conﬁrmed trafﬁc
+
+(b) Path loss model
+
+Component Variable
+
+Path loss Shadowing
+Buildings
+
+path loss model de-correlation distance variance wall losses
+
+(c) Trafﬁc model
+Packet Interarrival time (λ)
+1 day 2 hours 1 hour 30 minutes
+
+Interval 100 - 2100 1, 2, 4, 8 0 - 100 %
+Value as in [9] 110 m 6 dB as in [10]
+Percentage of devices 40 % 40 % 15 % 5%
+
+Packet loss probability
+
+1
+
+Total failure probability
+
+Probability of interfered packets
+
+0.8
+
+Probability of no more receivers available
+
+Probability of packets under sensitivity
+
+0.6
+
+0.4
+
+0.2
+
+0 0 1,000 2,000 3,000 4,000 5,000 Number of End devices
+Fig. 3: Causes of packet losses with conﬁrmed trafﬁc.
+
+of such a behavior, in this section we focus on more speciﬁc and homogeneous scenarios. We hence consider only the log-distance path loss model (neglecting the shadowing component in the signal propagation), and we assume all devices to generate conﬁrmed trafﬁc (c = 100%), with a maximum number of transmission attempts equal to m = 8, and a trafﬁc rate per ED of 1 packet every 30 minutes.
+A. Factors causing packet losses
+We start our discussion from the factors that determine packet losses, namely channel impairments (received signal power below the required sensitivity), interference (packet collisions), and receiver saturation (no available receive path at the GW).
+In Fig. 3 we report the packet loss probability due to the three aforementioned factors, and the overall aggregate value, when increasing the number of EDs in the cell. We can observe that, with a static channel and suitably selected transmission rates, the packet losses due to channel impairments are negligible. Instead, it is interesting to observe that the interference is initially the dominant cause of packet losses, but after a certain trafﬁc load the main limiting factor becomes the saturation of the receive paths at the GW. Note that, when all the receive paths are engaged, the receiver cannot lock any other signal (collided or not), which explains the smooth decrease of the loss probability due to interference for high trafﬁc loads.
+One possible way to mitigate the problem of the receiver saturation is to increase the number of parallel receive paths at the GW. However, such receive paths need to be coordinated in order to avoid that an incoming signal is locked onto multiple paths. Therefore, the simple co-location of multiple out-of-the-shelf receiver chips on the same GW or of multiple GWs on the same geographical position, would not bring any signiﬁcant advantage in this respect. Instead, a uniform deployment of multiple GWs in the coverage area may reduce the distance to the EDs, thus enabling the use of higher bitrates and, hence, a contraction of the packet transmission times that, in turn, will yield a reduction of the collision probability and of the engagement time of the receive paths. More generally, a possible way to reduce the packet loss probability is to re-balance the SF distribution in the network, in order to maximize the probability of parallel reception.
+The bar plot in Fig. 4 shows the percentage of uplink packets that are dropped because of channel impairments, receiver saturation, and
+
+interference, and the remaining fraction of correctly received packets, when varying the number m of allowed transmission attempts, in a congested scenario (N = 5000 EDs). The two right-most bars, furthermore, report the results obtained when the Adaptive Data Rate (ADR) algorithm recommended in the LoRaWAN speciﬁcations is enabled, and will be discussed later on.
+It is apparent that, in a congested scenario, larger values of m would just increase the number of retransmissions, further exacerbating the channel contention without bringing any performance improvement, but rather worsening the packet loss rate. Conversely, for light trafﬁc conditions, larger value of m may improve the packet delivery ratio. Therefore, in order to effectively support conﬁrmed trafﬁc, it would be important to devise mechanisms that can adapt this parameter based on the trafﬁc load.
+B. Side effects of ADR
+We implemented the ADR mechanism as suggested in [11], where EDs automatically increment by one their SF (basically halving the transmission rate) after two consecutive transmission failures. The underlying assumption is that failures are due to channel impairments, so that reducing the transmission rate and, consequently, increasing the coverage distance, may get the device in range of the GW. Clearly, this mechanism fails when packet losses are due to interference or receiver saturation, as shown by the results in the two right-most bars of Fig. 4. In this case, a reduction of the transmission rate would further exacerbate the congestion, yielding an increase of the packet loss rate. In addition, the ADR mechanism tends to increase the number of users that adopt the same (low) transmission rates, thus losing the advantage of orthogonality between different SFs. Interestingly, even if a NS could observe this pathological behavior of the ADR, it would not be able to correct it because the transmission of MAC commands to an ED is subject to the successful reception of an UL transmission from the same device, which may be difﬁcult with high packet loss rate.
+Once again, the countermeasure to this problem may consist in the development of an ADR algorithm that adapts its behavior according to the trafﬁc load of the network. Furthermore, to avoid the risk that an occasional upsurge of trafﬁc triggers an avalanche effect that bring all EDs to transmit at the lowest rate, it may be clever to adopt an exponential backoff mechanism that progressively increases
+
+Received
+
+Interfered
+
+Receiver saturation
+
+1
+
+0.8
+
+TABLE IV: Sensitivity comparison
+
+SF GW Sensitivity (dBm) ED Sensitivity (dBm)
+
+7
+
+-130.0
+
+8
+
+-132.5
+
+9
+
+-135.0
+
+10
+
+-137.5
+
+11
+
+-140.0
+
+12
+
+-142.5
+
+-124.0 -127.0 -130.0 -133.0 -135.0 -137.0
+
+Probability
+
+0.6
+
+0.4
+
+0.2
+
+0
+
+1 tx
+
+2 tx
+
+4 tx
+
+8 tx
+
+ADR
+
+ADR
+
+4 tx + 8 tx +
+
+Fig. 4: Packet loss probability when increasing the number m of transmission attempts and enabling ADR, with N = 5000 EDs.
+
+the time between consecutive transmission attempts, temporarily reducing the offered trafﬁc rate. This mechanism, furthermore, may also be beneﬁcial to alleviate another problem, which is discussed in the next subsection.
+C. Random backoff intervals
+When conﬁrmed trafﬁc is employed, EDs must wait ACK TIMEOUT seconds before performing a retransmission, as deﬁned in the LoRaWAN standard [8]. The value of ACK TIMEOUT is a random delay, from one to three seconds, which is intended to prevent further collisions between the same packets [12]. However, our simulation results did not show any clear beneﬁt of such a random delay. The reason is that collisions usually occur among nodes that use the same high SF (because of lack of orthogonality and longer transmission times). In this case, the transmission time of a packet may easily be comparable to the backoff delay. Therefore, the retransmissions will overlap again in time, likely causing a new collision. For example, the on-air time of a packet with 51 bytes of payload, transmitted with SF 12, code rate 4, and explicit header mode, turns out to be equal to 3.15 s, which is larger than the whole time interval in which the delay is picked. Therefore, it is likely that the packets will collide again if the EDs select the same transmission frequency to retransmit their packets.
+This problem can be avoided by increasing the backoff time intervals for larger SFs or longer transmissions. Clearly, the drawback of such a strategy is an increase of the transmission latency that, however, is usually not much of a concern for LPWA-based services.
+D. EDs locking on uplink packets
+In LoRaWAN, direct ED to ED transmissions are not allowed. Nonetheless, in our simulations we have observed that, when the receive window of an ED is open, the device can actually lock onto an UL message sent by another ED. This incorrect behavior has also been conﬁrmed experimentally, using real LoRa devices.
+The reason is that both UL and DL transmissions use the same preamble, which consists of a variable number of up-chirp modulation
+
+symbols, so that a receiver cannot discriminate the source of the transmission until the packet is completely received and inspected. Additionally, an ED can also lock on a DL packet intended for another receiver. The reception of undesired transmissions represents a waste of energy and time.
+While locking on other DL messages can not be easily avoided, the useless reception of UL messages may be avoided by using different preambles for UL and DL transmissions, so as to allow the receiver to completely avoid the reception of UL messages and return to sleep mode for the remaining duration of the receive window.
+E. Sensitivities asymmetry
+As shown in Table IV, the sensitivity requirements for EDs are more relaxed than those for the GW, mainly to reduce the manufacturing cost. The sensitivity gap between ED and GW yields an asymmetric coverage range between UL and DL transmissions, so that it may happen that an ED can reach the GW with a certain SF, while the same SF is not sufﬁcient to correctly deliver the return packet to the ED because of its worse sensitivity. While such an asymmetry is not a problem when all nodes send non-conﬁrmed UL trafﬁc, it instead may become an issue in case of conﬁrmed trafﬁc, preventing some devices from receiving in the ﬁrst receive window (in which the NS uses the same SF and carrier frequency of the UL message) and forcing the systematic opening of the second receive window.
+One possible way to alleviate this problem is to exploit the LinkCheck MAC commands that can be used by an ED to request information about its received power to the NS. Using this information, the ED can avoid opening the ﬁrst receive window altogether when the received power reported by the GW would be lower than the ED sensitivity. Alternatively, the NS can use the command RX1DRoffset to inform the ED that the GW will reply on the ﬁrst receive window using a lower rate than that used in UL.
+F. Sub-band prioritization
+One ﬁnal consideration regards the current speciﬁcation of the receive window allocations. The standard prescribes the ﬁrst receive window (RX1) to be opened on the same channel that was used in the UL, while the second window is opened in the dedicated DL channel, centered at 869.525 MHz. However, a better strategy may consist in reversing this setup, i.e., opening the ﬁrst receive window on the channel at 869.525 MHz and the second receive opportunity in the same channel used for UL transmission. The motivations behind this claim are the following.
+• Availability: the duty cycle restriction is 1% for the shared UL/DL channels, while it is relaxed to 10% for the dedicated DL channel, thus making its capacity larger than the aggregate (DL) capacity of the other channels. Therefore, opening the ﬁrst receive window on the DL-only channel will decrease the probability that an ACK transmission gets delayed to the second window because of the duty cycle restriction on the ﬁrst window, thus reducing the energy wasted by the ED in idle reception.
+
+• Interference: transmissions on the DL-only channel do not interfere with UL transmissions, but only with DL packets sent by the GWs of other cells. On the contrary, DL transmissions in any other channel can collide with UL transmissions in the same cell, or both UL and DL transmissions in other cells, increasing the packet loss probability and, in turn, the congestion.
+• Settings: typically, ACK transmitted on the second receive window (i.e., on the DL-only channel) are modulated with SF 12, even when the intended receiver can actually decode transmissions with much lower SF values. This greatly increases both the duty cycle consumption and the energy expenditure of the EDs, which are required to remain in reception for a longer period. Additionally, transmissions with SF 12 can be received at further distances and, hence, can engage receivers of other cells, wasting their time and energy. Conversely, by moving the ﬁrst window on the DL-only channel, the ACK will be transmitted with the same SF used for the UL transmission (or, possibly, the immediately lower SF, to counteract channel asymmetries), thus increasing the system capacity.
+V. MODELING ISSUES
+In order to show how the duty cycle restrictions at the GW affect the system performance in presence of conﬁrmed trafﬁc, we propose a comparison between the results of our simulator and the model presented in [4]. For these comparisons, we consider a conﬁrmed packet to be successfully received when the ACK is received by the device, as done in [4].
+Fig. 5 illustrates the success probability for different values of the network load, as estimated by our simulator and by [4]. It is apparent that the theoretical model overestimates the network performance. The reasons of this mismatch are the following:
+• The model in [4] assumes perfect orthogonality among different SFs, while in the simulator we consider a frame to be successfully delivered if the equalized interfering power is below the channel rejection parameter deﬁned in [7].
+• The model assumes that “packets transmitted in different channels and at different rates do not collide.” Considering the three default channels in EU region and the six possible SFs, the model assumes that the GW is capable of receiving up to 18 packets simultaneously. No other assumptions or considerations are done about packets arriving at the GW. In the simulation, instead, we consider the 8 receive paths of the LoRa GW’s chip.
+• The model in [4] always considers the transmission of two ACKs for each data packet received at the GW: one in the ﬁrst receive window (RX1) and one in second receive window (RX2). We think that even if this choice increments the probability that one of the two ACKs is correctly received by the ED, the second transmission could be useless if the ﬁrst one is successful, and would only “consume” a transmission possibility in RX2. As the policy that should be adopted is not explicitly indicated in the LoRaWAN speciﬁcation [8], we chose to make the GW transmit only once: either in RX1 or in RX2 according to the duty cycle restrictions, giving priority to RX1.
+• The authors of [4] consider that “the GW cancels ACK transmission if it is receiving a data frame.” Following the indications in [13], we instead assume that a DL transmission preempts any ongoing UL reception at the GW. Therefore, the transmission of ACKs is prioritized over any other operation of the GW.
+• The last feature in which our simulator differs from the model is the presence of the duty cycle at the GW. Even if the GW can receive up to 8 packets simultaneously, the rate at which ACKs
+
+1
+
+0.8
+
+Packet success ratio
+
+0.6
+
+0.4
+
+0.2
+
+Simulator, Duty Cycle on
+
+Simulator, Duty Cycle off
+
+Model
+
+0
+
+10−2
+
+10−1
+
+100
+
+101
+
+Network packet arrival rate
+
+Fig. 5: Comparison of lorawan simulator with analytical model taken from [4].
+
+can be returned is limited by the duty cycle constraint. If the delay exceeds the total duration of the receive windows of the ED, the ACK transmission is aborted and the UL transmission is considered failed, causing packet retransmissions.
+As shown in Fig. 5, the packet delivery ratio increases significantly when the GW’s duty cycle restriction is disabled, though it still remains lower than that predicted by the theoretical model. Some possible solutions to the issues caused by Duty Cycle (DC) restrictions are listed below.
+1) GWs co-location: leveraging the fact that downlink transmissions are scheduled by a centralized controller (i.e., the NS), the presence of multiple GWs at the same location can allow the NS to balance the time on air among the co-located GWs, thus better exploiting the duty cycle allocated to each GW.
+2) Listen before talk: since the regulation does not enforce duty cycle on devices implementing a listen-before-talk mechanism, it is possible to give GW chips this capability, thus allowing them to transmit as often as needed in downlink channels.
+VI. CONCLUSIONS
+In this work we presented a simulation analysis of a LoRaWAN network.
+We showed that the performance of a single LoRaWAN cell can signiﬁcantly degrade when the fraction of nodes that require conﬁrmed trafﬁc grows excessively. Furthermore, our results showed that, to reach the best performance, it is necessary to carefully choose the maximum number of transmission attempts for conﬁrmed packets, based on the node density and trafﬁc load.
+After these initial results, we discussed some insights into the system behavior that should be considered in the network setup, such as the potentially harmful effect of the ADR mechanisms at the device-side in the presence of conﬁrmed trafﬁc, the ill-designed random backoff intervals, the risk of receivers locking on undesired uplink transmissions, and the impact of the asymmetry in the sensitivities of the GW and ED chips. Furthermore, we discussed possible approaches to alleviate some of the revealed issues, e.g., introducing adaptation strategies for some system parameters or changing the priority of the sub-bands used for the receiving windows.
+
+Finally, we showed how the introduction of the features of real LoRa chips, such as the limitation of the GW’s receive paths and the duty cycle restriction, have a profound impact on the network performance, and ought to be thoughtfully considered both in simulation and model design.
+As possible developments of this work, we envisage simulations with multiple GWs, in which the suggested solutions are tested realistically via the MAC commands, which are currently deﬁned by the standard. Moreover, the simulator can be used to verify the effectiveness of different ADR schemes in realistic scenarios, where the distribution of SFs is heavily impacted by the presence of buildings. Finally, a mathematical model considering conﬁrmed trafﬁc and realistic features could be formulated to predict LoRaWAN network performance.
+ACKNOWLEDGMENT
+This work was partially supported by the project POR FESR 2014-2020 “Sistema Domotico IoT Integrato ad Elevata Sicurezza Informatica per Smart Buildings”.
+REFERENCES
+[1] Marco Centenaro et al. “Long-range communications in unlicensed bands: The rising stars in the IoT and smart city scenarios”. In: IEEE Wireless Communications 23.5 (2016), pp. 60–67.
+[2] Lorenzo Vangelista, Andrea Zanella, and Michele Zorzi. “Long-range IoT technologies: the dawn of LoRaTM”. In: Future Access Enablers of Ubiquitous and Intelligent Infrastructures. 2015, pp. 51–58.
+[3] The Things Network. [Online] Available: https://www.thethingsnetwork.org.
+
+[4] D. Bankov, E. Khorov, and A. Lyakhov. “Mathematical model of LoRaWAN channel access with capture effect”. In: 2017 IEEE 28th Annual International Symposium on Personal, Indoor, and Mobile Radio Communications (PIMRC). 2017, pp. 1–5. DOI: 10.1109/PIMRC.2017.8292748.
+[5] A. I. Pop et al. “Does Bidirectional Trafﬁc Do More Harm Than Good in LoRaWAN Based LPWA Networks?” In: GLOBECOM 2017 - 2017 IEEE Global Communications Conference. 2017, pp. 1–6. DOI: 10 . 1109 / GLOCOM . 2017 . 8254509.
+[6] F. Van den Abeele et al. “Scalability Analysis of Large-Scale LoRaWAN Networks in ns-3”. In: IEEE Internet of Things Journal 4.6 (2017), pp. 2186–2198. DOI: 10.1109/JIOT.2017. 2768498.
+[7] Claire Goursaud and Jean-Marie Gorce. “Dedicated networks for IoT: PHY/MAC state of the art and challenges”. In: EAI endorsed transactions on Internet of Things (2015).
+[8] LoRa Alliance. “LoRaWANTM 1.1 Speciﬁcation”. In: LoRa Alliance (2017).
+[9] D. Magrin, M. Centenaro, and L. Vangelista. “Performance evaluation of LoRa networks in a smart city scenario”. In: 2017 IEEE International Conference on Communications (ICC). 2017, pp. 1–7. DOI: 10.1109/ICC.2017.7996384.
+[10] 3GPP. Cellular system support for ultra-low complexity and low throughput Internet of Things (CIoT). Tech. rep. 45.820 V13.1.0. 2015.
+[11] LoRa Alliance. “LoRaWANTM 1.0.2 Speciﬁcation”. In: LoRa Alliance (2016).
+[12] LoRa Alliance. “LoRaWANTM 1.1 Regional Parameters”. In: LoRa Alliance (2017).
+[13] Semtech Corporation. SX1301 datasheet. SX1301. Version 2.01. 2014.
+
+
