@@ -1,0 +1,348 @@
+三.製作理論探討
+1.系統架構
+圖 系統架構
+圖 系統架構細節
+
+2.LoRaWan 封包格式
+封包格式:
+圖 LoRaWan 封包格式
+cjp:
+因為 LoRa 並無一個統一的傳輸協定所以任何人都可使用,最前面 cjp 三個字元只是為了識別 是 否 是 我 可 以 讀 懂 的 封 包 ,過 濾 掉 那 些 別 人 送 出 來 但 是 我 讀 不 懂 的 封 包
+type:
+T(transfer), D(data), A(ack), S(search), I(Inform)
+destination:
+每個裝置都有一個唯一的 SID,此封包的 destination 欄位即是這個封包的目的地的 SID,000000 為廣播位址
+sid:
+發送端的 SID
+messageID:
+此封包的識別碼(0~255)
+length:
+後面 payload 的長度
+payload:
+訊息
+-1-
+
+3.LoRaWan 各類封包的運作
+(1)Data
+所有 LoRa node 要將感測到的資料(例如:溫濕度,GPS 經緯度) 裝置狀態(例如:某個開關被打 開…等),只要是要需要轉送到 internet 上的訊息,就必須使用這類封包
+
+cjp
+
+D
+
+Lgw001 pot001 0~255 0~255
+
+(2)Transfer
+一般的資料封包, 大部分用於 internet 上的訊息透過 gateway 轉送到 LoRaWan 內
+
+payload
+
+cjp
+
+T
+
+pot001 Lgw001 0~255 0~255 payload
+
+(3)Ack
+用來確保封包順利抵達目的地,只要接收端順利接收到一個正確的封包就發一個 ack 給發送端 告知此封包傳送成功,ask 封包的 messageID 欄位會填入接收端要回給發送端的封包的識別碼,傳送 端若在送出封包後 2 秒內沒收到 ack 傳送端就會判定這個封包傳送失敗
+
+node po001 送出一個封包識別碼為 5 的封包給 Lgw001:
+
+cjp
+
+D
+
+Lgw001 pot001 5
+
+0~255 payload
+
+Lgw001 回一個 ack 給 pot001 告知送給 Lgw001 的編號 5 封包成功送達:
+
+cjp
+
+A
+
+pot001 Lgw001 5
+
+3
+
+ack
+
+(4)Search
+Node 目前剛開機尚未連線或原本連線的 gateway 消失,就會廣播這類封包尋找周邊有哪些 gateway 可用,所有收到這類封包的 gateway 都必須回應發送端,此時發送端就會從眾多 gateway 回應 的 ack 中依照 rssi 值,挑選訊號最強的那個 gateway 連線,此時就會產生 handover,通知 server 這個 node 要換 gateway,此時 server 就會修改 routine table
+
+pot001 廣播 search 封包
+
+cjp
+
+S
+
+000000
+
+pot001
+
+0~255
+
+0~255
+
+search
+
+Lgw001 回應 pot001
+
+cjp
+
+A
+
+pot001 Lgw001 0~255 0~255 ack
+
+通知 server pot001 要與 Lgw001 連線
+cjp D Lgw001 pot001 0~255 0~255 http://104.155.210.211:8080/registerLgw? user=user1&sid=Ldht01&gw=Lgw01
+
+-2-
+
+search gateway 流程圖:
+
+start
+
+清空 gateway 欄位 Set rssi=-200
+
+While(gatew ay==NULL)
+發出 search 封包
+
+While 接收 2 秒內 的回應
+If(ack’s rssi>rssi)
+
+NO
+
+Update gateway and rssi while while
+
+handover
+
+end
+-3-
+
+Handover 流程:
+
+(5) Inform:
+每個 LoRa gateway 每隔 3 分鐘就會廣播一個 Inform 封包給四周的 node,讓 node 知道它的周邊有 哪些 gateway, 每個 node 都會 maintain 一 個 與此 裝 置連 線 的那 台 gateway 的 rssi 值,node 每 次只 要 收 到來自與此裝置連線的 gateway 傳來的封包就會更新一次該數值,node 只要收到不是與他連線的 gateway 廣播出來的 Inform 封包,就會與該數值做比對,只要有大於該數值的情況出現,就代表有一個 gateway 比目前連線的 gateway 訊號更好,此時就會 handover 換到跟訊號比較好的 gateway 連線
+
+Lgw001 廣播 publish 封包
+
+cjp
+
+I
+
+000000
+
+Lgw001
+
+0~255
+
+0~255
+
+Inform
+
+-4-
+
+4.送封包流程圖:
+
+start
+While(1)
+For(i=0;i<3;i++)
+YES
+If type==ack
+
+Listen random time(500~700ms)
+Send packet
+If type is ack or search
+Wait ack If send success
+i
+Search gateway while end
+-5-
+
+通道上沒訊號就繼 續
+YES
+YES
+
+5.收封包流程:
+
+start
+開頭是否為 cjp 和 destination==SID
+YES
+讀資料
+
+If data length err
+NO
+執行相對應操作
+
+end
+
+-6-
+
+6.LoRa gateway
+LoRa gateway 是由一片 raspberry pi 加一片配有 Dragino Lora Shield 868MH 的 arduino 組成,raspberry pi 和 arduino 之間使用 USB 線連接
+
+圖 LoRa gateway 當 arduino 一 接 上 raspberry pi 時,arduino 會 傳送 一 段 訊息 (111+SID)告訴 raspberry pi 上的 轉 送服 務 這 arduino 的 SID 序號 ,此 時 這 服務 就 會 向 server 的 mqtt service 訂 閱這 個 topic,例 如:arduino 傳 111Lgw001 過來,raspberry pi 上的轉送服務就會向 mqtt server 訂閱 Lgw001 topic,所以只要向 Lgw001 topic 發布訊 息,這台 raspberry pi 就能收到
+
+Raspberry pi 上的轉送服務由 javascript 撰寫,使用方式為 $sudo node [程式位置] [USB 連接 port] [server IP] [mptt 登入帳號] 例如 : $sudo node /root/serial.js /dev/ttyACM0 104.155.210.211 test
+
+此程式會將收到的訊息的前 6 碼視為要轉送到 LoRaWan 中的目的地,所以如果向 Lgw001 topic 發布 訊息 pot001hello,raspberry pi 收到此訊息時便會透過 USB 告知要 arduino 要送一封包給 SID 為 pot001 的 node ,訊息為 hello
+
+cjp
+
+T
+
+pot001
+
+Lgw001
+
+0~255
+
+5
+
+hello
+
+gateway 保留 wifi 功能使 wifi 與 LoRa 並存,並且導入 docker 技術將每一個 service 獨立成一個一個的 container,可使 用 本專 題 所 撰寫 的 docker-compose.yml,即 可快 速 地將 所 有功 能 部屬 完 畢
+
+-7-
+
+圖 LoRa gateway microservice 概念
+圖 LoRa gateway microservice 運作 -8-
+
+7.農業應用 node
+圖 農業應用 node 這類 node 有一片 arduino,一片 Dragino Lora Shield 868MH,一片藍芽模組(CH-06)加上空氣溫濕度感測 模組(DHT-11),土 壤 溼度 感 測模 組 ,及 一個 繼 電器 開 關 ,外加 6 伏 特的 電 源給 抽水 馬 達使 用 在使 用 前必 須 先使 用 藍芽 與此 裝 置配 對 並透 過 藍芽 告知 此 裝置 的 user,設定 字 串為 (SET+USER+"user")例如這裝置的 user 為 user1,在使用前就必須先傳一段 SET+USERuser1 給此裝置, 此時 arduino 就會將這些資料記錄至 arduino 上的 EEPROM,所以如果在 node 開機時發現 EEPROM 內 沒 user 資料的話就會進入 busy wait 直到有使用者使用藍芽告知此裝置的 user 操作才會繼續 EEPROM 內資料擺放位置: User:起始位置為 0 是否開啟自動澆水功能:位置 20 自動澆水時,啟動抽水法達的下限值:位置 22 自動澆水時,關閉抽水法達的上限值:位置 24
+-9-
+
+Node 開機流程
+
+start
+
+NO
+
+檢查周邊裝置是否正常
+
+EEPROM 是否有所需資 料
+載入資料
+
+NO
+等待 user 配對
+
+Search LoRaGateway
+end
+
+- 10 -
+
+每 5 秒執行一次感測流程(pot)
+
+start
+
+讀取溫濕度及土壤溫濕 度
+
+數值是否改變
+
+NO
+
+送出新數值
+
+是否高於或低於設定範 圍且必須改變開關狀態
+
+NO
+
+On or off 澆水開關 並送出開關狀態
+end
+
+- 11 -
+
+可使用 APP 在遠端打開抽水馬達開關和設定是否開啟自動澆水設定及設定自動澆水的上下限值 例如: 以下步驟為在遠端打開抽水馬達的流程 ○1 查 routine table 找 出 要設 定的 node 是與 哪個 gateway 連 線 ○2 向此 gateway 訂閱 的 mqtt topic 發布 訊 息 ○3 訊息 前 6 碼填 入 SID,後 面 接著 要 送到 node 上的 內 容 (pot001SET+SW011) ○4 node 收 到 訊息 並 打開 開 關 (如果 是 設定 自 動澆 水 開 關 ,自動 澆 水的 上 限值 或 下限 值 ,還 會將 這 些數 值紀錄至 EEPROM) ○5 node 送 出 訊息 給 server 告 知此 開 關的 狀 態已 被 打開 ○6 server 更 新 這個 node 的狀 態 ○7 將這 訊 息推 播 給 user
+圖 使用 mqtt 開啟 node 上的開關
+圖 使用 mqtt 控制 node 流程
+- 12 -
+
+Node 設定字串: 開關 01 設定: SET+SW01?-------問號為要設定的狀態,1 為開 0 為關 自動澆水設定: SET+AUTO?-------問號為要設定的狀態,1 為開 0 為關 自動澆水上下限設定: SET+STWT[下限],[上限]------SET+STET20,40 User 設定 SET+USER?????---------SET+USERtest 接線圖:
+圖 農業應用 node 接線圖
+- 13 -
+
+8.定位用 node
+圖 定位用 node 這類 node 由一片 arduino,一片 Dragino Lora Shield 868MH,一片藍芽模組(CH-06)加上 GPS 衛星定位模組 (Ublox NEO-7M)組成 在使 用 前必 須 先使 用 藍芽 與此 裝 置配 對 並透 過 藍芽 告知 此 裝置 的 user,設定 字 串為 (SET+USER+"user")例 如這裝置的 user 為 user1,在使用前就必須先傳一段 SET+USERuser1 給此裝置,此時 arduino 就會將這些資 料記錄至 arduino 上的 EEPROM,所以如果在 node 開機時發現 EEPROM 內沒 user 資料的話就會進入 busy wait 直到有使用者使用藍芽告知此裝置的 user 操作才會繼續 EEPROM 內資料擺放位置: User:起始位置為 0
+- 14 -
+
+Node 開機流程
+
+NO
+
+start
+檢查周邊裝置是否正常
+
+EEPROM 是否有所需資 料
+載入資料
+
+NO
+等待 user 配對
+
+Search LoRaGateway
+end
+
+- 15 -
+
+每 30 秒執行一次定位流程:
+
+start
+
+NO
+位置是否移 動
+
+送出新位置
+
+end
+
+- 16 -
+
+Node 設定字串: User 設定: SET+USER?????---------SET+USERtest GPS node 接線圖:
+圖 定位用 node 接線圖
+- 17 -
+
+9.server 資料庫設計:
+每個 node 都有一個資料表記錄著這 node 的狀態,相關設定及感測資料 每個 user 都有一個獨立的資料庫 資料庫內有該 user 所有的 node 的資料表,及這些 node 的 routine table
+圖 user 資料庫 LoRaNode 即為這些 node 的 routine table
+圖 routine table
+- 18 -
+
+10.mqtt 推播設定
+Server 有訊息要告知使用者會向 mqtt user/info/ topic 發布訊息 例如:server 要告知 user1 的 pot001 node 上的開關被打開,就會向 user1/info/pot001 topic 發布訊息 sw1 = 1,所以 user1 只要訂閱 user1/info/# topic 就可以接收到 server 要發給 user1 的所有訊息 Topic info 的 下一 層 為觸 發 此訊 息 的 node 的 SID
+圖 mqtt 推播
+- 19 -
+
+11.server API:
+
+API 使用 javascript 撰寫
+
+使用方式為: $sudo node dataHandleDocker.js [server ip] [data base root] [data base root password] &
+
+[mqtt port]
+
+[API port]
+
+[data base container name]
+
+例: $sudo node dataHandleDocker.js 104.155.210.211 1883 8000 mysql root 123456789 &
+(1)addPot API:
+
+將農業用 node 感測到之後送上來的資料記錄到資料庫中這個 node 的資料表並且檢查感測到的空 氣溫 度 ,濕 度及 土 壤溼 度 是否 超 過使 用 者所 設 定的 合理 範 圍 ,如果 超 過就 會 發出 推 播通 知 使用 者 http://104.155.210.211:8000/addPot?user=user1&sid=pot001&t=27&h=37.00&sh=50
+(2)Chval API:
+
+用來 update node 狀態 例如:有個開啟自動澆水開關的 node 因為土壤濕度低於使用者設定而打開連接抽水馬達的繼電器 時,就會送出 http://104.155.210.211:8080/chval?user=user1&sid=pot001&vari=sw1&val=1 update 紀錄 pot001 的資料表,並且向 mqtt topic user1/info/pot001 發出訊息 sw1 = 1 通知灑水開關被 打開
+(3)chWater API
+
+用來改變開啟自動澆水功能時,打開抽水馬達的下限值及關閉抽水馬達的上限值,所以當 node 上的 設定更該時就會送出 http://104.155.210.211:8000/chWater?user=user1&sid=pot001&start=10&stop=60 update 紀錄 pot001 的資料表,並且向 mqtt topic user1/info/pot001 發出訊息 waterStart=10,waterStop=60 通知更改後的數值
+
+(4)addGPS API:
+
+將定位用 node 送上來的經緯度資料記錄到資料庫中這個 node 的資料表 http://104.155.210.211:8080/addGPS?user=user1&sid=GPS001&lat=24.143387&lon=120.728520
+(5)registerLgw API:
+
+用來新增或改變 routine table 當 pot001 要跟 Lgw01 連線時就會送出 http://104.155.210.211:8080/registerLgw?user=user1&sid=pot001&gw=Lgw01
+
+- 20 -
+
+API 流程 - 21 -
+
