@@ -1,0 +1,376 @@
+Evaluation of Real-time Property in Embedded Linux
+LinuxCon Japan 2014
+Hiraku Toyooka, Hitachi
+
+© Hitachi, Ltd. 2014. All rights reserved.
+
+1
+
+whoami
+• Hiraku Toyooka
+• Software engineer at Hitachi
+• Working on operating systems
+• Linux (mainly) for industrial control systems
+• Server, Embedded • Tracing • Real-time virtualization (partitioning)
+
+© Hitachi, Ltd. 2014. All rights reserved.
+
+2
+
+Agenda
+• What is a real-time system? • Real-time features in Linux • Tuning points for evaluation • Performance measurement
+
+© Hitachi, Ltd. 2014. All rights reserved.
+
+3
+
+What is a real-time system?
+
+© Hitachi, Ltd. 2014. All rights reserved.
+
+4
+
+What is a real-time system?
+
+• Real-time system must always handle events within deadlines
+• Real-time doesn’t mean fast • Worst case performance is important • Deterministic behavior is required
+
+Time Non-RT system
+RT system
+
+Cycle #1 Done Done
+
+Cycle #2 Done Done
+
+Cycle #3 Done
+
+Deadline Miss!
+
+© Hitachi, Ltd. 2014. All rights reserved.
+
+5
+
+Demo
+• Robot control (inverted pendulum)
+
+Gyroscope
+
+Linux /ARM
+
+Motor
+
+Disturbance (additional load)
+
+© Hitachi, Ltd. 2014. All rights reserved.
+
+6
+
+Real-time features in Linux
+
+© Hitachi, Ltd. 2014. All rights reserved.
+
+7
+
+Linux and real-time
+• Linux is originally designed to be a general purpose OS (GPOS)
+• High functionality • Average or peak performance is usually
+important for GPOS • Latency varies widely
+
+© Hitachi, Ltd. 2014. All rights reserved.
+
+8
+
+Linux and real-time
+• Current mainline Linux has a variety of realtime features
+• Certain level of deterministic behavior by appropriate configurations and tuning
+• PREEMPT_RT patchset reduce maximum latency much more
+• Many real-time features in mainline are derived from PREEMPT_RT
+
+© Hitachi, Ltd. 2014. All rights reserved.
+
+9
+
+(Some)Real-time features
+• Mainline
+• Fixed-priority scheduling • Kernel preemption • High resolution timer (hrtimer) • IRQ thread • Others
+• Out of tree
+• PREEMPT_RT patchset
+10 © Hitachi, Ltd. 2014. All rights reserved.
+
+Fixed-priority scheduling
+• Linux has three types of schedulers
+• Completely Fair Scheduler (CFS)
+• Policy: SCHED_OTHER(Default), _BATCH, _IDLE • Task has dynamic-priority based on time slice (non-
+deterministic)
+• Real-time scheduler
+• Policy: SCHED_FIFO, _RR • Task has fixed-priority (deterministic)
+• Deadline scheduler
+• Policy: SCHED_DEADLINE • Merged in 3.14
+11 © Hitachi, Ltd. 2014. All rights reserved.
+
+Fixed-priority scheduling (cont.)
+
+• There are per-cpu runqueues in Linux
+
+• RT tasks are always dispatched prior to CFS tasks
+
+Priority (for user) higher
+99
+98
+
+TASK_RUNNING (READY)
+
+head
+
+tail
+
+task
+
+RT tasks
+
+97
+
+This task has highest priority in this CPU
+
+CFS tasks
+
+1
+0
+lower
+
+CFS runqueue(red-black tree)
+12 © Hitachi, Ltd. 2014. All rights reserved.
+
+Kernel preemption
+• Without preemption support: when higher priority tasks wake up, they are delayed until current task exits from a syscall or yields explicitly
+• CONFIG_PREEMPT
+• Enables forcible context-switch even in kernel mode
+• Though spin-locks disable preemption • Improves response latency of high priority tasks
+13 © Hitachi, Ltd. 2014. All rights reserved.
+
+High resolution timer (hrtimer)
+• Some real-time systems start processing triggered by periodic timer events
+• But timer_list subsystem has only tick(jiffies) resolution
+• Tick intervals of 1~10ms are too long • Tick-independent software timer is necessary
+• CONFIG_HIGH _RES_TIMERS
+• Enables software timer mechanism which supports nanosecond resolution
+• Userspace programs using nanosleep, itimers or posix-timers can benefit from this feature
+14 © Hitachi, Ltd. 2014. All rights reserved.
+
+IRQ thread
+• Move a part of the interrupt handler code to a kernel thread
+• reduce interrupt-disabled section • prioritize interrupt handlers
+• CONFIG_IRQ_FORCED_THREADING
+• Force threading of all interrupt handlers
+• except handlers marked IRQF_NO_THREAD
+• Enabled by boot parameter “threadirqs”
+15 © Hitachi, Ltd. 2014. All rights reserved.
+
+IRQ thread (cont.)
+
+# ps |grep irq 3 root 64 root 65 root
+203 root 921 root 956 root 959 root 967 root 968 root 977 root 978 root 988 root 989 root 990 root 991 root 1006 root
+
+0:00 [ksoftirqd/0] 0:00 [irq/12-edma] 0:00 [irq/14-edma_err] 0:00 [irq/70-omap_i2c] 0:00 [irq/30-omap_i2c] 0:00 [irq/18-musb-hdr] 0:00 [irq/19-musb-hdr] 0:00 [irq/75-rtc0] 0:00 [irq/76-rtc0] 0:00 [irq/64-mmc0] 0:00 [irq/166-mmc0] 0:00 [irq/77-wkup_m3] 0:00 [irq/78-wkup_m3_] 0:00 [irq/120-smartre] 0:00 [irq/121-smartre] 0:00 [irq/72-OMAP UAR]
+
+16 © Hitachi, Ltd. 2014. All rights reserved.
+
+Others
+• PI (Priority Inheritance) mutex • Preemptive RCU • RT group scheduling • RT throttling • Full tickless (no_hz) • etc…
+17 © Hitachi, Ltd. 2014. All rights reserved.
+
+PREEMPT_RT patchset
+• provides more deterministic behavior
+• https://www.kernel.org/pub/linux/kernel/projects/rt/ • It consists of lots of patches lowering maximum
+latency
+• There are 318 patches in 3.14.2-rt3
+• CONFIG_PREEMPT_RT_FULL
+• allows “full preemption”
+• nearly all of the kernel can be preempted • replaces spin-locks with mutexes (Sleeping spin-lock) • many other improvements
+18 © Hitachi, Ltd. 2014. All rights reserved.
+
+Tuning points for evaluation
+19 © Hitachi, Ltd. 2014. All rights reserved.
+
+Tuning points for evaluation
+• Clocksource resolution • Task priority • Task switching cost • Page faults • Multi-core • Lock debugging
+20 © Hitachi, Ltd. 2014. All rights reserved.
+
+Clocksource resolution
+• Getting and updating clock time depend on clocksource
+• gettimeofday(2), clock_gettime(2)
+• This means that time measurement is affected by clocksource resolution
+• Confirmation is necessary before measurement
+# dmesg | grep clock [0.000000] OMAP clocksource: GPTIMER1 at 24000000 Hz [0.000000] sched_clock: 32 bits at 24MHz, resolution 41ns, wraps every 178956ms
+21 © Hitachi, Ltd. 2014. All rights reserved.
+
+Task priority
+• We need to use RT policy and priorities for deterministic scheduling
+• sched_setscheduler(2) can change those scheduling attributes of specified tasks
+• In pthread library, new thread’s scheduling attributes can be set by pthread_attr_setschedparam(3)
+• Do not forget to call pthread_attr_setinheritsched(3) with PTHREAD_EXPLICIT_SCHED
+22 © Hitachi, Ltd. 2014. All rights reserved.
+
+Task switching
+• Process switching cost is significantly larger than thread switching
+• Process switching needs to flush TLB • If your real-time application is composed of lots
+of processes, process switching measurement is necessary
+23 © Hitachi, Ltd. 2014. All rights reserved.
+
+Page faults
+• Memory allocation to userspace is usually only virtual address space allocation
+• Initial memory access causes page fault, and this produces more latency
+• Page-out to swap area also causes page faults
+• To prevent page faults, mlockall(2) is used
+• All memory-mapped pages remain on physical memory after mlockall(2)
+24 © Hitachi, Ltd. 2014. All rights reserved.
+
+Multi-core
+• In multi-core SoC, tasks can move from local core to remote cores
+• This migration causes additional latency • Tasks can be fixed to a specific core by cpuset
+cgroup
+• Influence of unrelated interrupt handling
+• It’s effective to fix real-time tasks to cores which doesn’t handle unrelated IRQs
+• after setting IRQ affinity.
+25 © Hitachi, Ltd. 2014. All rights reserved.
+
+Lock debugging features
+• Lock debugging features add much more latency
+• Disabling them is effective
+26 © Hitachi, Ltd. 2014. All rights reserved.
+
+Performance measurement
+27 © Hitachi, Ltd. 2014. All rights reserved.
+
+Measured items [1/2]
+• Interrupt response time
+• Time period between expiry of a hardware timer and scheduling of a userspace task
+• measured by cyclictest (in rt-tests) • cyclictest -a 0 -p 99 -m -n -l 100000 -q --
+histogram=500
+• -a: set CPU affinity to CPU0 • -p 99: set priority to 99 • -m: use mlockall • -n: use clock_nanosleep to measure time • -l 100000: number of trials • -q: don’t print anything while testing • --histogram=50: print histogram 0-49us after the test
+28 © Hitachi, Ltd. 2014. All rights reserved.
+
+Measured items [2/2]
+
+• Task switching time
+• measured by own program (though ptsematest exists…)
+• Cause thread switching by POSIX semaphore 100k times
+
+Time (1)
+
+Running on CPU
+
+Task A high-prio
+
+(2) sleep...
+
+(3)
+
+Task A high-prio
+
+Scheduler selects B
+
+(4)
+Task B low-prio
+
+Ready
+
+wake
+
+(on runqueue) up
+
+Task B low-prio
+
+Task B low-prio
+
+Sleeping
+
+Task B low-prio
+
+Task A high-prio
+
+Task A high-prio
+
+29 © Hitachi, Ltd. 2014. All rights reserved.
+
+Evaluation environment
+
+Board SoC CPU L1 cache (inst. / data) L2 cache Main memory Linux version PREEMPT_RT version
+
+BeagleBone Black TI Sitara AM3359 ARM Cortex-A8 (1GHz) 32KB / 32KB 256KB 512MB 3.14.0 3.14.0-rt1
+
+Altima Helio board Altera Cyclone V ARM Cortex-A9 (800MHz x2) 32KB / 32KB 512KB 1GB 3.14.0 [1] 3.14.0-rt1
+
+[1] http://rocketboards.org/gitweb/?p=linux-socfpga.git
+
+Measurement programs
+
+iperf
+
+Linux Target board
+
+iperf Linux PC
+
+Network I/O load (UDP 100Mbps)
+
+30 © Hitachi, Ltd. 2014. All rights reserved.
+
+Comparison
+• Three types of kernels
+• “No preempt” • “Preempt” • “Preempt RT”
+
+Settings Kernel version Preemption Forced IRQ threading Full preemption (RT patch)
+
+“No Preempt” “Preempt”
+
+3.14.0
+
+3.14.0
+
+No
+
+Yes
+
+No
+
+Yes
+
+No
+
+No
+
+“Preempt RT” 3.14.0-rt1 Yes Yes Yes
+
+31 © Hitachi, Ltd. 2014. All rights reserved.
+
+Interrupt response time (BeagleBoneBlack)
+Max latency No Preempt 293us Preempt 88us Preempt RT 55us
+32 © Hitachi, Ltd. 2014. All rights reserved.
+
+Interrupt response time (Helio)
+
+Max latency No Preempt 248us Preempt 108us Preempt RT 30us
+
+33 © Hitachi, Ltd. 2014. All rights reserved.
+
+Task switching time (BeagleBoneBlack)
+Max latency No Preempt 208us Preempt 69us Preempt RT 75us
+34 © Hitachi, Ltd. 2014. All rights reserved.
+
+Task switching time (Helio)
+
+Max latency No Preempt 219us Preempt 43us Preempt RT 42us
+
+35 © Hitachi, Ltd. 2014. All rights reserved.
+
+Conclusion
+• Current mainline Linux has lots of real-time features
+• PREEMPT_RT patchset provides more deterministic behavior
+• We can reduce maximum latency by using these features with appropriate configuration and tuning
+36 © Hitachi, Ltd. 2014. All rights reserved.
+
+Trademarks
+• Linux is a trademark of Linus Torvalds in the United States, other countries, or both.
+• Other company, product, or service names may be trademarks or service marks of others.
+37 © Hitachi, Ltd. 2014. All rights reserved.
+

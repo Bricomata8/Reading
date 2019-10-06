@@ -1,0 +1,517 @@
+IEEE ICC 2017 SAC Symposium Internet of Things Track
+
+Performance Evaluation of LoRa Networks in a Smart City Scenario
+Davide Magrin∗, Marco Centenaro∗, and Lorenzo Vangelista∗† ∗Dept. of Information Engineering (DEI), University of Padova – Via Gradenigo 6/b, 35131 Padova, Italy
+†Patavina Technologies S.r.l. – Via Venezia 59/8, 35131 Padova, Italy Email: {magrinda, marco.centenaro}@dei.unipd.it, lorenzo.vangelista@unipd.it
+
+Abstract—Low-Power Wide Area Networks (LPWANs) are continuously gaining momentum as fundamental enablers of the Internet of Things (IoT) paradigm. These networks provide longrange coverage to end nodes, exploiting license-free frequency bands. The focus of this work is on one of the most prominent LPWAN technologies: LoRaTM . We implemented a new ns–3 module to study the performance of a LoRa-based IoT network in a typical urban scenario. Simulation results show that a LoRa network can scale well, achieving packet success rates above 95% in presence of a number of end devices in the order of 104.
+I. INTRODUCTION
+Recently, Low-Power Wide Area Networks (LPWANs) have been gaining momentum and are challenging the previous technologies (mainly based on IEEE 802.15.4 standards), providing wireless connectivity using a star topology and longrange transmission in the unlicensed sub-GHz frequency bands [1]. Thanks to new Physical Layer (PHY) designs that enable a higher receiver sensitivity, these technologies trade data rate for coverage, decreasing the former to increase the latter. A low data rate is not satisfactory for many applications, however for the typical smart city traffic, characterized by sporadic and intermittent transmissions of small packets, this is not an issue.
+A debate is going on about the effective performance of LPWANs, in order to understand whether they are a viable solution for the deployment of IoT networks. In this paper we aim at evaluating the performance of one of the most prominent LPWAN technologies, LoRaTM , in a typical urban scenario. To do so, we implemented a new LoRa module in one of the most accurate open-source system-level network simulators, ns–3 [2].
+The literature related to the work presented in this paper is quite limited, since the interest of the research community in the relatively new technologies of LPWANs started growing lately. In [3] the authors provide an exhaustive technical analysis of the LoRa modulation system, comparing it with other LPWAN solutions. In [4], instead, some field trials of LoRa end nodes are carried out in a urban environment and computer simulations of the LoRa Medium Access Control (MAC) layer procedures are run to evaluate the throughput of a LoRa network. However, comprehensive and accurate system-level simulations of LoRa networks that consider a number of end devices which are deployed in a realistic urban propagation scenario, with streets and buildings, are still missing: it is exactly in this context that our work is
+
+presenting novel and interesting results demonstrating that a LoRaWANTM network provides a higher throughput than a typical ALOHA-based scheme, thanks to the new access scheme it employs. Furthermore, we show that the LoRaWAN network can scale well, since a higher number of gateways increases considerably the coverage and reliability of the uplink (UL). Finally, we demonstrate via a simulation campaign that a packet success rate above 95% is achieved when a gateway is serving a number of devices in the order of 104, as claimed by the proponents of LoRaWAN [5].
+The rest of the paper is structured as follows. In Sec. II the principles of the LoRa technology are briefly described. In Sections III and IV the simulation assumptions at link level and system level, respectively, are explained. In Section V the performance evaluation results are shown using the proposed LoRa system-level simulator. Finally, in Section VI the conclusions of this work are drawn.
+II. LORA AND LORAWAN
+The terms LoRa and LoRaWAN are often used interchangeably. However, they refer to two distinct components of the network, as described below.
+A. The LoRa Modulation
+LoRa is a proprietary PHY modulation designed and patented by Semtech Corporation, based on a derivative of Chirp Spread Spectrum (CSS): the spreading of the signal over a larger frequency band is achieved by generating a chirp signal that varies linearly in frequency.
+The LoRa modulation employs different types of physical layer packets, with different lengths in time, parametrized by the so-called Spreading Factor (SF), which can take values SF ∈ {7, . . . , 12}. We remark that the higher the SF is, the longer in time the packet and the more reliable its reception will be.1
+B. LoRaWAN
+While the LoRa PHY layer is proprietary, the rest of the protocol, known as LoRaWAN, is open and described by the LoRa Alliance2 in [7]. For a complete overview of the
+1Due to the constrained space of this paper, we can not provide a comprehensive description of the modulation, thus we invite the reader to refer to [6] for further details.
+2https://www.lora-alliance.org/
+
+978-1-4673-8999-0/17/$31.00 ©2017 IEEE
+
+IEEE ICC 2017 SAC Symposium Internet of Things Track
+
+LoRaWAN protocol, we invite the reader to refer to [1]. We only recall that the following three entities are defined in LoRaWAN:
+1) the end device (or end node), that is, a node that generates UL and/or receives downlink (DL) traffic;
+2) gateways, which are devices that collect/send the packets coming from/sent to the end devices and forward/receive them to/from
+3) the Network Server (NS), which plays the role of central coordinator and controller of the LoRa network.
+C. Frequency Bands and European Regulations
+LoRaWANs operate on the Industrial, Scientific, and Medical (ISM) frequency bands, in particular, in the 902 − 928 MHz band in the US and in the 863 − 870 MHz band in Europe.
+In Europe license-exempt bands are subject to regulations on radio emissions [8], thus radios are required to adopt either a Listen-Before-Talk (LBT) policy or a duty cycled transmission to limit the rate at which the end devices can actually generate messages. The latter policy is adopted in the vast majority of the cases. Furthermore, each transmission in a sub-band of the 863 − 870 MHz frequency range must respect some limitations on the Effective Radiated Power (ERP). Three different categories of ISM sub-bands are distinguished in Europe (see [9]):
+1) g1 line 3 (867 − 868 MHz), g1.1 (868 − 868.6 MHz), g1.4 (869.7 − 870 MHz), with maximum 36 seconds per hour Time on Air (ToA), 1% duty cycle to be shared between all sub-channels in each sub-band, and a ERP limit of 14 dBm;
+2) g1.2 (868.7 − 869.2 MHz), with maximum 3.6 seconds per hour ToA, 0.1% duty cycle, and a ERP limit of 14 dBm;
+3) g1.3: (869.4 − 869.65 MHz) with maximum 360 seconds per hour ToA, 10% duty cycle, and a ERP limit of 27 dBm.
+Table I proposes a lineup of 6 LoRa channels according to ETSI constraints on European ISM bands. We want to remark that each end device is allowed to transmit on channels belonging to different sub-bands in order to increase the aggregate ToA as long as the duty cycle limit in each sub-band is respected.
+III. LINK-LEVEL ASSUMPTIONS
+As for other system–level simulation tools, e.g., the Vienna Long Term Evolution (LTE) simulator [10], our system-level simulations are based on two models:
+• the link measurement model, used to abstract the effects of propagation on signal strength as well as to average out small-scale fading and similar effects; and
+• the link performance model, which determines the probability of correctly receiving a packet at reduced complexity, given the previously computed link strength, the amount of interferers and other system-level effects.
+In the following of this section, we will describe these two models and which aspects of a real transmission they mimic.
+
+A. Link Measurement Model
+
+Given a transmitter-receiver pair, the link measurement model aims at estimating the strength of the signal at the receiver side. Let us denote the transmitter and receiver antenna gain with Gtx and Grc, respectively, and the transmit power with Ptx. Then, the received power is expressed as
+
+Prx
+
+=
+
+PtxGtxGrc eξ L
+
+,
+
+(1)
+
+where L is the path loss and eξ is the lognormal shadowing component, i.e., ξ ∼ N (0, σ2). In the logarithmic domain,
+Eq. (1) becomes
+
+PrdxB = PtdxB + GdtxB + GdrcB − LdB + 4.34ξ .
+
+(2)
+
+The path loss LdB consists of two contributions: the propagation loss, which depends on the distance between transmitter and receiver, and the building penetration loss, due to the wall attenuation, thus
+
+LdB = LdprBopagation + LdbuBildings .
+
+(3)
+
+1) Propagation Loss Model: According to [11], the propagation loss (also called external path loss) is computed as
+
+LdprBopagation = 40(1 − 4 × 10−3 × h) log10 R|km
+
+(4)
+
+− 18 log10 h|m + 21 log10 f |MHz + 80 ,
+
+where h ∈ [0, 50] m is the gateway antenna elevation, measured from the average rooftop level. We want to remark that the antenna elevation has a massive impact in the performance of the system [12]. Assuming f = 868 MHz and h = 15 m, it follows
+
+LdprBopagation = 120.5 + 37.6 log10(R|km) .
+
+(5)
+
+2) Building Penetration Loss Model: In order to model the losses that are caused by external and internal walls of buildings, we resort to the model described in [13]. The overall building penetration loss LdbuBildings is the sum of the following three contributions:
+1) External Wall Loss (EWL); 2) the internal wall loss; and 3) the losses caused by floors and ceilings.
+For space constraints, we omit the details about how each one of these contributions is modeled, inviting the reader to refer to [13].
+3) Correlated Shadowing Generation: Many studies on shadowing in wireless networks can be found in the literature. In particular, [14] provides a structured synthesis of the existing literature on correlation in wireless shadowing. Two kinds of correlation are usually considered [15].
+1) If a transmitter sends a message to a receiver, we expect that the amount of shadowing experienced by the receiver is correlated with the shadowing affecting any other device that is “close” to it. This correlation is a function of the distance separating the two devices, and is usually modeled with an exponential function [16].
+
+IEEE ICC 2017 SAC Symposium Internet of Things Track
+
+TABLE I CHANNEL LINEUP FOR LORA ACCORDING TO ETSI REGULATIONS (ti IS THE TIME ON AIR IN CHANNEL i).
+
+Channel #
+1 2 3 4 5 6
+
+Central frequency f
+868.1 868.3 868.5 868.85 869.05 869.525
+
+Bandwidth B
+125 kHz 125 kHz 125 kHz 125 kHz 125 kHz 125 kHz
+
+Time allowed per hour
+t1 + t2 + t3 ≤ 36 t1 + t2 + t3 ≤ 36 t1 + t2 + t3 ≤ 36
+t4 + t5 ≤ 3.6 t4 + t5 ≤ 3.6
+t6 ≤ 360
+
+% of time on air
+1% 1% 1% 0.1% 0.1% 10%
+
+Max ERP
+25 mW (14 dBm) 25 mW (14 dBm) 25 mW (14 dBm) 25 mW (14 dBm) 25 mW (14 dBm) 500 mW (27 dBm)
+
+Regulatory regime
+g1.1 g1.1 g1.1 g1.2 g1.2 g1.3
+
+2) If two devices which are close to each other transmit,
+
+we expect their shadowing values to be correlated at
+
+the receiver side. This effect is described as site-to-site
+
+cross-correlation in [15].
+
+The most common correlation model is a decaying exponential
+
+of distance (distance-only model, [14, Sec. VI-B]). Denoting
+
+the distance between end nodes i and j with di,j, the shadowing
+
+correlation is
+
+ρi,j (di,j ) = e−di,j /d0 ,
+
+(6)
+
+TABLE II GATEWAY SENSITIVITY TO DIFFERENT SPREADING FACTORS.
+
+Spreading Factor
+7 8 9 10 11 12
+
+Sensitivity [dBm]
+−130.0 −132.5 −135.0 −137.5 −140.0 −142.5
+
+where d0 > 0 is a tunable parameter called decorrelation distance.
+As for the implementation of correlated shadowing components, the most common way to generate shadowing maps (i.e., 2D functions that describe shadowing at each point in the map) exploits Cholesky factorization [14]. To reduce the computational effort required to produce the maps, [17] proposes an alternative method. However, to simulate a urban scenario with tens of thousand of nodes, as envisioned for a LoRa network, we resort to the heuristic approach proposed by [18]. Assuming a shadowing decorrelation distance d0 = 110 m [13], we generate a regular grid in which each square has a side length of d0 and draw an independent Gaussian random variable at each vertex of the grid. To calculate the shadowing values of nodes which are not exactly placed on a vertex of the grid, we interpolate the values of the grid using an exponential covariance function as explained in [18]. This captures correctly the first one of the two aspects of the shadowing correlation that we listed above. In order to also express the fact that a receiver “sees” two correlated shadowing values from neighbouring devices, we make use of the same shadowing map for every point belonging to the same square in the grid.
+B. Link Performance Model
+The link performance model aims at abstracting the real implementation of the physical layer transmission chain and at making interference computations more manageable. It is based on a model of the gateway receiver and a pair of look-up tables that are used to model the aspects of sensitivity and interference.
+1) Receiver Sensitivity: Let us denote with Si the sensitivity of the gateway receiver for SF = i. The gateway (UL) sensitivity is summarized in Table II [5].
+For each value in Table II, we need to factor in the gain of the receiver antenna Grc (improving the reception in general). It can be seen that an increase of SF yields a better sensitivity,
+
+with regular steps of 2.5 dB. In case of DL transmissions, since the sensitivity of an end device is assumed to be worse than the sensitivity of a gateway, we introduce an offset of 3 dB and, once again, we have to factor in the antenna gain.
+Any received packet with SF = i whose power is below the threshold Si cannot be detected by the gateway; if, instead, the received power is above Si, then it can be detected. In this case, we also assume that the receiver will lock on the incoming signal and start receiving the packet.
+A further assumption regards the received power of the packet, which is computed thanks to Eq. (2) and assumed to be constant for the whole duration of the reception. This implies that when a packet is received with a high enough power to start being detected, it will be detectable (i.e., above the sensitivity) for the rest of the time it takes to be completely received.
+2) SINR Matrix: Since our objective is to simulate the behaviour of a standalone LoRaWAN network, we assume that interference only comes from other LoRa transmissions. By making this assumption, we can leverage the (partial) orthogonality property of different SFs to model whether a packet survives interference from other LoRa transmissions or not. Let us introduce the following (relative) Signal-toInterference-plus-Noise-Ratio (SINR) threshold matrix [3]:
+
+⎡
+
+⎤
+
+6 −16 −18 −19 −19 −20
+
+T = ⎢⎢⎢⎢⎢⎢⎣−−−−22334703
+
+6 −27 −30 −33
+
+−20 6
+−30 −33
+
+−22 −23
+6 −33
+
+−22 −25 −26
+6
+
+−−−−22222589⎥⎥⎥⎥⎥⎥⎦ .
+
+(7)
+
+−36 −36 −36 −36 −36 6
+
+The element Ti,j is the SINR margin (in dB units) that a packet sent with SF = i must have in order to be decoded if the interfering packet has SF = j. We remark that, in
+
+IEEE ICC 2017 SAC Symposium Internet of Things Track
+
+P (t)
+
+Prc,x Prc,y
+
+0
+
+0
+
+t1
+
+Tx
+
+t1 + Ty
+
+t
+
+Fig. 1. Power equalization of colliding packets. The highlighted energy is spread on the duration of the packet.
+
+presence of multiple interfering packets, we need to satisfy the margin conditions with all the interfering packets, summing the received power values for each SF. Therefore, referring to the Single-Input-Single-Output (SISO) case [10, Sec. III-C3], we recall the general definition of SINR:
+
+SINR
+
+=
+
+σ2
+
++
+
+Prc,0
+Nint l=1
+
+Prc,l
+
+,
+
+(8)
+
+where Prc,0 is the power of the packet under consideration, Nint is the number of interfering packets, and Prc,l is the power of the l-th interfering packet. Focusing on an end device using
+
+SF = i and a set Ij of interferers using SF = j, we define
+
+SINRi,j
+
+=
+
+σ2 +
+
+Prc,0 l∈Ij Prc,l
+
+.
+
+(9)
+
+Therefore, a packet with SF = i is correctly decoded if, for
+
+every j (i.e., for every set Ij of interfering packets with the same SF), the following inequality holds:
+
+SINRdi,Bj > Ti,j .
+
+(10)
+
+A further remark must be made. The elements in matrix
+T are calculated assuming that the two packets are perfectly overlapping. However, in the general case, packets are not
+perfectly synchronized. Because of this, we must equalize
+the interfering power value for the computation of the SINR.
+Consider the situation illustrated in Figure 1, in which a packet
+with SF = x is received at time t = 0 and whose transmission lasts Tx. A packet with SF = y is received at time t = t1 and its transmission lasts Ty. The energy of packet x is Ex = Prc,xTx, while the interfering energy is Eyinterf = Prc,y(Tx − t1). Therefore, the equalized interfering power is:
+
+Pricn,tyerf
+
+=
+
+Erinc,tyerf Tx
+
+=
+
+Prc,y(Tx − t1) Tx
+
+= Prc,y
+
+1 − t1 . Tx (11)
+
+Similarly to the example above, we assume that, in general,
+
+the interfering energy for any reciprocal position of the useful
+
+signal and the interfering signal can be “spread out” on the
+
+signal in order to then compute the SINR using Eq. (9).
+
+Denoting with tol the period of time during which the interferer is overlapping with the useful signal, the general formula
+
+becomes:
+
+Pricn,tyerf
+
+=
+
+Prc,y × tol Tx
+
+.
+
+(12)
+
+This assumption is justified by the fact that the underlying
+
+channel code employed by the modulation makes use of an
+
+interleaver: even if the interference is concentrated on a few consecutive symbols, we can assume that a good interleaver will spread it out and eventually correct the errors caused by the interferer.
+Moreover, thanks to the channel coding technique used by the LoRa modulation standard, we can also assume that we will always correctly receive a packet that is above sensitivity and survived interference, due to the fact that the curves of the bit error rate versus SINR decline very sharply as SINR grows above the thresholds reported in matrix T in Eq. (7).
+3) Characterization of the Gateway Receiver: We assume that a single LoRa gateway is capable of emulating 8 receivers working in parallel, as explained in [5]. These 8 receive paths are connected to the same antenna, and have the following characteristics.
+• The center frequency of each receive path can be individually configured.
+• Any SF can be received without prior configuration on any receive path.
+• When more than one receive path is listening to the same channel, we assume that they can manage in parallel as many packets as the number of listening receive paths. The packets may even have the same SF. In other words, if there are multiple receive paths on the same frequency and a packet arrives, only one receive path “locks” on the incoming signal, leaving the other ones free to sense more incoming packets.
+• If a packet arrives at a certain LoRa channel and there are no available receive paths listening, the packet is lost.
+IV. SYSTEM-LEVEL ASSUMPTIONS
+In the following of this paper we explicitly refer to a LoRa Class A network [1], where transmissions are always initiated by the end devices, in a totally asynchronous manner. For this purpose, the end node may choose at random one channel. One of the parameters of the system is the report periodicity τ : in our scenario, every end device is assigned a random initial reporting delay, after which the node generates a new packet every τ seconds. In this work, no DL transmissions, i.e., messages from the gateways to the end devices, are considered. This limitation will be removed in a future version of this work. Anyway, we do not consider it a heavy limitation, since we expect most of the traffic in a LPWAN to be UL.
+A. Spreading Factor Assignment
+At the beginning of the simulation, each device is assigned a SF as follows. We first calculate the power level that each gateway would receive from the end device. Then, we pick the gateway with the highest received power and set the SF based on that value. The assignment is done according to the gateway sensitivity: we assign the end device the lowest SF that would still be above the gateway sensitivity. Note that, due to the shadowing and the presence of buildings, the closest gateway to a device may not always be the one that receives the highest power from that device. As an example, suppose that the best gateway for a device receives a power of −137 dBm.
+
+IEEE ICC 2017 SAC Symposium Internet of Things Track
+
+
+
+
+
+
+
+
+ 
+
+
+ 
+
+
+
+
+
+ 
+
+
+
+
+
+
+
+ 
+
+
+  
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+ 
+ 
+
+ 
+
+0.18
+
+Simulation
+
+Theory
+
+0.12
+
+S
+
+0.06
+
+0 0 0.5 1 1.5 2 2.5 3 3.5 G
+Fig. 3. Throughput versus offered traffic for SF = 7 and ideal packet collisions.
+
+Fig. 2. An example of random distribution of nodes around a gateway, denoted by “GW.” The gray rectangles represent the buildings, while the numbers denote the SFs assigned to the various end devices and their position on the map. The distances are expressed in meters.
+In this case, considering the sensitivity values contained in Table II, it can be seen that SF = 9 would be too low, while we can receive the end device packets if they are sent using SF ∈ {10, 11, 12}. Since we are interested, in general, in minimizing the ToA, we set the end device to use SF = 10. An example of SF assignment can be found in Figure 2.
+
+above sensitivity, considering the propagation loss only. The simulations have been performed on a single LoRa channel, and the gateway has only one receive path enabled for all simulations measuring throughput. Since we are interested in evaluating the utmost performance of the LoRa modulation, no duty cycle restrictions are enabled at this stage.
+For the throughput computation, we suppose that the device i = 1, . . . , N generates every τi seconds a packet which occupies the channel for tp,i seconds in order to be transmitted. We compute the network offered traffic as described in [19]:
+
+B. Channel Lineup
+LoRaWAN dictates the use of at least three mandatory channels at center frequencies 868.1, 868.3, and 868.5 MHz in the European sub-band. When sending, the end node picks one of these three channels at random. In our simulations featuring multiple LoRa channels, we have thus decided to rely on the following, fixed allocation of the gateway’s 8 receive paths.
+• Since there are 3 channels in the g1 sub-band (1% duty cycle) that are used for UL communication, we will allocate 3 receive paths to the first LoRa channel, 3 to the second, and 2 to the third one.
+• We assume the g3 sub-band will be used exclusively for DL communication, thus no gateway receive path will be allocated to this channel.
+V. PERFORMANCE EVALUATION
+Leveraging the ns–3 simulator module we developed, we have been able to evaluate various performance metrics of a LoRa network. Several tests were conducted in order to estimate throughput, packet error probability, and gateway coverage.
+A. Throughput Performance
+The first simulation campaign aimed at evaluating the throughput S as a function of the offered traffic G. The network scenario is characterized by a single central gateway and N end devices, uniformly distributed in a circular space around it of radius r = 7500 m. This particular radius value was chosen because r is the maximum distance at which the gateway and an end device using SF = 12 are able to communicate
+
+G = N tp,i .
+
+(13)
+
+i=1 τi
+
+For a given value of G, throughput S is then obtained as
+
+S = G × Psucc ,
+
+(14)
+
+where the probability of success of a given packet Psucc is the ratio between the number of successfully received packets and the total number of sent packets.
+As a first validation of our simulator we expect, under ideal channel conditions, the shape of the throughput curve to be that of a typical ALOHA network. We assume then ideal channel conditions and that overlapped packets are always collided and, consequently, lost. Turning off the link measurement model, all end devices transmit with SF = 7 and all packets are received with the same power by the central gateway. As expected, the performance result of this test, shown in Figure 3, mimics the typical ALOHA throughput trend [19]. For all figures featuring the throughput metric, 95% confidence intervals are also shown.
+After the validation, we evaluated the impact of real wireless links using the proposed link measurement model: indeed, the presence of a real channel motivates the usage of all possible SFs. The simulation results in Figure 4 show a large throughput increase with respect to the previous case.
+We also studied the impact of SF = 12 transmissions on the performance of the LoRa network. The simulation results shown in Figure 5 demonstrate that excluding end devices with the highest SF is beneficial when the system load is high,
+
+IEEE ICC 2017 SAC Symposium Internet of Things Track
+
+No duty cycle
+
+1% duty cycle
+
+0.3
+
+0.3
+
+S
+
+0.2
+
+S
+
+0.2
+
+0.1
+
+All SF
+
+SF7
+
+Psucc = 1
+
+0 0 0.5 1 1.5 2 2.5 3 3.5
+
+G
+
+0.1 0 0
+
+5
+
+10
+
+15
+
+20
+
+G
+
+Fig. 4. Throughput performance of a LoRa network with real wireless channel (solid line) and ideal channel conditions (dashed line).
+
+Fig. 6. Effect of duty cycle limitations on throughput.
+
+All SF No SF12 0.3
+
+S
+
+0.2
+
+0.1
+
+0
+
+0
+
+5
+
+10
+
+15
+
+20
+
+G
+
+Fig. 5. Throughput performance with and without SF = 12 (solid and dashed line, respectively).
+
+because the collisions with other end device transmissions are reduced, thus the success probability increases. This is in line with the mandate by the LoRa Alliance to exclude from public networks the end nodes that can transmit only at SF = 12.
+Finally, we investigated the impact of duty cycled transmissions at the end device. Figure 6 shows that a duty cycle of 1% is beneficial for the system because it limits traffic and hence collisions, thus providing a higher throughput than the system without duty cycle restrictions.
+B. Success Probability Performance
+The second simulation campaign aimed at estimating the probability of successfully receiving a packet in a LoRa network. Since we are interested in the performance of real networks, this simulation scenario features 18 gateways that are placed in an hexagonal grid around a central gateway. In these simulations each gateway will cover a radius of 1.5 km, thus the area in which we place end devices is a circle of radius 7.5 km centered on the central gateway. This allows us to simulate intercell interference besides intra-cell interference. Even though the simulation features 19 gateways, we are interested only in the devices belonging to the area that is covered by the central gateway, so the collected data regard packets that were generated inside this region of interest. To add realism to the
+
+simulation, the entire area features buildings (whose dimensions and distance follow the layout of Manhattan) and generation of correlated shadowing is enabled. If a device is randomly assigned to an area occupied by a building, that device will be marked as “indoor” and transmissions involving it will suffer from building penetration losses. As for the traffic generation, we refer to the Mobile Autonomous Reporting model for periodic reports described in [13]. Also the size of the application level payload is randomized, following a Pareto distribution as described in [13] with payload size in the [10, 30] bytes range.
+Figure 7 shows the packet success probability as a function of the number of end devices in the central gateway coverage area. This probability ignores packets that arrived at the central gateway under sensitivity (because of heavy building loss or shadowing), thus the decreasing trend of the success probability is to ascribe only to interference or to the unavailability of adequate reception paths at the gateway. In particular, we noticed that, on average, the 20% of the end devices cannot connect to the gateway due to particularly unfavourable channel conditions. Nevertheless, these nodes remain active and cause interference to neighbouring nodes. The trend appears to be linear with the number of devices in the network, with a success probability around 97% for a network with 104 end devices. This is coherent with Semtech’s claim that a gateway is able to support a network of around 104 nodes [5].
+C. Gateway Coverage Assessment
+In the final simulation campaign we study how increasing the number of gateways that serve a fixed amount of end devices can enhance the reliability of their connections to the Network Server. This aspect is particularly interesting for critical applications, where the packet reception (by any gateway) is crucial. We simulated a circular urban scenario of radius 7.5 km, where end devices are served by an increasing number of gateways deployed in a hexagonal grid setup. The results shown in Figure 8 state that, in order to achieve a reliability above 90%, we should deploy gateways in such a way that every gateway covers 6 km2 or, equivalently, a radius of 1200 m around it.
+
+IEEE ICC 2017 SAC Symposium Internet of Things Track
+
+Psucc|covered
+
+1 0.99 0.98 0.97 0.96 0.95
+0
+
+3,600 7,200 10,800 14,400 Number of devices
+
+the uplink as well. Finally, a simulation involving a network featuring multiple gateways and a realistic traffic model resulted in a packet success rate above 95% for a gateway serving approximately 15, 000 end devices.
+As future work, we plan to extend our simulator in order to be able to analyze further aspects of LoRa networks. We will be able to evaluate the effectiveness of different ADR schemes, simulate different strategies to perform a bootstrap of the network, investigate optimal gateway placement, frequency planning and co-existence with other networks working in the unlicensed spectrum.
+REFERENCES
+
+Fig. 7. Packet success probability (covered nodes only), as a function of the total number of end devices in the coverage area of the central gateway.
+1 0.9 0.8
+
+Pcovered
+
+0.6
+
+0.4 1
+
+30 60 90 120 150 Number of gateways
+
+Fig. 8. Coverage probability for a node, as a function of the number of gateways covering a circular area of radius 7.5 km.
+
+A consequence of the densification of gateways is that the number of end nodes with SF > 7 decreases, thus increasing the number of collisions between packets having the same SF (and thus worse SINR isolation, see Eq. (7)). In a real LoRa network, the Adaptive Data Rate (ADR) mechanism should be able to keep the network in a state where SF orthogonality can still be leveraged to increase throughput.
+VI. CONCLUSION
+The scope of this work was that of assessing the performance of one of the most promising LPWAN technologies, i.e., LoRa. After a brief introduction about the main features of this technology, we discussed how to properly model LoRa links and evaluate their performance. Then, we implemented a systemlevel simulator in ns–3 to simulate a whole LoRa network consisting in tens of thousands of end devices. Simulation results show that the LoRaWAN access scheme provides a higher throughput with respect to a basic ALOHA scheme, thanks to the partial orthogonality between its spreading factors. Moreover, we proved that the LoRaWAN architecture can scale well, mainly due to the fact that an increase in the number of gateways enhances the coverage and reliability of
+
+[1] M. Centenaro, L. Vangelista, A. Zanella, and M. Zorzi, “Long-Range Communications in Unlicensed Bands: the Rising Stars in the IoT and Smart City Scenarios,” IEEE Wireless Commun., vol. 23, no. 5, pp. 60–67, Oct. 2016.
+[2] [Online]. Available: https://www.nsnam.org/ [3] C. Goursaud and J.-M. Gorce, “Dedicated networks for IoT:
+PHY/MAC state of the art and challenges,” EAI endorsed transactions on Internet of Things, Oct. 2015. [Online]. Available: https: //hal.archives-ouvertes.fr/hal-01231221 [4] A. Augustin, J. Yi, T. Clausen, and W. M. Townsley, “A Study of LoRa: Long Range & Low Power Networks for the Internet of Things,” Sensors, vol. 16, no. 9, Sept. 2016. [Online]. Available: http://www.mdpi.com/1424-8220/16/9/1466 [5] SX1301 datasheet, Semtech Corporation, Jun. 2014, v2.01. [6] Semtech Corporation, “AN1200.22 LoRa Modulation Basics,” May 2015. [Online]. Available: http://www.semtech.com/images/datasheet/ an1200.22.pdf [7] N. Sornin, M. Luis, T. Eirich, T. Kramp, and O. Hersent, “LoRaWAN Specifications,” LoRa Alliance, Tech. Rep., 2015. [8] ETSI, “Electromagnetic compatibility and Radio spectrum Matters (ERM); Short Range Devices (SRD); Radio equipment to be used in the 25 MHz to 1000 MHz frequency range with power levels ranging up to 500 mW,” Tech. Rep. EN 300 220-1 V2.4.1, Jan. 2012. [9] CEPT, “ERC 70-03 Relating to the use of short range devices (SRD),” Tech. Rep., Sept. 2015. [10] J. C. Ikuno, M. Wrulich, and M. Rupp, “System level simulation of LTE networks,” in Proc. IEEE Vehicular Technology Conference (VTC), May 2010, pp. 1–5. [11] 3GPP, “Radio Frequency (RF) system scenarios,” Tech. Rep. 36.942 V13.0.0, Jan. 2016. [12] T. Petric´, M. Goessens, L. Nuaymi, A. Pelov, and L. Toutain, “Measurements, Performance and Analysis of LoRa FABIAN, a realworld implementation of LPWAN,” Jun. 2016, working paper or preprint. [Online]. Available: https://hal-institut-mines-telecom.archives-ouvertes. fr/hal-01331966 [13] 3GPP, “Cellular system support for ultra-low complexity and low throughput Internet of Things (CIoT),” Tech. Rep. 45.820 V13.1.0, Nov. 2015. [14] S. S. Szyszkowicz, H. Yanikomeroglu, and J. S. Thompson, “On the Feasibility of Wireless Shadowing Correlation Models,” IEEE Trans. Veh. Technol., vol. 59, no. 9, pp. 4222–4236, Nov. 2010. [15] R. Fraile, J. F. Monserrat, J. Goza´lvez, and N. Cardona, “Mobile radio bi-dimensional large-scale fading modelling with site-to-site crosscorrelation,” European transactions on telecommunications, vol. 19, no. 1, pp. 101–106, 2008. [16] M. Gudmundson, “Correlation model for shadow fading in mobile radio systems,” Electronics Letters, vol. 27, no. 23, pp. 2145–2146, Nov. 1991. [17] H. Claussen, “Efficient modelling of channel maps with correlated shadow fading in mobile radio systems,” in Proc. IEEE Int. Symp. on Personal, Indoor and Mobile Radio Communications (PIMRC), vol. 1, Sept. 2005, pp. 512–516. [18] S. Schlegel, N. Korn, and G. Scheuermann, “On the Interpolation of Data with Normally Distributed Uncertainty for Visualization,” IEEE Trans. Vis. Comput. Graphics, vol. 18, no. 12, pp. 2305–2314, Dec. 2012. [19] N. Benvenuto and M. Zorzi, Principles of communications Networks and Systems. Wiley Online Library, 2011.
+
+

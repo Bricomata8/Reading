@@ -1,0 +1,458 @@
+Physical-Layer Fingerprinting of LoRa devices using Supervised and Zero-Shot Learning
+
+Pieter Robyns∗
+Hasselt University - tUL - imec Martelarenlaan 42
+Hasselt 3500, Belgium pieter.robyns@uhasselt.be
+
+Eduard Marin∗
+ESAT-COSIC and imec Kasteelpark Arenberg 10, box 2452
+Heverlee 3001, Belgium eduard.marin@esat.kuleuven.be
+
+Wim Lamo e
+Hasselt University - tUL - imec Martelarenlaan 42
+Hasselt 3500, Belgium wim.lamo e@uhasselt.be
+
+Peter ax
+Hasselt University - tUL - imec Martelarenlaan 42
+Hasselt 3500, Belgium peter.quax@uhasselt.be
+
+Dave Singele´e
+ESAT-COSIC and imec Kasteelpark Arenberg 10, box 2452
+Heverlee 3001, Belgium dave.singelee@esat.kuleuven.be
+
+Bart Preneel
+ESAT-COSIC and imec Kasteelpark Arenberg 10, box 2452
+Heverlee 3001, Belgium bart.preneel@esat.kuleuven.be
+
+ABSTRACT
+Physical-layer ngerprinting investigates how features extracted from radio signals can be used to uniquely identify devices. is paper proposes and analyses a novel methodology to ngerprint LoRa devices, which is inspired by recent advances in supervised machine learning and zero-shot image classi cation. Contrary to previous works, our methodology does not rely on localized and low-dimensional features, such as those extracted from the signal transient or preamble, but uses the entire signal. We have performed our experiments using 22 LoRa devices with 3 di erent chipsets. Our results show that identical chipsets can be distinguished with 59% to 99% accuracy per symbol, whereas chipsets from di erent vendors can be ngerprinted with 99% to 100% accuracy per symbol. e
+ngerprinting can be performed using only inexpensive commercial o -the-shelf so ware de ned radios, and a low sample rate of 1 Msps. Finally, we release all datasets and code pertaining to these experiments to the public domain.
+CCS CONCEPTS
+•Security and privacy → Mobile and wireless security; •Networks → Network privacy and anonymity;
+KEYWORDS
+LoRa; PHY layer; ngerprinting
+ACM Reference format: Pieter Robyns, Eduard Marin, Wim Lamo e, Peter ax, Dave Singele´e and Bart Preneel. 2017. Physical-Layer Fingerprinting of LoRa devices using Supervised and Zero-Shot Learning. In Proceedings of WiSec ’17, Boston, MA, USA, July 18-20, 2017, 6 pages. DOI: 10.1145/3098243.3098267
+Permission to make digital or hard copies of all or part of this work for personal or classroom use is granted without fee provided that copies are not made or distributed for pro t or commercial advantage and that copies bear this notice and the full citation on the rst page. Copyrights for components of this work owned by others than the author(s) must be honored. Abstracting with credit is permi ed. To copy otherwise, or republish, to post on servers or to redistribute to lists, requires prior speci c permission and/or a fee. Request permissions from permissions@acm.org. WiSec ’17, Boston, MA, USA © 2017 Copyright held by the owner/author(s). Publication rights licensed to ACM. 978-1-4503-5084-6/17/07. . . $15.00 DOI: 10.1145/3098243.3098267
+
+1 INTRODUCTION
+Physical (PHY)-layer device identi cation is a technique through which it is possible to uniquely identify devices by looking at small di erences in their analog Radio Frequency (RF) signals. ese di erences are caused by imperfections of their analog hardware components, which allow to create a unique ngerprint of the device [2, 10, 22]. PHY-layer device identi cation has been proposed for various purposes such as access control and the detection of cloning and wormholes [21]. Several articles have demonstrated the feasibility of PHY-layer device ngerprinting for a variety of wireless technologies such as Radio Frequency Identi cation (RFID) or High Frequency (HF) (e.g. [5, 6]).
+Over the past few years, the rise of Internet of ings (IoT) appliances has introduced numerous new PHY-layer protocols such as SigFox, Wi-Fi HaLow, LTE for IoT, Weightless, and LoRa. Among those, LoRa is currently one of the most promising wireless technologies, as it allows long-range, low-power and low-cost communication. is makes LoRa suitable for devices which need to send small amounts of data a few times per day over long distances. In terms of security and privacy, the current LoRaWAN Medium Access Control (MAC) speci cation provides built-in data con dentiality, integrity, and device authentication. However, it does not o er privacy. More speci cally, all LoRaWAN messages contain a unique MAC address that can identify the sender device [26]. Nonetheless, one could envision a future, privacy-preserving version of the LoRaWAN protocol to support applications where a certain degree of privacy is needed. For example, the MAC address could be periodically randomized similarly to current Wi-Fi implementations. However, even if these changes are applied to the current LoRaWAN protocol, it remains unclear whether adversaries could still identify LoRa devices based on their analog RF signals alone. In this paper we tackle this problem and investigate whether an adversary can identify, locate or track any LoRa device regardless of the cryptographic mechanisms being used in the higher layers.
+Contributions: Our rst contribution is a fully functional, opensource so ware decoder of the LoRa modulation scheme. A second contribution is a novel ngerprinting methodology that applies supervised machine learning techniques to radio signals in order
+* Both authors contributed equally to this work and share rst authorship.
+
+WiSec ’17, July 18-20, 2017, Boston, MA, USA
+to distinguish between multiple known LoRa transmi ers. Our methodology is inspired by recent advances in image and speech recognition, where state-of-the-art performance was achieved using raw data [16, 24, 25]. Our classi er achieves 59%–99% accuracy, even when devices with identical chipsets are up to 100 meters away from the ngerprinter. Additionally, our methodology can be applied to any part of the frame in contrast to previous works, where only part of the frame (e.g. the preamble [10, 19, 20]) is used for ngerprinting. Our technique is fully automated, passive, does not rely on underlying properties of the modulation scheme, and can be performed with sample rates as low as 1 Msps. Moreover, we show how our classi er can be extended to recognize previously unseen transmi ers using zero-shot learning techniques. Finally, we performed a number of experiments that reveal the e ects of (i) the distance between the
+ngerprinter and the LoRa device, (ii) time, and (iii) the sample rate on the classi er’s performance.
+2 FINGERPRINTING LORA
+PHY-layer ngerprinting leverages on small di erences in the analog RF signals sent by wireless devices to uniquely identify them. ese di erences are caused by imperfections introduced in the analog hardware components during the manufacturing process [2].
+2.1 Classi cation
+In traditional approaches for classifying devices based on PHY-layer features, N acquisitions of several features are reduced in dimensionality and then averaged into one nal, low-dimensional feature vector. is feature vector is subsequently learned by a classi er in order to construct a template for a speci c device [4, 8, 10, 22]. Finally, the template is matched with the device by means of a similarity metric, such as Euclidian distance [22], entropic distance [10], or KL-divergence [28]. Although such approaches allow to distinguish between devices with high accuracy, they have several shortcomings. First, N is determined empirically, which makes these approaches hard to generalize for di erent channel conditions, hardware, or modulation schemes. Second, the selection of which features to use depends on the expertise of the researcher and can in uence the result on multiple levels.
+We propose a novel per-symbol classi cation methodology that aims to overcome some of these shortcomings by using highdimensional features learned in an automated fashion. Our methodology is inspired by recent advances in Computer Vision (CV), more speci cally in image and speech recognition. Here, state-of-the art classi cation results are achieved by learning on raw data, such as the image pixels or time-domain waveform samples rather than manually selected features [12, 24, 27]. To limit the dimensionality and to ensure payload independence of the classi cation, we apply our methodology to the information contained in each i-th LoRa symbol s(t)(i)...s(t)(n) separately for a frame consisting of n symbols.
+2.1.1 Supervised classification. In our supervised classi cation approach, the ngerprinter is given a reference set of F -dimensional input features x(1) ... x(n) ∈ X n×F extracted from s(t)(1) ... s(t)(n), and corresponding C-dimensional class label tensor (1) ... (n) ∈ Y n×C . Here, the term “class” refers to a single radio chip of a device, where the corresponding label can be “LoRa 1–22”. Given a model parameterized by the learned variables θ , the following
+
+P. Robyns, E. Marin, et al.
+
+loss function L(θ ) is minimized during an initial training phase:
+
+L(θ
+
+)
+
+=
+
+−
+
+1 n
+
+n i =1
+
+F f =1
+
+(i f
+
+)
+
+log(hθ
+
+(xf(i
+
+)
+
+)).
+
+In
+
+this
+
+equation,
+
+the
+
+hypoth-
+
+esis function hθ outputs the predicted class for each of the di erent
+
+models given the learning model parameters θ , and the loss function
+
+minimizes the cross entropy between the predicted and true classes.
+
+A er the training phase, the classi er extracts features and eval-
+
+uates the model for each symbol in a LoRa frame in order to predict
+
+the most likely class. e class of the transmi er can be determined
+
+by performing majority voting on the symbols of the frame.
+
+A requirement for accurate results under this classi cation ap-
+
+proach is that a su ciently large reference set of training samples for
+
+each of the device classes must be available. Furthermore, the accu-
+
+racy depends on the quality of the training samples. A device should
+
+ideally be ngerprinted under di erent conditions. For example,
+
+by acquiring samples over a long period of time in order to prevent
+
+over ing of the model. In Sect. 3.2, we will evaluate the e ect of
+
+di erent channel conditions on the accuracy of our classi er.
+
+2.1.2 Zero-shot classification. When ngerprinting a random observed radio signal, one typically would not possess a reference database of training samples for the associated (unknown) transmitters. In this case, the di culty of the classi cation task is increased. Techniques that deal with the absence of training data for a set of unknown classes have been given several names over di erent domains: zero-shot classi cation [15, 25], semi-supervised anomaly detection [17], or open set recognition. We will use the term zero-shot classi cation henceforth in this work.
+Despite not having training data for unseen classes, the ngerprinter can still learn discriminative a ributes for a given set of known classes [14]. Such a ributes can be interpreted as high-level, semantically meaningful properties that are used to describe a new class [13]. For ngerprinting LoRa devices, we were inspired by the zero-shot image classi cation approaches proposed by Socher et al. [25] and Lu [15].
+Before applying zero-shot classi cation to PHY-layer ngerprinting, we rst need to determine whether an observed symbol belongs to a known class or to a previously unknown class. To accomplish this goal, we have modeled the output values of the supervised classi er under a mixture of K multivariate Gaussian distributions, similarly to the work of Socher et al. [25]. Here, K is the number of known classes, which is also equal to the number of output neurons. e parameters µk and σk of each Gaussian Nk (µk ,σk ) are determined by respectively taking the mean and standard deviation of the output values a er feeding the input features of a known class k to the neural network. en, we perform outlier detection by evaluating the indicator function 1{ kK=1hθ (x)Nk (µk ,σk ) <T }, where hθ (x) is the output of the hypothesis function parameterized by θ given x, and T is an outlier tolerance threshold.
+Next, the actual classi cation can be performed. If a symbol is not an outlier, it should belong to a known class. erefore, it can be classi ed using the supervised classi cation approach from Section 2.1.1. Otherwise, we used the unsupervised DBSCAN [9] algorithm to cluster symbols transmi ed by the same unknown class together. e ϵ parameter of the DBSCAN algorithm, which indicates the maximum distance between two points for them to be considered as in the same neighborhood, was set to the mean of the minimum Euclidean distance between all combinations of centroid
+
+Physical-Layer Fingerprinting of LoRa devices using Supervised and Zero-Shot Learning WiSec ’17, July 18-20, 2017, Boston, MA, USA
+
+Table 1: Overview of all LoRa devices involved in the experiments and their chipset, identi ers, and quantity.
+
+Device
+Custom board Pycom LoPy Dragino LoRa/GPS HAT Adafruit Feather 32u4 RN2483 breakout board
+
+Chipset
+RN2483 SX1272 RF96 RF96 RN2483
+
+Identi ers
+LoRa 1–3 LoRa 4 LoRa 5 LoRa 6 LoRa 7–22
+
+antity
+3 1 1 1 16
+
+pairs in {µk ...µK }. is ensures that symbols transmi ed by di erent devices are appropriately mapped to di erent clusters, while symbols transmi ed by the same device are mapped to the same cluster.
+2.2 Learning models
+To model the observed features for our supervised and zero-shot classi ers, several approaches could be considered. In this work, we examined Multilayer Perceptrons (MLPs) and Convolutional Neural Networks (CNNs), due to their success in similar classi cation tasks for other domains such as facial and speech recognition. Additionally, we brie y discuss Support Vector Machine (SVM)-based models due to their popularity in previous PHY-layer ngerprinting works.
+Multilayer Perceptron: Our MLP model consists of one fully connected hidden layer with ReLU activation functions, and one fully connected output layer. Hence, the input features are mapped to the output device classes using the hypothesis function hθ (x) = σ (ReLU(xW1 +b1)W2 +b2), where σ denotes the so max function, and W and b respectively denote the weights and biases of the neurons. e so max function scales each output from the classi cation of x(i) to form a discrete probability distribution for each ∈ Y .
+us, the model learns the estimated probability that the symbol was transmi ed by the device with label .
+Convolutional Neural Network: CNNs learn parameters to cross-correlation lter layers, which allows them to identify both low-level details at lower layers and high-level features at higher layers. Our CNN ngerprinting architecture consists of two hidden 1D convolution layers with kernel width 8 and ReLU activation functions, followed by a fully connected layer and so max function for performing the classi cation.
+C-Support Vector Classi cation: SVMs are trained to nd an optimal hyperplane, in which the margin of separation between two classes is maximized [11]. is model is described in detail by Chang et al. [3]. In our experiments, we have used the SVM implementation of sklearn [18], which uses a one-vs-one scheme to perform multiclass classi cation.
+3 IMPLEMENTATION AND RESULTS
+Our laboratory setup comprises an E us Research B210 Universal Serial Radio Peripheral (USRP), antennas and a standard desktop computer. Table 1 gives an overview of all LoRa classes including their chipset, identi ers and quantity. We designed a custom board, which was always xed in the same position, where we plugged in the LoRa transceivers before starting each of the ngerprinting experiments. is ensures that our results are not in uenced by the distance between devices.
+
+Table 2: Overview of the datasets used in this paper.
+
+ID # Symbols Sampling rate Date
+
+I
+
+495,216
+
+1 Msps
+
+January 27, 2017
+
+II
+
+124,740
+
+1 Msps
+
+January 30, 2017
+
+III
+
+497,595
+
+2 Msps
+
+January 17, 2017
+
+IV
+
+127,476
+
+2 Msps
+
+January 27, 2017
+
+V
+
+221,622
+
+5 Msps
+
+February 2, 2017
+
+VI
+
+55,908
+
+5 Msps
+
+February 3, 2017
+
+VII
+
+219,718 10 Msps January 31, 2017
+
+VIII
+
+56,528 10 Msps February 3, 2017
+
+Each of the 22 LoRa devices used in the experiments was con gured to continuously transmit frames with a 4-byte payload, using coding rate 4/8 and SF 7 at 868.1 MHz. is con guration resulted in 36 symbols per frame. e payload bytes were randomized to ensure that the resulting symbol values are random as well, thus removing any bias due to the payload data. Both the training and test samples from the LoRa transmissions were acquired with the USRP tuned to a 868 MHz instead of 868.1 MHz carrier, in order to mitigate the e ect of the USRP’s Direct Current (DC) bias lter. To capture raw PHY frames, we have built a custom LoRa decoder using GNU Radio named gr-lora1. e proprietary coding and whitening algorithms in the LoRa modulation scheme were reverse engineered to achieve this goal.
+A er extracting all synchronized symbols from the frame, the classi er needs to be trained on their features in order to distinguish between di erent LoRa transmi ers. To reduce the number of possible symbol values from 2S F to 1, we rst calculate the ideal cyclic shi k of the symbol (i.e. its demodulated value) and modulate the
+symbol with value k = −k. As a result of this operation, each modulated symbol sˆ(t) is transformed back to the unmodulated chirp s(t), and the errors introduced by the hardware are preserved.
+An overview of all collected datasets is given in Table 2. We will refer to these datasets in future sections of this work using their respective Roman numeral label.
+
+3.1 Classi er training
+
+For implementing and training the models described in Sect. 2.2, we
+
+use the tensorflow machine learning library presented by Abadi et al. [1]2. Before the training process, the entire dataset of collected
+
+features and labels is uniformly randomized. en, a training set
+
+of 10,000 symbols and a cross validation set of 10,000 symbols are
+
+randomly fetched from the dataset for evaluation during training.
+
+A test set of 1,500 symbols is used for evaluation a er training. e
+
+randomization process ensures that the training set is not biased by
+
+any particular device.
+
+e LoRa symbols from each dataset are converted to a feature
+
+tensor. Considering the LoRa con guration parameters and receiver
+
+sample rate, the matrix of feature tensors for n symbols is X ∈ Rn×m ,
+
+with m = 2S F
+
+fs BW
+
+where SF
+
+is the spreading factor, fs
+
+is the sampling
+
+rate of the receiver, and BW is the bandwidth.
+
+1 e decoder is available at h ps://github.com/rpp0/gr-lora. 2 e code can be found at h ps://github.com/rpp0/lora-phy- ngerprinting.
+
+WiSec ’17, July 18-20, 2017, Boston, MA, USA
+
+Next, each used feature tensor x(i) was z-score normalized to
+
+prevent extreme gradient values from occurring during the training
+
+phase:
+
+xˆ (i )
+
+=
+
+x
+
+(i)−µx (i) σx (i)
+
+.
+
+is normalization also helps to reduce the
+
+e ect of the absolute amplitude on classi cation, which is undesired
+
+since we do not distinguish devices based on their transmission
+
+power or physical location.
+
+Finally, in each training step we feed a mini-batch of b <n tensors
+
+to the classi er, and periodically log training set accuracy, test set
+
+accuracy, and cost function.
+
+3.2 Fingerprinting experiments
+Using the models de ned in Sect. 2.2, we trained and evaluated our classi ers to distinguish between vendor models as well as individual LoRa devices. Furthermore, we investigated the e ect of the sample rate, distance, and time on the subset accuracy, macro-averaged precision, and macro-averaged recall of the classi er.
+3.2.1 Supervised classification experiment. In a rst experiment, we trained our models with labeled instances to distinguish between di erent device vendors and di erent devices of the same type. Intuitively, the former should be easier since the analog hardware layout and design between various vendors may di er signi cantly. On the other hand, devices of the same vendor model only di er as a result of manufacturing variations.
+Based on our ndings, the crystal oscillator of the radio chip is especially susceptible to ngerprinting, since small di erences in the oscillation frequency of the crystal will introduce a measurable Carrier Frequency O set (CFO) error [28]. Contrary to previous works, where the CFO is explicitly measured as a scalar based on (averaged) samples of the signal [2, 7, 28], our approach uses the raw signal directly. As such, the CFO error manifests itself as a constant dri of the phase. However, since the phase di erence is small for each of the many sample points, it is di cult for our classi er to learn this feature. We mitigate this issue by transforming the signal to the frequency domain using the Fast Fourier Transform (FFT). As a result of this transformation, the phase dri will shi the entire frequency spectrum, resulting in a large frequency di erence for a few sample points of the FFT, which is easier for a classi er to learn.
+For the test sets under identical channel conditions (I, III, V, VII), a disjoint and randomized subset from the same dataset was selected.
+e test sets (II, IV, VI, VIII) were sampled from data sets which were recorded on a di erent day from the training set. Each model was trained for 10,000 epochs, which depending on the used model corresponds to several hours of training on a Dell Precision T3610 with an Intel® Xeon® E5-1620 v2 CPU (3.70GHz). Table 3 summarizes the results of feeding these datasets to the MLP, CNN, and SVM classi ers when ngerprinting individual chipsets. When ngerprinting the 3 chipset vendors, the accuracy is 99% to 100% for all datasets and classi ers.
+Figure 1 shows a t-SNE visualization of the output weights learned by the MLP model a er training on dataset III. We can observe several clusters corresponding to the di erent LoRa devices. Due to space limitations, we will only discuss the results of the remaining experiments for dataset III and the MLP model. We believe these results are the most interesting, since 2 Msps is the maximum sample rate of low-cost So ware De ned Radio (SDR) devices, such as
+
+P. Robyns, E. Marin, et al.
+
+t-SNE dimension 2
+
+2D projection of output feature weights
+
+150 aprecrcecaculirls:aioc9ny5::.399455%..4601%%
+
+LoRa 1
+
+LoRa 7
+
+LoRa 13
+
+LoRa 2
+
+LoRa 8
+
+LoRa 14
+
+LoRa 3
+
+LoRa 9
+
+LoRa 15
+
+LoRa 4
+
+LoRa 10
+
+LoRa 16
+
+LoRa 5
+
+LoRa 11
+
+Lora 17
+
+LoRa 6
+
+LoRa 12
+
+100
+
+LoRa 18 LoRa 19 LoRa 20 LoRa 21 LoRa 22
+
+50
+
+0
+
+50
+
+150
+
+100
+
+50 t-SNE dim0 ension 1 50
+
+100
+
+150
+
+Figure 1: 2D t-SNE visualization of the output feature weights learned by the MLP model given dataset III. Each point represents a LoRa symbol, where the ll color indicates the true value and the outline color represents the predicted value.
+
+the RTL-SDR, and the MLP model is faster to train while achieving similar or be er accuracy compared to the CNN and SVM models.
+3.2.2 Zero-shot classification experiment. A second experiment evaluates our zero-shot classi cation approach from Sect. 2.1.2 a er training on 10,000 random symbols from dataset III. Here, the randomization and training procedures were identical to the previous experiment, except that we excluded symbols belonging to certain classes from the training set. Subsequently, we observed whether the classi er was able to cluster these unknown classes together. e results of this experiment are shown in Table 4.
+We observed that the accuracy of the zero-shot classi cation largely depends on which devices are excluded from the training set. For example, in experiment ZS1, LoRa 4, 5 and 6 were excluded from the training set. Hence, the model was trained only on devices that have a RN2483 chipset. As a result, the classi er was not able to distinguish LoRa 5 and 6, i.e. both were grouped in the same cluster. is problem can be mitigated by including LoRa devices with similar ngerprints in the training set (see ZS6 in Table 4).
+3.2.3 E ect of sample rate and time. Ideally, our ngerprinter should be able to classify devices at low sample rates and consistently over time. erefore, we investigated the e ect of these aspects on the classi er accuracy.
+Ramsey et al. found that the ngerprinting accuracy increases with the sampling rate, but does not further improve above the Nyquist frequency [19]. On the contrary, in our experiments we observed that, under identical channel conditions, a sampling rate above the Nyquist frequency (250 KHz) increases the accuracy when devices have similar ngerprints. A higher sampling rate results in a higher granularity of frequency bins of the FFT spectrum, which allows the ngerprinter to detect more ne-grained frequency errors.
+
+Physical-Layer Fingerprinting of LoRa devices using Supervised and Zero-Shot Learning WiSec ’17, July 18-20, 2017, Boston, MA, USA
+
+Table 3: Accuracy, precision, and recall when ngerprinting individual chipsets using supervised learning with test sets of 1,500 symbols.
+
+Dataset
+I I I II II II III III III IV IV IV V V V VI VI VI VII VII VII VIII VIII VIII
+
+Model
+SVM CNN MLP SVM CNN MLP SVM CNN MLP SVM CNN MLP SVM CNN MLP SVM CNN MLP SVM CNN MLP SVM CNN MLP
+
+Accuracy
+68.80% 89.40% 93.33% 53.80% 58.60% 58.67% 76.27% 94.27% 95.40% 59.53% 67.60% 71.47% 83.00% 96.53% 99.00% 69.33% 76.80% 75.07% 81.27% 98.00% 98.67% 56.53% 60.33% 60.80%
+
+Precision
+63.08% 90.32% 93.32% 48.17% 55.94% 52.87% 76.01% 95.16% 95.61% 62.66% 73.64% 75.04% 83.07% 97.03% 99.03% 67.07% 82.56% 74.89% 80.62% 98.11% 98.77% 53.02% 62.00% 58.75%
+
+Recall
+69.37% 89.23% 93.04% 52.09% 58.15% 58.19% 76.05% 94.88% 95.34% 59.99% 68.17% 72.36% 82.77% 96.78% 98.98% 70.23% 76.72% 75.37% 81.13% 98.01% 98.63% 57.94% 62.22% 63.07%
+
+Ident. chan. cond.
+Yes Yes Yes No No No Yes Yes Yes No No No Yes Yes Yes No No No Yes Yes Yes No No No
+
+Table 4: Accuracy, precision, and recall for the unknown “outlier” classes from the zero-shot classi cation experiments. e evaluation was performed on 1,500 symbols from dataset III.
+
+Experiment
+ZS1 ZS2 ZS3 ZS4 ZS5 ZS6
+
+Excluded
+4,5,6 4 2,3,9,10,11 8,12,14,16,21 15,17,20 7,13,14
+
+Accuracy
+70.98% 100.0% 66.67% 65.22% 75.00% 88.35%
+
+Precision
+75.36% 100.0% 41.45% 48.55% 63.44% 67.82%
+
+Recall
+75.00% 100.0% 38.78% 53.33% 71.43% 65.00%
+
+Table 3 shows the classi er accuracy, precision, and recall when using the learning models with datasets of di erent sample rates.
+e MLP classi er for example achieves 93% per-symbol accuracy for 22 LoRa devices under identical channel conditions, with sample rates as low as 1 Msps. However, the accuracy drops for each of the sample rates over time. is was expected, since the crystal oscillator may undergo temperature changes over time, which causes its frequency to change and subsequently overlap with training data from a di erent radio chip. When examining the confusion matrix, we observed that the misclassi cations indeed mostly occur with neighboring clusters (see Fig. 1). is issue could be mitigated by providing more training data gathered over an extended period of time or by periodically updating the model (i.e. “adaptive learning”)
+
+to re ect changes in the channel conditions. Such adaptive learning models could be considered in future work.
+3.2.4 E ect of distance. We evaluated how increasing the distance between the LoRa devices and the ngerprinter a ects the accuracy of our classi er. For this purpose, we performed a series of experiments within a building in which the ngerprinter was always kept in the same location, whereas the LoRa devices were placed in three di erent locations. In the rst experiment, the LoRa devices were in an adjacent room which is approximately 20 meters away from the ngerprinter (D1). In the second and third experiment, the LoRa devices were placed in a room that is 50 meters (D2) and 100 meters away (D3) from the ngerprinter, respectively.3 In future work, we plan to further increase the distance between the LoRa devices and the ngerprinter.4
+For the signal test sets collected from D1, D2, and D3, our classi er respectively achieves an accuracy of 94.33% 98.40% and 96.40% a er training on signals from the respective location. However, we found that the classi er achieves only 22.00% – 26.53% accuracy when a test set from one location is evaluated on a model that was previously trained on signals from a di erent location. From this observation we can conclude that the channel conditions signi cantly impact the accuracy of our classi er. In Sect. 4, we will brie y describe two possible ways to overcome this problem.
+4 DISCUSSION AND IMPLICATIONS
+Training with arti cial noise: Our experiments reveal that the accuracy of our classi er degrades when the LoRa signals in the training and testing phases are captured under di erent channel conditions. Intuitively, one way to overcome this problem would be to use adaptive learning, which allows the classi er to continuously learn and dynamically adapt the models. However, this approach is susceptible to a acks where adversaries try to maliciously in uence the way the classi er learns in their favor such that their signals are eventually considered as valid ones. Another possibility to mitigate this problem would be to add arti cial noise to the training signals of the classi er, which could be used to simulate varying channel conditions in practice. Similar techniques are applied in the domain of image recognition to increase the robustness of the classi cation.
+Resistance to attacks: We acknowledge that all (including ours) existing PHY-layer identi cation systems are susceptible to impersonation a acks. In an extended version of this paper, we will discuss the feasibility of performing a acks against our system.
+Defensive ngerprinting: Despite achieving high accuracy when ngerprinting LoRa devices both from the same and di erent chipsets, PHY-layer ngerprinting should never be used for access control or authentication purposes alone. We emphasize that PHYlayer ngerprinting should only be implemented in combination with other security mechanisms, e.g. as a second factor authentication. Based on our results, we can also conclude that LoRa should not be used in applications where strong anonymity guarantees are needed, as ngerprinting will allow to de-anonymize the tra c.
+3Note that for the second and third experiments we used another antenna for LoRa 4, since the received signal was too weak. 4When using SF=7 in an indoor environment, 100 meters was the maximum distance from which the ngerprinter was able to receive signals.
+
+WiSec ’17, July 18-20, 2017, Boston, MA, USA
+Choice of learning models: Besides the MLP, SVM, and CNN learning models discussed in this paper, other models could have been considered for ngerprinting. Similarly, di erent hyperparameters, e.g. number of hidden layers, dropout probability, number of neurons, etc. could have been selected. We considered the examination of optimal architectural choices for the models out of the scope of this paper. Nevertheless, we believe this would be an interesting and useful subject for future work, since this could allow to further increase the accuracy of PHY-layer ngerprinting systems.
+5 RELATED WORK
+Remley et al. analysed the feasibility of ngerprinting 802.11 devices by extracting time- and frequency-domain features from 6 devices that belong to 3 di erent vendors [23]. Brik et al. proposed PARADIS, a system to ngerprint 802.11 devices based on modulation-speci c errors in the frame with an accuracy of 99% [2]. e main limitations of this system are that it uses sophisticated equipment with a high sampling rate for capturing the signals. Han et al. proposed a technique called Geneprint, which identi es Ultra High Frequency (UHF) RFID devices with an accuracy of 99.68%. Geneprint uses features extracted from the signal’s preamble using a USRP and a sampling rate of 10 Msps. Ramsey et al. introduced a technique to ngerprint IEEE 802.15.4 devices based on a combination of features extracted from the signal’s preamble. is includes the variance, skewness, kurtosis of the instantaneous phase, frequency and amplitude [19, 20]. In [19], they also demonstrated how the ngerprinting can be done with a USRP and PXIe-1085 with a relatively low sampling rate that varies from 5 to 20 Msps. e accuracy was reported as 100% in high Signal-to-Noise Ratio (SNR) conditions. However, their experiments involved at most 6 devices. e previous two works are the closest to ours in terms of the selection of the sampling rate. However, they extract features only from the preamble, which may facilitate impersonation a acks. In this paper we are the rst to ngerprint LoRa devices, and show that ngerprinting is possible even when the LoRa devices are up to 100 meters away from the ngerprinter.
+6 CONCLUSIONS
+is paper demonstrates an automated supervised classi cation approach that can distinguish LoRa devices by analyzing their RF signals. Our classi er achieves 59%–99% accuracy when ngerprinting identical chipsets, and 99%–100% accuracy when ngerprinting chipset models. We extended the classi er with zero-shot learning methods to recognize previously unseen classes and achieve 65%– 88% accuracy for those classes under similar channel conditions. Our results show that an adversary can identify a transmi er independently of the used modulation scheme or cryptographic mechanisms being used in the higher layers.
+7 ACKNOWLEDGEMENTS
+e authors would like to thank the anonymous reviewers for their helpful comments, and Enrique Argones, Bram Bonne´, Rafael Galvez and Balazs Nemeth for their support. is work was supported in part by a Ph.D. grant of the Research Foundation Flanders (FWO), the Research Council KU Leuven C16/15/058, the Flemish Government through the imec Distributed Trust program, in particular the Netsec project, and through ICON project Diskman.
+
+P. Robyns, E. Marin, et al.
+REFERENCES
+[1] Martın Abadi, Ashish Agarwal, and others. 2016. Tensor ow: Large-scale machine learning on heterogeneous distributed systems. arXiv preprint arXiv:1603.04467 (2016).
+[2] Vladimir Brik, Suman Banerjee, Marco Gruteser, and Sangho Oh. 2008. Wireless device identi cation with radiometric signatures. In Proc. 14th Int. Conf. Mobile computing and networking. ACM, 116–127.
+[3] Chih-Chung Chang and Chih-Jen Lin. 2011. LIBSVM: a library for support vector machines. Trans. on Intelligent Systems and Technology (TIST) 2, 3 (2011), 27.
+[4] Boris Danev and Srdjan Capkun. 2009. Transient-based identi cation of wireless sensor nodes. In Proc. 2009 Int. Conf. on Information Processing in Sensor Networks. IEEE Computer Society, 25–36.
+[5] Boris Danev, Srdjan Capkun, Ramya Jayaram Masti, and omas S. Benjamin. 2012. Towards practical identi cation of HF RFID devices. Trans. on Information and System Security (TISSEC) 15, 2, Article 7 (July 2012), 24 pages.
+[6] Boris Danev, omas S. Heydt-Benjamin, and Srdjan Cˇ apkun. 2009. Physical-layer Identi cation of RFID Devices. In Proc. 18th Conf. on USENIX Security Symposium (SSYM’09). USENIX Association, Berkeley, CA, USA, 199–214.
+[7] Boris Danev, Heinrich Luecken, Srdjan Capkun, and Karim El Defrawy. 2010. A acks on physical-layer identi cation. In Proc. 3rd Conf. on Wireless network security. ACM, 89–98.
+[8] Boris Danev, Davide Zane i, and Srdjan Capkun. 2012. On physical-layer identi cation of wireless devices. Computing Surveys (CSUR) (2012).
+[9] Martin Ester, Hans-Peter Kriegel, Jo¨rg Sander, Xiaowei Xu, and others. 1996. A density-based algorithm for discovering clusters in large spatial databases with noise.. In Kdd, Vol. 96. 226–231.
+[10] Jinsong Han, Chen Qian, Panlong Yang, Dan Ma, Zhiping Jiang, Wei Xi, and Jizhong Zhao. 2016. Geneprint: generic and accurate physical-layer identi cation for UHF RFID tags. IEEE/ACM Trans. on Networking 24, 2 (2016), 846–858.
+[11] Marti A. Hearst, Susan T Dumais, Edgar Osuna, John Pla , and Bernhard Scholkopf. 1998. Support vector machines. IEEE Intelligent Systems and their Applications 13, 4 (1998), 18–28.
+[12] Alex Krizhevsky, Ilya Sutskever, and Geo rey E Hinton. 2012. Imagenet classi cation with deep convolutional neural networks. In Advances in Neural Information Processing Systems. 1097–1105.
+[13] Christoph H Lampert, Hannes Nickisch, and Stefan Harmeling. 2014. A ributebased classi cation for zero-shot visual object categorization. IEEE Trans. on Pa ern Analysis and Machine Intelligence 36, 3 (2014), 453–465.
+[14] Hugo Larochelle, Dumitru Erhan, and Yoshua Bengio. 2008. Zero-data Learning of New Tasks. In Proc. 23rd Nat. Conf. on Arti cial Intelligence. 646–651.
+[15] Yao Lu. 2015. Unsupervised Learning on Neural Network Outputs. CoRR abs/1506.00990 (2015).
+[16] Aaron Van den Oord, Nal Kalchbrenner, and Koray Kavukcuoglu. 2016. Pixel Recurrent Neural Networks. In Proc. 33rd Int. Conf. on Machine Learning.
+[17] C David Page and Sriraam Natarajan. 2014. Encyclopedia of Machine Learning and Data Mining. 2 (2014), 1–24. DOI:h ps://doi.org/10.1007/978-1-4899-7502-7
+[18] F. Pedregosa, G. Varoquaux, and others. 2011. Scikit-learn: Machine Learning in Python. Journal of Machine Learning Research 12 (2011), 2825–2830.
+[19] Benjamin W. Ramsey, Stubbs, and others. 2015. Wireless infrastructure protection using low-cost radio frequency ngerprinting receivers. Int. Journal of Critical Infrastructure Protection 8 (2015), 27–39.
+[20] Benjamin W Ramsey, Michael A Temple, and Barry E Mullins. 2012. PHY foundation for multi-factor ZigBee node authentication. In Global Communications Conference (GLOBECOM). IEEE, 795–800.
+[21] K. Bonne Rasmussen and S. Capkun. 2007. Implications of radio ngerprinting on the security of sensor networks. In Proc. 3th. Int. Conf. Security and Privacy in Communications Networks and the Workshops - SecureComm. 331–340.
+[22] Saeed Ur Rehman, Kevin Sowerby, and Colin Coghill. 2012. RF ngerprint extraction from the energy envelope of an instantaneous transient signal. In Communications eory Workshop (AusCTW), 2012 Australian. IEEE, 90–95.
+[23] KA Remley, CA Grosvenor, RT Johnk, DR Novotny, PD Hale, MD McKinley, A Karygiannis, and E Antonakakis. 2005. Electromagnetic signatures of WLAN cards and network security. In Proc. 5th IEEE Int. Symposium on Signal Processing and Information Technology. IEEE, 484–488.
+[24] Karen Simonyan, Sander Dieleman, Andrew Senior, and Alex Graves. 2016. WaveNet: A Generative Model for Raw Audio. (2016), 1–15.
+[25] Richard Socher, Milind Ganjoo, Christopher D Manning, and Andrew Ng. 2013. Zero-shot learning through cross-modal transfer. In Advances in Neural Information Processing Systems. 935–943.
+[26] N Sornin, M Luis, T Eirich, T Kramp, and O Hersent. 2015. LoRaWAN™ Speci cations. LoRa™ Alliance (2015).
+[27] Christian Szegedy, Wei Liu, and others. 2015. Going deeper with convolutions. In Proc. IEEE Conf. on Computer Vision and Pa ern Recognition. 1–9.
+[28] Tien Dang Vo-Huu, Triet Dang Vo-Huu, and Guevara Noubir. 2016. Fingerprinting Wi-Fi Devices Using So ware De ned Radios. In Proc. 9th Conf. Security & Privacy in Wireless and Mobile Networks. ACM, 3–14.
+
+

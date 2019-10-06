@@ -1,0 +1,1085 @@
+Enabling Runtime Adaptation of Physical Layer Settings for Dependable UWB Communications
+Bernhard Großwindhager, Carlo Alberto Boano, Michael Rath, and Kay Ro¨mer Faculty of Electrical and Information Engineering, Graz University of Technology, Austria
+E-mail: {grosswindhager, cboano, mrath, roemer}@tugraz.at
+
+Abstract—Ultra-wideband (UWB) technology is increasingly used to build location-aware IoT applications because of its outstanding positioning accuracy. Its communication performance, however, is unexplored and strongly affected by the chosen physical layer settings as well as by the surrounding environment. Finding an effective way to increase the dependability of UWB communications is yet an open problem. In this paper, we study the performance of different UWB physical layer settings and use them as tuning knobs to increase the energy efﬁciency and robustness of communications. Towards this goal, we ﬁrst experimentally quantify the reliability and energy cost of each setting, in order to understand which physical layer conﬁguration to privilege depending on the application requirements. We then use the estimated channel impulse response – a unique feature of UWB transceivers – to accurately measure the link quality and to extract relevant information about the characteristics of the surrounding environment, such as the presence of destructive interference. Capitalizing on this information, we design a scheme that adapts the UWB physical layer settings at runtime. An experimental evaluation using the Decawave DW1000 radio shows the effectiveness of the proposed adaptive scheme, highlighting the increased communication robustness and energy efﬁciency.
+I. INTRODUCTION
+Ultra-wideband (UWB) radio transceivers spread the signal power over a much wider bandwidth than traditional narrowband IoT technologies. This results in beneﬁcial properties such as a high immunity to multipath fading [1], [2], a high data throughput [3], as well as a very good time-domain resolution allowing for accurate localization and tracking [4], [5].
+Especially the possibility to achieve a localization accuracy at the centimeter level in scenarios with limited global navigation satellite system reception has attracted the attention of the research community [3], [6]. A large body of work has indeed produced complex algorithms to maximize the ranging accuracy indoors [7] for example, by using channel information and exploiting multipath reﬂections [8], or by combining inertial sensors and time of arrival measurements [9].
+UWB communication performance still unexplored. The community, however, has not yet investigated in depth the communication performance of UWB, nor tried to build robust and highly-available IoT applications using UWB. Studying and maximizing the energy efﬁciency and reliability of UWB communications is still a necessity and a long-due step for two main reasons. First, to fully exploit the outstanding positioning accuracy of UWB and build location-aware applications such as assisted living [10], medical monitoring [11], and drone or robot navigation [12], [13], robust communication links
+978-1-5386-4725-7/18/$31.00 2018 IEEE
+
+are necessary in order to reliably acquire and share the timestamps needed to carry out time-based location estimation. Second, UWB radios are more energy-hungry than common narrowband IoT transceivers such as BLE [14]. As a result, UWB-based localization systems are typically more efﬁcient when using a separate transceiver for communication [15].
+The role of UWB physical settings. Ultra-wideband is fundamentally different in nature from other IoT technologies. Besides the use of channels with a much higher bandwidth, in UWB one can conﬁgure several physical layer (PHY) settings that drastically affect the radio sensitivity and power consumption. This is different from narrowband IEEE 802.15.4 systems, where most of the knobs to tune the energy efﬁciency and robustness of communications are at the MAC layer, e.g., duty cycle [16], clear channel assessment threshold [17], and backoff times [18]. Moreover, whilst in common narrowband transceivers one can tune the transmission power to reduce energy consumption or to increase communication range, this is not easily possible with UWB radios, due to the restrictive transmit power regulations. Unfortunately, the research community has not yet characterized how PHY settings affect the performance of UWB communications – as opposed to the large body of work studying the role of PHY settings for narrowband IoT technologies such as LoRa [19], [20].
+The need for runtime adaptation. Shedding light on the selection of PHY settings in low-cost UWB radios is hence a ﬁrst necessary step to expose tuning knobs that can be used to control and to ultimately increase the energy efﬁciency and robustness of UWB communications. Such tuning knobs would be especially useful to dynamically react to the ﬂuctuations in communication performance triggered by the mobility of UWB nodes. To date UWB systems make use of static PHY settings, i.e., hardcoded physical layer parameters that remain constant over time, which makes them incapable to sustain an enduring high packet delivery rate [13] and unable to cope with changes in the surrounding environment.
+The role of the environment. Even though UWB has a high immunity to multipath fading and is more robust to interference than most narrowband technologies [3], its performance is still strongly affected by varying environmental conditions, such as the existence of obstacles limiting the line-of-sight and the presence of destructive interference. A detailed understanding of the characteristics of the surrounding environment and the ability to assess the quality of a wireless link, would be valuable to maximize the reliability of UWB transmissions.
+
+Estimating the link quality. The body of work on link quality estimation for UWB-based systems is, however, quite limited, and the information that can be retrieved from UWB radios is signiﬁcantly different from the one that has been largely studied in narrowband IoT technologies [21]. Among others, conventional energy detection methods are not available on UWB transceivers due to the low power spectral density [22]. Furthermore, how to make use of physical layer information that is speciﬁc to UWB transceivers (such as the estimated channel impulse response) to estimate the link quality or to characterize the surrounding environment has not yet been thoroughly investigated by the research community.
+Contributions. In this paper we ﬁrst carry out a comprehensive study of the performance of low-cost UWB transceivers as a function of different PHY settings. Our experimental evaluation reveals that by tuning, among others, pulse repetition frequency, data rate, bandwidth, and carrier frequency, one can increase the radio sensitivity by up to 8 dB – a value sufﬁcient to transform a useless link into one able to sustain a high delivery rate. We then quantify the energy consumption of different PHY conﬁgurations and highlight which change of settings to privilege in order to obtain an increase in communication robustness at minimal energy costs.
+Second, we analyze the PHY information that can be derived from off-the-shelf UWB transceivers and study how it can be used to (i) accurately estimate the link quality, as well as to (ii) extract information about the characteristics of the surrounding environment, in order to guide a better selection of PHY settings. In this regard, our investigation has shown that the estimation of channel impulse response (CIR) measured by UWB radios can be used, among others, to detect the presence of destructive interference. We use this information, combined with the received signal power derived from the estimated CIR, to build a robust link state indicator for UWB systems.
+Third, we show that such link state indication can be obtained even in absence of a complete packet reception. The estimated CIR is indeed extracted only from the preamble of a UWB packet, and we experimentally show that a preamble can still be fully decoded even when the SNR is 12 dB lower than the one necessary to decode the payload. This can be explained with the different modulation scheme used to encode preamble and payload – another key feature of UWB radios.
+Finally, we make use of all aforementioned results to design an adaptive scheme that derives an optimal set of PHY settings at runtime based on the estimated link quality, the characteristics of the surrounding environment, and the application requirements. Among others, our adaptation logic exploits the fact that some of the changes in UWB PHY settings do not require prior agreement among sender and receiver, and makes use of acknowledgement (ACK) messages consisting of just a preamble, hence exploiting the more robust modulation scheme of the preamble to eliminate the problem of asymmetric links.
+An experimental evaluation using the Decawave DW1000 radio shows the increased communication robustness and energy efﬁciency when using our adaptation scheme.
+
+In summary, this paper makes the following contributions:
+• We characterize the performance of UWB transceivers as a function of different physical layer settings and experimentally quantify their impact on the reliability and energy efﬁciency of communications (Sect. III);
+• We use physical layer information to estimate the link quality and to characterize the surrounding environment also in absence of a complete packet reception (Sect. IV);
+• We design a scheme to adapt the PHY settings of UWB radios at runtime (Sect. V), and evaluate experimentally the increased robustness and energy efﬁciency (Sect. VI).
+II. DEMISTIFYING UWB TECHNOLOGY
+Ultra-wideband radios spread the signal power over a much wider bandwidth (≥ 500 MHz) than traditional narrowband IoT technologies such as BLE and LoRa, yielding an extremely low power spectral density and, as a consequence, reducing interference to other wireless systems.
+Besides the higher bandwidth, the UWB PHY for lowrate wireless personal area networks formalized in 2007 by the IEEE 802.15.4 working group is fundamentally different from its narrowband counterpart. We describe next the main differences, namely: the employed modulation schemes (Sect. II-A), the conﬁgurable physical settings (Sect. II-B), the international regulations on the radiated power (Sect. II-C), as well as the information that can be extracted from the channel (Sect. II-D). We ﬁnally show that, despite its robustness and higher immunity to multipath fading, UWB communications may experience overlapping multipath components and suffer from destructive interference (Sect. II-E).
+A. Different Modulation Schemes Devices communicating using the IEEE 802.15.4 UWB
+standard use two different modulation schemes. A UWB frame consists indeed of two main blocks: a synchronization header (SHR), and a data portion consisting of a physical layer header (PHR) and a payload, as illustrated in Fig. 1. The SHR is sent using single pulse modulation, i.e., it consists of single pulses of ﬁxed duration tp = 1/fp, where fp corresponds to the highest frequency at which standard-compliant UWB transceivers are allowed to transmit pulses (499.2 MHz). The data portion is sent as bursts using BPM/BPSK modulation, i.e., the information is encoded in the position of the burst (burst position modulation or BPM) and in the phase of the burst (binary-phase shift keying or BPSK). We will show in Sect. III-B how the SHR and the data portion exhibit a different robustness due to the diverse modulation schemes.
+B. Conﬁgurable PHY Settings
+Synchronization header settings. The SHR is composed of a preamble (used for signal detection as well as frame synchronization) and a start-of-frame delimiter (SFD). The SFD marks the end of the preamble and indicates that the receiver has to switch to BPM/BPSK modulation to receive the data portion. The length of the SFD depends on the data rate of the payload: it contains 64 preamble symbols if the latter is sent at 110 kbps (the lowest data rate available), whilst it contains 8 preamble symbols for any other data rate used.
+
+Synchronization header (SHR)
+
+Data portion
+
+coded at the base rate
+
+Preamble
+
+SFD
+
+16||, 64, 128*, 256*, 412*, 1024, 8, 16*, or 64
+
+1536*, 2048*, or 4096 symbols symbols
+
+tpsr = PSR · tps
+
+Preamble Symbol PS1
+
+PS2
+
+Single pulse
+
+1
+
+2
+
+3
+
+...
+
+PSPSR
+
+4 …. N - 2 N - 1 N
+
+coded at 850 or 110 kbps
+PHR
+19 bits
+
+coded at rate defined in PHR
+Payload
+Up to 127 or 1023* coded octets
+
+1
+
+Amplitude
+
+0.5
+
+0
+
+0
+
+5
+
+10
+
+15
+
+20
+
+25
+
+30
+
+35
+
+40
+
+45
+
+50
+
+Time [ns]
+
+Fig. 2. Estimated channel impulse response obtained from a Decawave DW1000 in an indoor environment. The LOS component is marked with a dashed green line and signiﬁcant multipath components with dotted red lines.
+
+tp=1/fp tps = N · tp = N / fp
+(N depending on PRF) SHR consist of single pulses
+(single pulse modulation)
+
+Data portion sent as bursts (BPM / BPSK modulation)
+
+Fig. 1. UWB PHY frame structure according to the IEEE 802.15.4 stan-
+dard. Settings marked with * are also available in the Decawave DW1000 transceiver, whilst the ones marked with || are not supported [23].
+
+The duration of an SHR depends on two tunable settings: the pulse repetition frequency (PRF) and the number of preamble symbol repetitions (PSR). One preamble symbol consists of N time intervals in which either a positive, negative, or no pulse is sent. N depends on the PRF, which deﬁnes the number of transmitted pulses within a certain period: N is 496 or 508 for a PRF of 16 and 64 MHz, respectively. The resulting duration of a preamble symbol is tps= N/fp. The number of preamble symbols sent is deﬁned by the PSR, which directly affects the duration of a frame (due to the higher preamble duration tpsr) and hence the radio’s energy expenditure (see Sect. III-C).
+Data portion settings. The robustness with which a data portion can be received depends, among others, on the data rate. Lowering the latter increases the likelihood to sustain a more reliable link, as we show experimentally in Sect. III-C.
+The physical header is 19 bits long and contains the length of the payload and the data rate used to transmit it. It is sent at 110 kbps if the payload is also sent at 110 kbps (the lowest data rate available), whilst it is sent at 850 kbps for any other data rate used to transmit the payload. This implies that a transmitter can change the data rate of the payload (for example from 850 kbps to 6.8 Mbps) without the necessity of a prior agreement with a receiver node. We will use this feature in our runtime adaptation scheme described in Sect. V.
+C. UWB Frequencies and Emission Limits
+The IEEE 802.15.4 standard dictates which frequencies should be used for communications and speciﬁes that the maximum transmit power shall conform with local regulations.
+Diversiﬁcation of channels. The IEEE 802.15.4 UWB PHY allocates frequencies in three ranges: below 1 GHz, between 3 and 5 GHz, and between 6 and 10 GHz. Within these three bands, the standard suggests 16 different channels for UWB, out of which twelve support a bandwidth of 500 MHz and four make use of an increased bandwidth of up to 1331.2 MHz. Channels with a higher bandwidth can be used to increase the robustness of wireless links, as we will illustrate in Sect. III.
+
+Restrictive power regulations. The transmission power of UWB communications is severely constrained by the Federal Communications Commission (FCC) and International Telecommunication Union Radiocommunication Sector regulations1. As a result, the bandwidth and the mean power of a UWB transmitter need to be individually calibrated and tuned so that the spectrum ﬁts the regulatory mask. This requires expensive measurement tools and time-consuming calibration. Furthermore, tuning these settings affects important ranging parameters such as the transmit and receive antenna delays [26], [27]. This hinders the adjustment of transmission power at runtime as often carried out with narrowband IEEE 802.15.4 devices [28].
+D. Available Channel Information
+Narrowband radios typically provide hardware indicators (capturing the energy of the received signal or the chip error rate) that are often used to estimate the quality of a wireless link [21]. UWB transceivers additionally provide a channel impulse response (CIR) estimation, i.e., information about the multipath propagation consisting of reﬂections from walls and scattering from other objects. Fig. 2 depicts an estimated CIR obtained from a Decawave DW1000 radio. It shows the lineof-sight (LOS) component (marked with dashed green line) and signiﬁcant multipath reﬂections (marked with dotted red lines). Due to the high bandwidth (and hence the very high time resolution of UWB), one can extract these multipath reﬂections: in narrowband radios, the latter would overlap with the LOS component, leading to severe multipath fading.
+CIR information is used in UWB radios to precisely estimate the arrival time of a packet by detecting the ﬁrst path or leading edge of the CIR. One can also make use of the multipath information in the CIR for high-accuracy indoor positioning [8]. We propose, instead, to use this CIR information to characterize the surrounding environment, e.g., to detect the presence of destructive interference, and guide an optimal selection of UWB PHY settings, so to increase the reliability of communications, as described in Sect. IV and V.
+E. Susceptibility to the Environment
+As for every wireless technology, also the performance of Ultra-wideband is strongly affected by the surrounding environment. Communication performance may indeed vary when moving from multipath-rich indoor settings to outdoor areas, or in the presence of obstacles limiting the LOS.
+1The maximal equivalent isotropically radiated power in any direction should not exceed -41.3 dBm/MHz [24], [25].
+
+100
+
+PRR [%]
+
+50
+
+0
+
+12
+
+16
+
+20
+
+24
+
+28
+
+32
+
+Distance [m]
+
+Fig. 3. Decrease in packet reception rate (PRR) caused by destructive interference in a multipath-rich indoor environment.
+
+What is not obvious, is that one can perceive destructive interference also in UWB links, despite the high immunity to multipath fading. In fact, since the bandwidth is not inﬁnite, one can still suffer from overlapping multipath components, thus there is fading also in UWB [29]. We have measured this situation experimentally by using two UWB nodes embedding a Decawave DW1000 radio conﬁgured with its default settings (see Table I). The nodes were mounted at 1m height and exchanged 1000 packets at speciﬁc distances in a hallway about 60 meters long. Fig. 3 shows the packet reception rate (PRR) at different distances. The fade at a distance of about 20 meters is clearly visible: the link degrades and the PRR drops close to zero. The link sustains again a perfect reception rate at 28 meters and beyond. In Sect. IV we show that this fade is due to destructive interference, and that the cause of packet loss can be identiﬁed using the CIR. We will integrate this environment classiﬁcation technique into our adaptive scheme to increase the reliability of communications (Sect. V).
+
+III. CHARACTERIZING UWB PERFORMANCE
+We study next the impact of the IEEE 802.15.4 UWB modulation schemes and the different PHY settings on the robustness and energy efﬁciency of communications. After describing our experimental setup in Sect. III-A, we show that the detection of a preamble is signiﬁcantly more robust than decoding a payload (Sect. III-B). We then quantify the impact of each PHY setting on the reliability and efﬁciency of UWB communications (Sect. III-C) and on the precision of ranging (Sect. III-D). Based upon these ﬁndings, we shed light on the change of PHY settings that should be privileged to increase UWB communication performance in Sect. III-E.
+
+A. Experimental Setup To characterize the performance of UWB, we make use of
+the Decawave DW1000 UWB radio [23]. In particular, we employ EVB1000 boards consisting of a DW1000 transceiver, an ARM Cortex M3 processor, and an omnidirectional antenna.
+Cable connection. In order to maximize reproducibility and avoid environmental inﬂuences such as weather, temperature, or obstacles, we connect two EVB1000 boards using SMA cables and place a Mini-Circuits RCDAT-8000-90 programmable attenuator in between. The latter allows us to control the level
+
+TABLE I DEFAULT CONFIGURATION OF THE DW1000 RADIO ON POWER-UP.
+
+PHY Setting Channel Pulse repetition frequency Preamble symbol repetitions Data rate Payload size (including MAC header)
+
+Value 5
+16 MHz 128
+6.8 Mbps 12 Bytes
+
+of attenuation in 0.25 dB steps and hence to ﬁnely explore the differences in communication robustness for each setting.
+Two-way ranging. For each attenuation step, we let the two EVB1000 boards carry out 1000 ranging operations. The used two-way ranging scheme consists of three messages to estimate the distance without the need of a tight synchronization [30]. The exchanged packets consist of an 11-byte MAC header that embeds source and destination addresses, as well as a 16-bit checksum. The payload of the ﬁrst two messages is 1-byte long, whilst the last message includes three timestamps and is 16-bytes long. For each message, both sender and receiver record if the preamble was detected and the payload received, as well as status information provided by the radio.
+Testing settings individually. We let the two UWB nodes communicate using the DW1000 default conﬁguration on powerup (see Table I) and vary each PHY setting individually, so to clearly quantify the impact of each setting on communication performance. We repeat our measurements using six different boards to make sure that our results are not hardware-speciﬁc.
+Measuring reliability. For each 0.25 dB step of the programmable attenuator, we compute the packet reception rate (PRR) as the ratio between the number of packets for which both SHR and payload are correctly received, and the number of packets sent. We also compute the header reception rate (HRR) as the ratio between the number of packets for which a valid SHR is received, and the number of packets sent.
+Measuring energy efﬁciency. To quantify the energy efﬁciency of each setting, we measure the average current consumption of each transmission and reception using a Keysight MSOS 254A oscilloscope, distinguishing between the SHR and the data portion. We then derive the energy consumption using the packet’s over-the-air time and the supply voltage (3.3 V).
+B. Impact of different Modulation Schemes
+Using the setup described in Sect. III-A, we experimentally investigate the robustness of the different modulation schemes used in the SHR and the data portion. Our results show that an SHR can still be successfully detected even at an attenuation 7 dB higher than the one at which the ﬁrst packets are lost. Fig. 4 shows the PRR and HRR over the attenuation when using the default conﬁguration (see Table I). To eliminate measurement noise, the curves were smoothed with a ﬁvesample moving average ﬁlter. One can clearly identify in Fig. 4 the three distinct reception regions: connected, transitional, and disconnected [31]. At an attenuation of approximately 70 dB, when the radio can no longer decode the data portion, the SHR is still successfully detected with a probability of 100%. The higher robustness of the SHR is due to the different modulation scheme and leads to two important observations.
+CIR info available in absence of a complete reception. Even when a receiver cannot decode the data portion of a packet, it may still correctly decode its SHR and extract its information. Among others, one can extract the estimated CIR and use it to characterize the surrounding environment and to anticipate the degradation of a wireless link by detecting the presence of destructive interference, as described in Sect. IV.
+
+PRR [%] Connected
+Region Transitional
+Region
+
+100
+80
+60
+40
+20
+0 60 62 64 66 68 70 72 74 76 78 80 82
+7 dB 100
+80 60 40 20
+0 60 62 64 66 68 70 72 74 76 78 80 82 Attenuation [dB]
+
+Disconnected Region
+
+Transitional Region
+Disconnected Region
+
+TABLE II DECAWAVE DW1000 SUPPORTED CHANNELS.
+
+Ch. Carrier Freq. [MHz] Bandwidth [MHz] TX power [dBm]
+
+1
+
+3494.4
+
+499.2
+
+-14.32
+
+2
+
+3993.6
+
+499.2
+
+-14.32
+
+3
+
+4492.8
+
+499.2
+
+-14.32
+
+4
+
+3993.6
+
+1331.2 (900)
+
+-11.76
+
+5
+
+6489.6
+
+499.2
+
+-14.32
+
+7
+
+6489.6
+
+1081.6 (900)
+
+-11.76
+
+C. Impact of different PHY Settings
+
+HRR [%] Connected
+Region
+
+Fig. 4. Packet reception rate (PRR) and header reception rate (HRR) for different attenuation levels when using the default conﬁguration of the DW1000 radio on power-up. The SHR can be detected even at an attenuation 7 dB higher than the one at which the ﬁrst packets are lost.
+Preamble as a binary ACK. Several systems make use of acknowledgement (ACK) messages to conﬁrm the reception of packets and agree upon speciﬁc information, e.g., a new time slot or frequency channel. These ACK messages should be received reliably, so to avoid disagreements between nodes [32]. When using UWB radios, one could make use of the higher robustness of the SHR (and hence of the preamble) to increase the reliability of these ACK messages. The reception of a preamble can, for example, be used as a reliable binary ACK to signal the correct reception of a full packet. The probability that a data portion was received in one direction, and that the preamble (i.e., an ACK) was lost in the other direction is, indeed, low, given the results presented in Fig. 4.
+
+PRR [%]
+
+100 PSR=4096
+
+PSR=1024
+
+50
+
+PSR=128
+
+PSR=64
+
+0
+
+60
+
+62
+
+64
+
+66
+
+68
+
+70
+
+72
+
+74
+
+76
+
+78
+
+80
+
+100
+
+50
+
+HRR [%]
+
+0
+
+60
+
+62
+
+64
+
+66
+
+68
+
+70
+
+72
+
+74
+
+76
+
+78
+
+80
+
+Attenuation [dB]
+
+Fig. 5. Packet reception rate (PRR) and header reception rate (HRR) for different attenuation levels as a function of preamble symbol repetitions (PSR).
+
+PRR [%]
+
+100 16M/Ch5
+
+64M/Ch5
+
+50
+
+16M/Ch7
+
+64M/Ch7
+
+0
+
+60
+
+62
+
+64
+
+66
+
+68
+
+70
+
+72
+
+74
+
+76
+
+78
+
+80
+
+100
+
+50
+
+HRR [%]
+
+0
+
+60
+
+62
+
+64
+
+66
+
+68
+
+70
+
+72
+
+74
+
+76
+
+78
+
+80
+
+Attenuation [dB]
+
+Fig. 6. Packet reception rate (PRR) and header reception rate (HRR) for different attenuation levels as a function of pulse repetition frequency (PRF).
+
+We characterize next the performance of different UWB PHY settings using the setup described in Sect. III-A.
+Preamble symbol repetitions (PSR). The IEEE 802.15.4 UWB standard deﬁnes four possible PSR: 16, 64, 1024, and 4096. The DW1000 does not allow selecting PSR of 16, but allows to choose other values (see Fig. 1). We hence run experiments using PSR of 64, 128, 1024, and 4096. Fig. 5 shows the PRR and HRR over the different steps of the programmable attenuator for different PSR values. First, we can observe that PSR does not affect the PRR: this is to be expected, as the PSR tunes the SHR and not the data portion Second, longer preambles result in a correct SHR reception also at much lower signal-to-noise ratios: increasing the PSR from 64 to 4096 allows to lower the sensitivity level of the SHR by 6 dB. Third, by tuning the PSR, one can further increase the margin between the successful detection of the SHR and the correct decoding of the data portion up to 12 dB. Table III provides a comparison of the energy required to send packets using different PSR at the transmitter and at the receiver. Using the longest preamble (PSR = 4096) results in an energy consumption 5, 30, and 57 times higher compared to the one measured with PSR of 1024, 128, and 64, respectively. Note that Table III just reﬂects the energy consumption when actively transmitting and receiving a packet: listening for a preamble also accounts for a current draw of about 130 mA.
+Pulse repetition frequency (PRF). The PRF determines the number of pulses sent within a certain period and inﬂuences both SHR and data portion of a packet. Although the standard speciﬁes possible PRF values of 4, 16, and 64 MHz, the former is not supported by the DW1000, and we hence only compare the use of a PRF of 16 and 64 MHz. A single preamble symbol is slightly shorter when using a lower PRF. In addition to the lower amount of pulses sent, this also results in an energy consumption up to 24% lower when transmitting a preamble. Since also less pulses are sent within a burst, the use of a smaller PRF results in an energy consumption 6% lower also when transmitting a data portion (see Table III). The higher amount of pulses per burst improves the robustness of the data portion and increases the reliability of communications. Fig. 6 shows that an increase in PRF from 16 to 64 MHz gives up to 1 dB gain when the PRR is 90% (red-dotted line). We can also observe that the beneﬁt of the PRF tuning depends on the selected carrier frequency, and that an increase in PRF results in a stronger reception of an SHR (i.e., a higher HRR).
+
+PHY Setting Default PSR = 4096 PSR = 1024 PSR = 64 Ch. 1 (500 MHz) Ch. 2 (500 MHz) Ch. 3 (500 MHz) Ch. 4 (900 MHz) Ch. 7 (900 MHz) PRF = 64 MHz DR = 850 kbps DR = 110 kbps
+
+TABLE III ENERGY CONSUMPTION PER TRANSMITTED AND RECEIVED PACKET DEPENDING ON THE PHY SETTINGS.
+
+SHR [µJ] 31.23 942.5 237.0 16.54 28.39 28.96 28.37 33.35 30.83 38.65 31.45 44.46
+
+Transmission
+
+∆ [%] Payload [µJ]
+
+-
+
+6.198
+
+2918
+
+6.198
+
+658.8
+
+6.198
+
+-47.06
+
+6.198
+
+-9.118
+
+5.177
+
+-7.278
+
+5.329
+
+-9.163
+
+5.323
+
+6.78
+
+5.710
+
+-1.30
+
+6.233
+
+23.75
+
+6.567
+
+0.72
+
+22.71
+
+42.33
+
+176.2
+
+∆ [%] -
+-16.48 -14.01 -14.12 -7.859 0.563 5.96 266.4 2742
+
+SHR [µJ] 66.34 2001.9 503.4 35.12 59.91 63.35 62.79 62.16 67.72 69.11 67.78 92.48
+
+Reception
+
+∆ [%] Payload [µJ]
+
+-
+
+18.03
+
+2917.6
+
+18.03
+
+658.8
+
+18.03
+
+-47.06
+
+18.03
+
+-9.686
+
+16.03
+
+-4.50
+
+17.09
+
+-5.353
+
+17.16
+
+-6.30
+
+17.04
+
+2.084
+
+19.06
+
+4.179
+
+18.03
+
+2.173
+
+66.29
+
+39.41
+
+554.7
+
+∆ [%] -
+-11.10 -5.201 -4.848 -5.464 5.711
+267.7 2977
+
+Transmission + Reception
+
+Total [µJ]
+
+∆ [%]
+
+121.8
+
+-
+
+2969
+
+2337
+
+764.6
+
+527.8
+
+75.9
+
+-37.7
+
+109.5
+
+-10.10
+
+114.7
+
+-5.80
+
+113.6
+
+-6.701
+
+118.3
+
+-2.901
+
+123.8
+
+1.676
+
+132.3
+
+8.648
+
+188.2
+
+54.55
+
+867.8
+
+612.5
+
+Data rate. Although the IEEE 802.15.4 UWB standard supports data rates up to 27 Mbps, the DW1000 operations are limited to 6.8 Mbps. We hence investigate the use of a data rate of 110 kbps, 850 kbps, and 6.8 Mbps. Table III shows that transmitting and receiving a header at 110 kbps consumes about 39-42% more energy because of the longer SFD (the preamble itself is independent from the data rate). The energy spent to transmit and receive a payload, instead, is severely more affected by the employed data rate and increases linearly with the payload size. Transmitting and receiving the payload of 12 bytes with a data rate of 850 and 110 kbps consumes respectively up to 3.7 and 31 times more energy than when using the default settings. Fig. 7 (top) shows how increasing the data rate increases the robustness of the data portion. Using a data rate of 850 and 110 kbps raises the link margin by 2.9 and 5.5 dB, respectively. The HRR, instead, is independent from the data rate, as shown in Fig. 7 (bottom).
+
+PRR [%]
+
+100 6.8Mbps
+
+850kbps
+
+50
+
+110kbps
+
+0
+
+60
+
+62
+
+64
+
+66
+
+68
+
+70
+
+72
+
+74
+
+76
+
+78
+
+80
+
+100
+
+HRR [%]
+
+50
+
+0
+
+60
+
+62
+
+64
+
+66
+
+68
+
+70
+
+72
+
+74
+
+76
+
+78
+
+80
+
+Attenuation [dB]
+
+Fig. 7. Packet reception rate (PRR) and header reception rate (HRR) for different attenuation levels as a function of data rate.
+
+PRR [%]
+
+100 Ch1 (500MHz)
+
+Ch2 (500MHz)
+
+50
+
+Ch3 (500MHz)
+
+Ch4 (900MHz)
+
+Ch5 (500MHz)
+
+0
+
+Ch7 (900MHz)
+
+60
+
+62
+
+64
+
+66
+
+68
+
+70
+
+72
+
+74
+
+76
+
+78
+
+80
+
+100
+
+50
+
+Channel and bandwidth. The IEEE 802.15.4 standard deﬁnes 16 different channels for UWB, out of which the DW1000 transceiver supports six (see Table II). Fig. 8 shows that using a lower carrier frequency (e.g., channel 1) increases the robustness of both SHR and data portion. Similarly, the use of channels with the same carrier frequency, but a higher bandwidth (channel 4 and 7, see Table II) results in a more reliable communication. In terms of energy consumption, the channels below 5 GHz are slightly more efﬁcient, as shown in Table III, whilst the higher bandwidth comes at the cost of a slightly higher energy expenditure.
+Please note that the performance of different channels highly depends on the transceiver calibration parameters, as discussed in Sect. II-C. Furthermore, as our setup is cable-based, the Friis equation and more realistic UWB channel models [1], [33] have to be considered on top of our observations. In fact, the Friis equation strengthens our measurements even more as the free space path loss is reduced at lower carrier frequencies.
+D. Impact of PHY Settings on Ranging Precision Sect. III-C has shown that tuning the PHY settings of UWB
+radios can increase or decrease the chances of successfully receiving a packet. Whilst changes in PHY settings can maximize the probability to acquire and share the timestamps (a necessary step to estimate the distance between nodes), they may also affect ranging performance. Indeed, as described in Sect. II-D, the ranging performance depends on the signalto-noise ratio (SNR) of the CIR estimation. The latter, for example, is improved by a longer preamble and a higher PRF. We hence investigated the impact of different PHY settings on the precision of ranging, and observed that such impact is minimal on low-cost transceivers such as the DW1000 (as also conﬁrmed by [8]). Although no quantitative comparison is possible, we determined an upper bound on the ranging error for all possible settings to make sure that adapting the PHY settings at runtime does not affect the ranging performance.
+100 PRR>=90% PRR<90%
+50
+
+CDF [%]
+
+HRR [%]
+
+0
+
+60
+
+62
+
+64
+
+66
+
+68
+
+70
+
+72
+
+74
+
+76
+
+78
+
+80
+
+Attenuation [dB]
+
+Fig. 8. Packet reception rate (PRR) and header reception rate (HRR) for different attenuation levels as a function of carrier frequency and bandwidth.
+
+0 0 0.01 0.02 0.03 0.04 0.05 0.06 0.07 0.08 0.09 0.1 Ranging error [m]
+Fig. 9. Cumulative distribution function (CDF) of the ranging error. Solid blue line for reliable links and green dotted line for unreliable links.
+
+Change in PHY setting Higher PSR Higher PRF
+Lower data rate Lower carrier frequency
+Higher bandwidth
+
+TABLE IV TRADEOFF BETWEEN PACKET/PREAMBLE RELIABILITY AND ENERGY EFFICIENCY.
+
+Reliability of data portion ↑
+↑↑↑↑ ↑↑↑ ↑↑
+
+Reliability of SHR ↑↑↑↑ ↑ ↑↑↑ ↑↑
+
+Energy efﬁciency ↓↓↓↓ ↓↓ ↓↓↓↓ ↑ ↓
+
+Suggestions Use shortest PSR possible, except in cases it should be ensured that the preamble is reliably detected. Limited impact on robustness, prefer a lower PRF (16 MHz) for highest energy efﬁciency Try to use the highest data rate sustaining a reliable link. Lower the data rate if link degrades heavily. Use lowest channel available to increase robustness at minimal energy costs. Use channel with a higher bandwidth, except when energy is by far the most critical resource.
+
+We use the setup described in Sect. III-A, and perform 11, 000 two-way ranging trials for each of the PHY conﬁgurations investigated in Sect. III-C. For each trial, we compute the distance and then calculate the cumulative distribution function of the ranging error for all PHY settings which is depicted in Fig. 9. The precision of the range estimate lies within a bound of ±10 cm for 99.7% of all range estimations. Fig. 9 further shows the inﬂuence of a highly reliable (PRR≥90%) and a less reliable (PRR<90%) link on the precision: the error for 90% of the measurements is below 3.77 and 4.22 cm, respectively. Hence, increasing the reliability of UWB communications even slightly improves ranging performance.
+E. Optimal Selection of PHY Settings
+The experiments described in Sect. III-C allow us to assess which PHY settings are the most effective in increasing the robustness of communications, and to quantify the energy expenditure they incur. Table IV summarizes the inﬂuence of each PHY setting on the reliability of SHR and payload, as well as the energy cost they entail. One can derive from this table which change of settings to privilege in order to obtain an increase in communication robustness depending on the application requirements. If one aims to quickly increase the PRR without any constraint on the energy expenditure, the ﬁrst option should be to decrease the data rate, as the latter has, by far, the highest impact on the reliability of a link. On the contrary, if one aims to increase the PRR with the least energy costs, one should ﬁrst decrease the carrier frequency and switch to a channel with higher bandwidth, then try to increase the PRF, and, only as a last resort, lower the data rate. We will make use of these observations in Sect. V to design an adaptive scheme that derives at runtime the most energyefﬁcient PHY settings sustaining a reliable communication.
+IV. ESTIMATING THE LINK STATE FROM THE CIR
+To increase the reliability of communications by adapting PHY settings at runtime, one needs the ability to accurately assess the quality (or predict the degradation) of a UWB link. Whilst several solutions have investigated how to estimate the link quality using narrowband technologies [21], the link quality information that can be retrieved from UWB radios is still under-explored. Furthermore, as UWB communication performance is also affected by the surrounding environment, it is desirable to obtain valuable information about its characteristics and to make use of the latter to react accordingly.
+
+In this section we present a novel link state indicator that makes use of CIR information to (i) estimate the link quality, and to (ii) obtain a detailed understanding of the environmental state in order to detect the cause for a degrading channel. The principle of our link state indicator is shown in Fig. 12: the link quality is obtained from the received signal power (RSP) derived from the CIR estimation. Binary environmental state information such as the presence of destructive interference or a clear LOS is also derived from the CIR estimation.
+A. Deriving the Environmental State
+As for every wireless technology, also the performance of UWB is strongly affected by the surrounding environment.
+LOS/NLOS. The presence of obstacles blocking the line-ofsight between nodes signiﬁcantly decreases the received signal strength and, therefore, the quality of a link. In time-based localization systems, such as the ones using UWB radios, this leads to positively biased range estimations. Several research groups have investigated concepts to mitigate the impact of NLOS scenarios on UWB-based localization systems. Marano` et al. [34] apply machine learning techniques on the CIR to assess whether a signal was transmitted in LOS or NLOS conditions. This technique can be exploited to derive a binary information about the presence of LOS/NLOS conditions to be included in the link state indicator: this info can be of great value also to increase the reliability of UWB communications. One can, for example, temporarily re-route packets via another link providing LOS conditions, or make use of directional antennas to focus the radiated energy in the direction of a multipath component that is not blocked by an obstacle [35].
+Destructive interference. The presence of several walls and obstacles in proximity of a wireless node results in a high amount of multipath reﬂections. The overlapping of several multipath reﬂections may lead to a deep fade due to destructive interference: as experimentally shown in Sect. II-E, this can heavily degrade a UWB communication link. To escape such destructive interference, the only viable solution is a switch to another carrier frequency, as merely changing the data rate or varying the bandwidth would not be of signiﬁcant help. We show next in Sect. IV-B how to derive the presence of destructive interference using the estimated CIR and embed this info as an environmental state bit in the link state indicator sketched in Fig. 12. To the best of our knowledge, we are the ﬁrst to present an efﬁcient technique detecting the presence of destructive interference in UWB communication links.
+
+Amplitude PRR [%]
+
+1
+
+100
+
+d=19m (before fade)
+
+d=21m (inside fade)
+
+0.5
+
+d=60m (end of range)
+
+5-6dB
+
+50
+
+0
+
+0
+
+5
+
+10
+
+15
+
+20
+
+25
+
+30
+
+Time [ns]
+
+Fig. 10. CIR estimation in the presence and absence of destructive interference, as well as at the end of the SHR detection range.
+
+B. Detecting Destructive Interference using CIR Information
+
+We record the CIR estimation in the setup described in
+
+Sect. II-E at a distance of 19 and 21 m from the sender, i.e.,
+
+shortly before, and inside the fade, as well as at a distance of
+
+60 m, i.e., at the end of the SHR detection range. Fig. 10 shows
+
+the three CIR curves. At a distance of 19 m, the link is still
+
+highly reliable (see Fig. 3), thus its CIR (solid blue line) does
+
+not exhibit presence of destructive interference. At a distance
+
+of 21 m, the PRR of the link drops to zero: the CIR shown in
+
+Fig. 10 (dashed green line) exhibits a reduced amplitude in the
+
+LOS component. In contrast, the amplitude of the multipath
+
+components is not affected as much as the one of the LOS.
+
+Instead, at 25 ns, the amplitude of a multipath component was
+
+even stronger than the one measured at a distance of 19 m.
+
+This is a clear indication that there is destructive interference
+
+between the LOS component and another reﬂection. Indeed,
+
+in the CIR measured at a distance of 60 m (red dotted line) the
+
+LOS path is strongly attenuated, but so are all other multipath
+
+components, whose amplitudes are close to the noise level.
+
+Based on these observations, we propose an efﬁcient mech-
+
+anism to detect the presence of destructive interference. The
+
+algorithm keeps track of the ratio P R between the power of
+
+the LOS component and the power of the multipath components which can be derived from the CIR hˆ[n].
+
+PR =
+
+NLOS n=1
+
+|hˆ[n]|2
+
+NM P n=NLOS
+
+|hˆ[n]|2
+
+(1)
+
+We derive suitable values for NLOS and NMP empirically, and propose the use of a threshold P RT H = 1.5 to assess the presence of destructive interference. When using NLOS = 5 and NMP = 30, we obtain a P R of 8.28, 1.26, and 3.61 at 19, 21, and 60 meters, respectively. Thus, in absence of
+
+destructive interference and at the end of the communication
+
+range, P R is respectively 6.57 and 2.87 times larger than
+
+the one computed inside the fade. We show the effectiveness
+
+of this algorithm in Sect. VI. Please note that the presence
+
+of destructive interference can also be derived without the
+
+reception of a complete packet, as the CIR is solely estimated
+
+from the preamble. Hence, due to the higher robustness of the
+
+SHR modulation (as shown in Sect. III-B), one can also derive
+
+environmental state information with highly unreliable links.
+
+C. Deriving the Received Signal Power
+We have shown how to make use of the CIR to estimate the power of the LOS and multipath components already in the previous section. The integral of the entire CIR can be used to also provide an estimate of the total received signal power (RSP) and, consequently, to instantaneously estimate the quality of a link. The DW1000 provides a register indicating the integral of the CIR that we use to derive the RSP as a
+
+RSPTH = -93.3dBm
+
+0
+
+-110
+
+-105
+
+-100
+
+-95
+
+-90
+
+-85
+
+RSP [dBm]
+
+Fig. 11. PRR as a function of the received signal power (RSP) measured
+
+using the DW1000 default settings (violet) and a data rate of 110 kbps (blue).
+
+dBm value [23]. We then characterize the relationship between RSP and PRR experimentally, by using the data collected in the hallway experiments described in Sect. II-E.
+Fig. 11 illustrates the distribution of PRR as a function of the RSP (mean ± standard deviation) when using the DW1000 default settings (violet) and when using a data rate of 110 kbps (blue). Each point is computed over 1000 packets, and the interpolated dotted lines illustrate the trend for these two PHY conﬁgurations as well as the relation between PRR and RSP.
+Fig. 11 also shows that the latter varies for different PHY settings: the curve obtained with a data rate of 110 kbps is indeed shifted by 5-6 dB to the left compared to the one obtained with the default settings. This is consistent with the results captured with the cable-based setup shown in Sect. III-C, which have shown that the PRR depends on the employed PHY settings. Indeed, also Fig. 7 shows a difference of 5-6 dB between the use of the default settings and a data rate of 110 kbps. This ability of the RSP to inherently capture differences in the performance of PHY settings without the need of a correction is clearly an asset.
+The RSP value can be used to estimate the link quality and to monitor if the sustained PRR becomes insufﬁcient (e.g., below a PRR of 90%, as indicated by the dotted red line in Fig. 11). To this end, one can deﬁne a threshold RSPT H , whose value can either be selected depending on the current PHY conﬁguration, or by considering the worst-case: in Fig. 11, this corresponds to a RSPT H of -93.3 dBm.
+V. ADAPTING PHY SETTINGS AT RUNTIME
+We design an adaptive scheme that determines at runtime a conﬁguration of PHY settings increasing the dependability of UWB communications. To this end, our scheme makes use of the RSP to detect a degrading link. It then exploits a ranking of PHY settings (derived from the application requirements and from our experimental observations in Sect. III-E) to choose a new PHY conﬁguration for the UWB radio. The latter is also driven by environmental state info computed from the CIR, such as the presence of destructive interference (see Fig. 12).
+Detection of a degrading link. The link state indicator is used to trigger a change of the PHY setting in case of a degraded channel. For this purpose, the estimated received signal power is compared with the RSPT H threshold derived in Sect. IV-C. If the link quality is below this threshold, the adaptation logic initiates a setting change to increase link reliability. We further deﬁne a second threshold RSPEE deﬁning the received signal power at which the quality of the channel allows to select a more efﬁcient PHY setting. In the evaluation in Sect. VI we have set RSPEE = −88.8 dBm, which ensures a good tradeoff between energy savings and a high PRR.
+
+Application requirements
+• Minimize energy expenditure • Maximize reliability •…
+
+Link state indicator
+
+Link quality
+
+Environmental state
+
+Received Signal Power
+
+Destr. Interf.
+
+LOS
+
+…
+
+[-128 … 0] dBm
+
+0/1
+
+0/1
+
+Estimated CIR
+
+Ranking of PHY settings
+Experimental observations
+
+Adaptation Logic
+
+New PHY settings configuration
+
+UWB radio
+Decawave DW1000
+
+Fig. 12. Sketch of the inputs of our adaptation logic deriving a new PHY settings conﬁguration for the Decawave DW1000 UWB transceiver.
+
+Ranking UWB PHY settings. To keep the proposed solution generic, the adaptation logic optimizes its operation depending on the application requirements. For example, based on the requirements of the application at hand, one can deﬁne an energy-conservative adaptation policy maximizing reliability while minimizing the energy consumption. Similarly, for applications demanding a high reliability, one can deﬁne an aggressive adaptation policy maximizing reliability regardless of the energy expenditure. The ranking of the PHY settings is, besides the application requirements, also dependent on the impact of PHY settings on the robustness and efﬁciency. We derive this information from our experimental characterization presented in Sect. III-C. According to Table III, an energyconservative ranking of UWB PHY settings is: (1) lower carrier frequency, (2) higher bandwidth, (3) higher PRF, (4) lower data rate. An aggressive ranking of PHY settings gives a lower data rate the highest priority. Discrete choices within a PHY setting (e.g., carrier frequency) are also ranked accordingly.
+Inﬂuence of environmental state on adaptation logic. In case of an abrupt change in the surrounding environment (such as a blocked LOS or destructive interference), the ranking of the UWB PHY settings has to be adapted accordingly. For example, in the presence of a destructive interference, the change of the carrier frequency should always get highest priority, independently from the ranking of the settings.
+Coordination of conﬁguration changes. In order to correctly communicate, it has to be ensured that the PHY settings of all involved parties are synchronized. Thanks to the properties of UWB highlighted in Sect. II-B, changes in data rate and PSR do not require a prior agreement between transmitter and receiver, as this info can be derived at runtime from the SHR and PHR. Changes in other PHY settings (e.g., carrier frequency), instead, require coordination by means of a packet exchange. If this is the case, two aspects need to be considered. First, the information about the conﬁguration change embedded in these packets should be acknowledged reliably, so to avoid disagreements between nodes [32]. Thanks to the higher robustness of the SHR, one can make use of a preamble as a binary ACK, as highlighted in Sect. III-B: this also allows to mitigate the problem of asymmetric links [21]. Second, one may need to adapt the local PHY settings of a node based on the conﬁguration of all its neighbors. In our current implementation, we use the settings of the node with the worst link state as a global PHY conﬁguration. However, as in a large (multi-hop) network it is unlikely that the same PHY conﬁguration can meet the requirements of all nodes, one may
+
+investigate the use of different time-slots for each neighbor or deﬁne multiple clusters in the network accordingly [36]. Such networking-wide issues are beyond the scope of the paper and subject of future work.
+Implementation. We implement the proposed adaptation scheme by piggybacking 2 bytes in each exchanged packet. The ﬁrst byte embeds the next PHY conﬁguration to be used. The second byte contains link state information and consists of 7 bits RSP and 1 bit indicating the presence of destructive interference. If the current link state shows the necessity for a new conﬁguration, the adaptation logic follows the devised ranking. For PHY settings with more than two discrete choices (e.g., carrier frequency), we ﬁrst use up all the possible values, before moving on with the next PHY setting in the ranking. We provide an implementation of both the aggressive and energyconservative policy, and evaluate their performance in Sect. VI.
+VI. EVALUATION
+We evaluate next the performance of the proposed adaptive scheme. First, we compare the reliability and energy efﬁciency of UWB communications in highly-dynamic environments when using static and adaptive PHY settings (Sect. VI-A). We then show the effectiveness of our approach in detecting and escaping destructive interference (Sect. VI-B).
+A. Increasing the Dependability of UWB Communications
+We design a scenario where two EVB1000 nodes (a transmitter and a receiver) are mounted on tripods at a distance of 5 m. The transmitter periodically sends packets to the receiver at a rate of 50 Hz. To emulate the mobility of nodes in a reproducible manner, we insert a programmable attenuator between the SMA connector and the transmitter’s antenna. This enables us to simulate repeatable changes of the received signal strength due to varying environmental conditions. The attenuation sequence over time is shown in Fig. 13 (top). One can recognize two phases: a triangle-shaped sequence with 25s step size (0 to 130 s) that we use to push the devices to the edge of their communication range and a random sequence (130 to 360 s) emulating irregular ﬂuctuations.
+Starting with the DW1000 default settings, we compare the reliability and energy efﬁciency of static PHY settings, with an adaptive PHY conﬁguration following an energy-conservative and an aggressive adaptation policy. Fig. 13 (second from top) shows the PRR over time sustained by the three schemes. The use of static PHY settings (blue, circles) causes the link to lose a large number of packets. The use of the proposed adaptive scheme, instead, allows to sustain a high packet delivery rate, with an average PRR always higher than 95 and 98% when using an energy-conservative (orange, squares) and an aggressive (yellow, diamonds) adaptation policy, respectively.
+Fig. 13 (third from top) shows the measured RSP over time. The red solid line marks the RSPT H threshold (-93.3 dBm) used to trigger the change to a more robust PHY conﬁguration. The red dotted line marks the RSPEE threshold (−88.8 dBm) used to trigger a more energy-efﬁcient PHY conﬁguration. Please note that, in this scenario, we do not make use of environmental state information to detect destructive interference.
+
+PRR [%] Attenuation [dB]
+
+15
+10
+5
+0 100
+
+50
+
+default settings
+
+energy-conservative
+
+aggressive
+0 -80
+
+Energy [µJ] RSP [dBm]
+
+-90
+
+-100
+200
+Ph.1
+150
+
+Ph.2
+
+Ph.3
+
+Ph.4
+
+100 0
+
+60
+
+120
+
+180
+
+240
+
+300
+
+360
+
+Time [s]
+
+Fig. 13. Comparison of the reliability (PRR) and energy expenditure of a static PHY conﬁguration with the one sustained by an adaptive PHY conﬁguration following an energy-conservative or an aggressive adaptation policy.
+
+Fig. 13 (bottom) shows the energy cost of the three schemes over time, computed as the energy per packet in µJ for both transmission and reception. The adaptive logic allows to sustain a higher reliability at a cost of a 5 and 29% higher energy expenditure for the energy-conservative and aggressive policy, respectively. We can distinguish four main phases: in the ﬁrst and third (Ph. 1 and 3), the adaptation logic triggers a more energy-efﬁcient PHY setting, since the reliability of the link allows it. This saves signiﬁcant energy compared to the default setting (blue, solid). In a second phase, the high attenuation requires, among others, the use of a lower data rate to increase the reliability of the link: this comes at an increased energy cost (that is higher when using the aggressive adaptation policy). The difference between the energy-conservative (orange, dashed) and the aggressive (yellow, dotted) adaptation policy is even more distinctive in the fourth phase.
+B. Recognizing and Escaping Destructive Interference
+We evaluate next the ability of the proposed adaptation algorithm to recognize and escape destructive interference at runtime. Towards this goal, we reuse the experimental setup described in Sect. II-E and keep the transmitter at a static position, while moving the receiver across the hallway. In particular, the receiver is moved from a distance of 18 m (reliable link) to a distance of 20.5 m, hence entering the area where destructive interference is present (see Fig. 3). After 30 seconds, the receiver is moved back to a distance of 18 m. We then compare the PRR when using default static PHY settings and when using an aggressive adaptation policy that makes use or does not make use of the environmental state information capturing the presence of destructive interference.
+Fig. 14 (top) shows the PRR for these three schemes. When using static PHY settings (blue line with circles), the movement of a few meters degrades the link up to a point in which packets are no longer received. The same occurs when using an aggressive adaptive scheme that does not make use of environmental state information (red line with squares), as lowering the data rate does not help signiﬁcantly in the presence of destructive interference. The aggressive adaptive
+
+PRR [%]
+
+100
+50 default settings aggressive, w/o env. state info aggressive, w/ env. state info
+0 20
+
+Destructive Interference
+
+PR
+
+10
+
+0
+
+0
+
+30
+
+60
+
+80
+
+Time [s]
+
+Fig. 14. The proposed adaptation scheme can correctly recognize and escape destructive interference, sustaining a high reception rate over time.
+
+scheme (yellow line with diamonds), instead, recognizes and escapes destructive interference by directly changing the carrier frequency without a switch to a lower data rate.
+Fig. 14 (bottom) shows the calculation of the ratio between LOS and multipath power P R (blue dotted line). At time 30s, as soon as P R is smaller than the P RT H threshold of 1.5 (red solid line), the destructive interference bit of the environmental state indicator is set to high and a change of PHY conﬁguration (carrier frequency) is triggered. After this change, the measured P R is again well above the P RT H threshold: this is expected as, after the change of carrier frequency, the node no longer suffers destructive interference.
+VII. RELATED WORK
+UWB technology has attracted a large body of research, especially after the formal addition of the UWB physical layer to the IEEE 802.15.4 standard in 2007, and the availability of the ﬁrst compliant low-cost transceivers.
+UWB-based localization. Undoubtedly, the interest of the community was mostly attracted by the possibility of using UWB to carry out precise positioning. Researchers have produced a large number of algorithms to maximize the positioning accuracy indoors [3], for example by exploiting multipath reﬂections [8], or by making use of inertial sensors [9]. Other works have instead investigated how to make use of antenna diversity [26], as well as of directional antennas [35] to increase localization accuracy. Given the large number of techniques that have been produced, the community started to quantitatively compare the accuracy of different localization systems in competitions [6]. The latter showed the beneﬁts of UWB and spread the word about its potential. Differently from these works, our study does not focus on accuracy, but instead on increasing the dependability of UWB communications.
+UWB measurements. Researchers have experimentally quantiﬁed the effect of LOS and NLOS [37], the impact of clock offset on different ranging schemes [38], as well as the UWB operating range as a function of different preamble parameters [39]. Unlike these works, we systematically study the performance of both preamble and payload settings and experimentally quantify their sensitivity and energy cost, in order to understand which conﬁguration to privilege. A work in spirit close to ours is the one by Mikhaylov et al. [40], who have experimentally measured the impact of various settings on the accuracy of indoor localization. The focus of their work, however, is not on communication performance.
+
+UWB link quality estimation. A plethora of works has proposed different strategies to estimate the quality of a wireless link [21]. The proposed solutions have combined the knowledge of the expected number of transmissions [41] with information from the network, link, and physical layers [42], often exploiting the link quality indicators returned by IEEE 802.15.4 narrowband hardware such as RSSI and LQI [43]. The link quality information that can be retrieved from UWB radios is, however, unexplored, and radically different from the ones that have been studied in narrowband IEEE 802.15.4 transceivers by the aforementioned studies. To the best of our knowledge, the work presented in this paper is the ﬁrst one studying link state estimation with UWB radios and proposing an efﬁcient technique that makes use of the estimated CIR information to detect the presence of destructive interference in UWB communication links.
+Runtime adaptation. Increasing the performance of a wireless system by adapting protocol parameters at runtime is a wellknown problem. The research community has explored how to adapt the transmission power of the radio [28] or MAC protocol parameters such as duty cycle [16] and clear channel assessment threshold [17], but always focused on narrowband IEEE 802.15.4 transceivers only. To the best of our knowledge, we are the ﬁrst studying an automatic selection of UWB parameters at runtime to improve communication performance.
+VIII. CONCLUSIONS In this paper, we have exploited UWB PHY settings as tuning knobs to increase the dependability of communications. Towards this goal, we have ﬁrst experimentally quantiﬁed the reliability and energy cost of each setting and understood which physical layer conﬁguration to privilege depending on the speciﬁc application requirements. We have then used the estimated CIR to accurately measure the link quality and to extract relevant information about the characteristics of the surrounding environment, such as the presence of destructive interference. Building upon this information, we have designed an adaptation scheme that tunes the PHY settings of an UWB transceiver at runtime, and demonstrated experimentally that it effectively increases the communication performance. Future work will investigate the design of more complex algorithms that make use of the estimated CIR information to accurately characterize the environment and the use of directional antennas as an additional tuning knob.
+ACKNOWLEDGMENTS
+This work was supported by the TU Graz LEAD project “Dependable Internet of Things in Adverse Environments”.
+REFERENCES
+[1] A. Molisch, “Ultra-Wide-Band Propagation Channels,” Proceedings of the IEEE, vol. 97, no. 2, Feb. 2009.
+[2] Z. Irahhautent et al., “UWB Channel Measurements and Results for Ofﬁce and Industrial Environments,” in Proc. of the ICUWB Conf., 2006.
+[3] A. Alariﬁ et al., “Ultra Wideband Indoor Positioning Technologies: Analysis and Recent Advances,” Sensors, vol. 16, no. 5, May 2016.
+[4] M. Win, D. Dardari, A. Molisch, W. Wiesbeck, and J. Zhang, “History and Applications of UWB,” Proc.of the IEEE, vol. 97, no. 2, 2009.
+[5] J. Zhang et al., “UWB Systems for Wireless Sensor Networks,” Proc. of the IEEE, vol. 97, no. 2, 2009.
+
+[6] D. Lymberopoulos et al., “The Microsoft Indoor Localization Competition,” IEEE Sig. Proc. Mag., vol. 34, no. 5, pp. 125–140, 2017.
+[7] D. Dardari, P. Closas, and P. Djuric, “Indoor Tracking: Theory, Methods, and Technologies,” IEEE Trans. on Vehic. Techn., vol. 64, no. 4, 2015.
+[8] J. Kulmer et al., “Using Decawave UWB Transceivers for High-accuracy Multipath-assisted Indoor Positioning,” in IEEE ANLN Workshop, 2017.
+[9] M. Kok et al., “Indoor Positioning Using Ultrawideband and Inertial Measurements,” IEEE Trans. on Vehicular Techn., vol. 64, no. 4, 2015.
+[10] D. Espes et al., “Ultra-Wideband Positioning for Assistance Robots for Elderly,” in Proc. of the 10th SPPRA Conference, Feb. 2013.
+[11] R. Cha´vez-Santiago et al., “Ultrawideband Technology in Medicine: A Survey,” Journal of Electrical and Computer Engineering, Feb. 2012.
+[12] K. Guo et al., “Ultra-Wideband-Based Localization for Quadcopter Navigation,” Unmanned Systems Journal, vol. 4, no. 1, Jan. 2016.
+[13] B. Kempke et al., “PolyPoint: Guiding Indoor Quadrotors with UltraWideband Localization,” in Proc. of HotWireless Workshop, 2015.
+[14] J. Lee et al., “A Comparative Study of Wireless Protocols: Bluetooth, UWB, ZigBee, and Wi-Fi,” in Proc. of the IECON Conf., 2007.
+[15] P. Alcock, U. Roedig, and M. Hazas, “Combining Positioning and Communication Using UWB Transceivers,” in Proc. of the 5th IEEE DCOSS Conference, Jun. 2009.
+[16] M. Zimmerling et al., “pTunes: Runtime Parameter Adaptation for Lowpower MAC Protocols,” in Proc. of IPSN Conference, Apr. 2012.
+[17] M. Sha et al., “Energy-efﬁcient Low Power Listening for Wireless Sensor Networks in Noisy Environments,” in IPSN Conf., Apr. 2013.
+[18] S. Brienza et al., “Just-in-Time Adaptive Algorithm for Optimal Parameter Setting in 802.15.4 WSNs,” ACM TAAS, vol. 10, no. 4, 2016.
+[19] A. Augustin et al., “A Study of LoRa: Long Range & Low Power Networks for the Internet of Things,” Sensors, vol. 16, no. 9, Sep. 2016.
+[20] M. Bor and U. Roedig, “LoRa Transmission Parameter Selection,” in Proc. of the 13th IEEE DCOSS Conference, Jun. 2017.
+[21] N. Baccour et al., “Radio Link Quality Estimation in Wireless Sensor Networks: a Survey,” ACM Trans. Sens. Netw., vol. 8, no. 4, Nov. 2012.
+[22] Y. Qi et al., “Clear Channel Assessment with Multiplexed Preamble Symbols for Impulse UWB Communications,” in ICUWB Conf., 2006.
+[23] Decawave Ltd., DW1000 User Manual. Version 2.10, 2016. [24] Federal Communications Commission (FCC), Revision of Part 15 of the
+Commission’s Rule Regarding UWB Transmission Systems, Std., 2002. [25] ITU-R, Recommendation ITU-R SM. 1755, Characteristics of UWB
+technology, Std., 2006. [26] B. Kempke et al., “SurePoint: Exploiting Ultra Wideband Flooding and
+Diversity to Provide Robust, Scalable, High-Fidelity Indoor Localization,” in Proc. of the 14th ACM SenSys Conference, Nov. 2016. [27] Decawave Ltd., Application Note APS023 (Part 1+2), version 1.0, 2016. [28] S. Lin et al., “ATPC: Adaptive Transmission Power Control for Wireless Sensor Networks,” in Proc. of the 4th ACM SenSys Conference, 2006. [29] A. Molisch, Wireless communications. John Wiley & Sons, 2012. [30] Decawave Ltd., Application Note APS013, version 2.0, 2015. [31] M. Zu´n˜iga and B. Krishnamachari, “Analyzing the Transitional Region in Low-Power Wireless Links,” in Proc. of IEEE SECON Conf., 2004. [32] C. Boano et al., “JAG: Reliable and Predictable Wireless Agreement under External Radio Interference,” in Proc. of IEEE RTSS Symp., 2012. [33] A.F. Molisch et al., “IEEE 802.15.4a Channel Model,” Tech. Rep., 2004. [34] S. Marano` et al., “NLOS Identiﬁcation and Mitigation for Localization Based on UWB Experimental Data,” IEEE J-SAC, vol. 28, no. 7, 2010. [35] M. Rath et al., “Multipath-assisted Indoor Positioning Enabled by Directional UWB Sector Antennas,” in IEEE SPAWC Workshop, 2017. [36] C. Frank and K. Ro¨mer, “Algorithms for Generic Role Assignment in Wireless Sensor Networks,” in Proc. of the 3rd SenSys Conf., 2005. [37] T. Ye et al., “An Experimental Evaluation of IEEE 802.15.4a UWB Technology for Precision Indoor Ranging,” IJACI, vol. 4, no. 2, 2012. [38] K. Mikhaylov et al., “On the Selection of Protocol and Parameters for UWB-based Wireless Indoor Localization,” in ISMICT Symp., 2016. [39] T. Gigl et al., “Ranging Performance of the IEEE 802.15.4a UWB Standard Under FCC/CEPT Regulations,” JECE, Jan. 2012. [40] K. Mikhaylov et al., “Impact of IEEE 802.15.4 Communication Settings on Performance in Asynchronous Two Way UWB Ranging,” Intl. Journal of Wireless Information Networks, vol. 24, no. 2, Jun. 2017. [41] D. De Couto et al., “A High-throughput Path Metric for Multi-hop Wireless Routing,” in Proc. of the 9th MobiCom Conference, Sep. 2003. [42] R. Fonseca, O. Gnawali, K. Jamieson, and P. Levis, “Four-Bit Wireless Link Estimation,” in Proc. of the 6th HotNets Workshop, Nov. 2007. [43] K. Srinivasan et al., “An Empirical Study of Low-power Wireless,” ACM Transactions on Sensor Networks, vol. 6, no. 2, Mar. 2010.
+
+

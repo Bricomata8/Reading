@@ -1,0 +1,604 @@
+2019 IEEE International Conference on Blockchain (Blockchain)
+
+Scalable Privacy-Preserving Query Processing Over Ethereum Blockchain
+
+Shlomi Linoy, Hassan Mahdikhani, Suprio Ray, Rongxing Lu, Natalia Stakhanova, Ali Ghorbani University of New Brunswick, Fredericton, Canada
+{slinoy, hmahdikh, sray, rlu1, natalia.stakhanova, ghorbani}@unb.ca
+
+Abstract—Blockchain technologies have recently received considerable attention, partly due to the success of cryptocurrency applications such as Bitcoin and Ethereum. As the adoption of blockchain technologies by various sectors increases, there is a demand for tools that enable regulatory enforcement, which include monitoring, examining and ensuring compliance of the data stored by the blockchain systems, all in a privacy preserving way. Current blockchain solutions store transactions in append-only and immutable fashion without any indexing, which contributes to limited and inefﬁcient queries. Additionally, there is no support for privacypreserving query processing. To address these issues, in this paper, we propose a system that can provide auditors, enforcing regulatory compliance, with efﬁcient, scalable and richer blockchain query processing over Hadoop and synchronized Ethereum clients. The system additionally ensures auditors’ privacy by utilizing cryptography techniques over semi-trusted servers to protect the auditors’ identities, queries and their results.
+Keywords-blockchain; privacy; bigdata; database;
+I. INTRODUCTION With the advent of BitCoin [1], regarded as the ﬁrst cryptocurrency, multiple new forms of virtual currencies, such as Ethereum [2] and ZCash [3], have emerged. The underlying technology behind cryptocurrencies, is the blockchain, which enables different parties, who do not trust each other to share information, without requiring any central coordinator through the use of a robust consensus protocol such as Proof-of-Work [1]. Due to its promise, blockchain can serve as a highly trustable distributed data storage solution for handling structured data. Consequently, blockchain has inspired research in the database and systems community [4]–[7]. Ethereum extends the blockchain technology to enable a distributed computing platform that supports execution of smart contracts. Such smart contracts can be used securely in many sectors, such as government and industries. For example, Ethereum smart contracts could be used to speed up claim processing, reduce operating costs in law enforcement sectors [8], enable online decentralized secure voting [9] and be used in insurance industries [10]. Multinational retail corporations face recurring supply chain management issues, such as the one related to the Walmart’s recent romaine lettuce E. coli outbreak in North America [11]. The exact source and extent of the contaminated lettuce could not be determined from the supply chain system, which resulted in huge losses to all parties involved. In order to reduce such issues, companies are adopting
+
+solutions based on blockchain technologies at a high rate. Private blockchains contain sensitive information, which
+may need to be audited according to regulatory requirements. The auditors need to have access to the company’s raw blockchain data, as opposed to an intermediate processed data repository, where the data may have been tampered with. In addition, to support more efﬁcient and rigorous auditing procedures, the disclosure of queries should be prevented. As the amount of data stored in the blockchain increases, the immutability of every block and its transactions ensures an exponential data size increase. Due to the linked structure of the blockchain, only sequential pass over the entire blockchain data is possible, which limits querying capabilities. In order to enable richer and more performant querying, auditors need to fetch the raw data and then process it ofﬂine. This can be achieved by implementing a capable server with access to the company’s blockchain nodes. An Ethereum node can be implemented in various languages according to the Ethereum yellow paper [12] and we chose to focus on Go-Ethereum (Geth) which stores data in a key-value store (LevelDB [13]). The Ethereum node uses a general JSON RPC protocol [14], which speciﬁes limited querying capabilities of its internal storage. These deﬁne the retrieval of one block or transaction per request. In order to retrieve multiple blocks or transactions, multiple API calls per block/transaction need to be executed. This can be inefﬁcient, especially as the blockchain consistently expands in volume. Some third party tools have been developed to address the scalability issues in the form of a centralized service. For example EtherQL [15] downloads the Ethereum blockchain data, stores it in MongoDB and exposes an API with predeﬁned queries. However, custom queries and private information retrieval are not supported. Another system, vChain [16] provides a way to execute boolean range queries using cryptographic proofs, vital to enable query integrity. However, the use of cryptographic proofs incurs high processing times, which are orders of magnitude slower compared to our proposed system. Similar additional tools are described in the related work section.
+In this paper, we propose a system that enables multiple auditors perform richer queries over blockchain data in an efﬁcient and scalable way. Our system additionally supports private information retrieval by utilizing cryptography techniques over semi-trusted servers to protect the auditors’ identities, queries and their results. To handle the current and
+
+978-1-7281-4693-5/19/$31.00 ©2019 IEEE
+
+398
+
+DOI 10.1109/Blockchain.2019.00061
+
+rapidly increasing blockchain data volume, the system employs Hadoop [17], which is a scalable distributed processing solution for big data. Users submit SQL queries which are transformed into MapReduce tasks and are run on Hadoop. When missing data is required, MapReduce tasks are created and used to download the data from Ethereum clients in parallel and store them in the local HDFS. An in-memory B+Tree-based index is used to index the downloaded data for efﬁcient future access. The entire data fetching process utilizes privacy-preserving techniques. The client and the data server share a secret key. The client sends the server an encrypted and modiﬁed query, the server sends the client the encrypted results and the client continues to further reﬁne the results according to the full SQL query. The communication between the client and the server involves an intermediary proxy, which also serves to hide the identity of the client. Our contributions can be summarized as follows:
+1) Propose support for SQL query language over blockchain data, which includes SELECT statements and aggregate functions, e.g. MIN, MAX and SUM, with WHERE clauses to fetch blockchain blocks and transactional information over speciﬁed ranges and additional ﬁlters.
+2) Design and implement a scalable and robust system that executes queries in a parallel and distributed fashion by utilizing Hadoop’s MapReduce infrastructure.
+3) Design and implement a private information retrieval approach to ensure the client’s (auditor) conﬁdentiality in the submitted query and its results during the communication between the different parties, i.e. client, proxy and the data server.
+II. THE PROPOSED SYSTEM The overall system architecture is shown in Fig. 1.
+A. Main components Client - Parses the user’s (auditor) query, which includes a block number range, and extracts a fetch query and a processing query. The fetch query is used to fetch all blocks/transactions required by the processing query while enforcing privacy preservation. The processing query, which includes the main query logic is run on the fetched data. Proxy - Acts as a mediator between the client and server. It hides the source of the client from the server and ﬁlters the fetched data from the server before sending it to the client in order to save network bandwidth and decryption resources. Data Processing Server - Serves blocks or transactions requested by the client’s modiﬁed fetch query. The data retrieval includes fetching missing data, if required, from Geth clients and saving them for future use. These are done using Hadoop MapReduce tasks. The results are encrypted and sent securely to the proxy.
+B. Assumptions: • The client and server share a secret key for data encryp-
+tion/decryption.
+
+• The proxy and the server are assumed to be honestbut-curious; i.e. the two follow the protocol, but may try to extract additional information in the process. This assumption can be guaranteed in practice since companies try their best to maintain their reputation.
+• No collusion between proxy and server. Since the server decodes the fetch query, it knows only the extended range of the blocks/transactions from the client’s query. The proxy contains knowledge of the actual range in the user’s query. Collusion between the server and the proxy can reveal the exact range.
+C. Privacy preserving query processing To preserve the privacy of the client’s query and to
+securely transmit the results, the client splits, modiﬁes and encrypts the user’s query by applying a secret key, which is shared between both the client and server, and sends it to the proxy. The proxy cannot decrypt the query and only propagates the encrypted query to the server, which can decrypt it by using the shared key. Since the proxy serves as an intermediary between the client and the server, the latter cannot identify the query’s sender and, since the client extracted this partial query from the user’s query and extended its boundaries, the server cannot know the exact user’s query or even its exact range. The server then retrieves the requested blocks/transactions, encrypts them, and sends the encrypted results to the proxy. The proxy cannot decrypt the results, but can ﬁlter some of them to improve the communication and decryption performance. The proxy then sends the ﬁltered encrypted results to the client, which decrypts the results and continues to execute the complete query.
+III. SYSTEM MODEL In this section we describe the design and implementation of the proposed system and explore in detail the processes involving all its components. We describe the process in a ﬂowchart that starts with the client receiving the user’s (auditor) query and processes it, continues to the proxy and then to the server. The process continues with the server sending the results to the proxy, and the proxy to the client. SQL query parser The client parses the user’s query using a parser built with ANTLR4 [18] and supports SELECT statements that include aggregate functions, e.g. MIN, MAX, and SUM, and WHERE clauses including range speciﬁcations. The FROM can receive either block or transaction as a source. We demonstrate our system’s capabilities with two example queries (inspired by [6]) as presented in Table I. Client to proxy The client receives the query from the user, parses it using the SQL query parser and extracts two queries: a fetch query (see Algorithm 1) and a processing query. The fetch query is used to fetch all blocks in the extended range from the server.
+
+399
+
+SK
+Us er/Cl ient
+
+Proxy Machine
+
+User Query
+
+Æ Encrypted Batches Æ Generate Hashset of User
+
+Requested Blocks
+
+Æ Store the Hashset
+
+Enc(L1--U1, SK)
+
+{H(LxۤUxۤSK), H(LyۤUyۤSK), …, H(LzۤUzۤSK)}
+
+Æ ForwardEncrypted Batches
+
+Enc(L2--U2, SK) ...
+
+...
+
+Enc(Lk--Uk, SK)
+User’s Requested Blocks Hashset {H(LxۤUxۤSK), H(LyۤUyۤSK), …, H(LzۤUzۤSK)}
+
+...
+
+Lx--Ux Ly--Uy
+
+Lz--Uz
+
+Æ Decrypt Proxy’s Response ÆApply remaining where clause condi tions ÆApply the aggregate functions
+
+...
+98 998
+Æ Filter the Batches by Comparing Stored Hashset
+
+...
+
+Æ Decrypt Batches L1--U1 L2--U2
+
+Lk--Uk
+
+Æ Search B+Tree Index
+
+N
+
+SK
+Server
+
+11
+
+Y
+
+8
+
+17
+
+Æ Run MapReduce Job to Fetch from Geth Æ Store the Result in HDFS Repository Æ Update the B+Tree (BlockID & UUID)
+
+25
+
+8 10
+
+13 14 15 18 20
+
+f1 f8
+
+f3 f4
+
+f2 f2 f5
+
+f6 f7
+
+ÆEncrypt Batches Æ Generate Hashfor each Batch
+
+Æ Retrieve UUID File from B+Tree Æ Run MapReduce Job to Retrieve Blocks’
+Data from HDFS
+
+Enc(L1--U1, SK), H(L1‫ۮ‬h1‫)<^ۮ‬
+
+Gethm
+
+Noden
+
+Enc(L2--U2, SK), H(L2‫ۮ‬h2‫)<^ۮ‬
+
+...
+
+...
+
+...
+
+Geth1 Geth2
+
+Node1 Node2
+
+Enc(Lk--Uk, SK), H(Lk‫ۮ‬hk‫)<^ۮ‬
+
+Hadoop Cluster
+
+Geth Clients
+
+Figure 1: System Components and Model
+
+Once the fetched data is received by the client, the processing query processes the data locally. For example, the query Q1 in Table I is split into a fetch query part (FQ in Table II) whose results are stored locally in fetched results and to a processing part (PQ in Table II). To generate the fetch query, the client extracts the block number’s lower/upper bounds (LB/UB) from the query. For each bound, a random value in a user speciﬁed range (LBR/UBR) is generated. One random value is subtracted from the LB and the second random value is added to the UB to extend the range. This extended range is then split into a set of ranges with a user deﬁned batch size which is encrypted individually using a key shared with the server Sk. In addition, for each block range that intersects the range of the the original LB/UB range, which is appended with Sk, the client generates a hash. The client then sends the encrypted split range batches and their hashes to the proxy. The proxy receives the encrypted range splits and their hashes and saves the hashes for further processing. Index The server uses an in-memory B+Tree-based index, which is indexed on block number to retrieve the corresponding transactions’ data ﬁle paths in HDFS. The index serves two purposes when used on a range of block numbers:
+1) It ﬁnds the HDFS repository ﬁle paths that contain the transaction/block in the provided range.
+2) It ﬁnds block numbers, which do not exist in the HDFS repository in the provided range.
+Proxy to server The proxy propagates the encrypted range splits to the server. The server uses HDFS to store blocks/transactions and to run queries using MapReduce tasks in order to retrieve existing data from HDFS repository and to fetch
+
+Algorithm 1: client prepare fetch query
+
+Input: SQL like query - user query, Sk - client/server shared key,
+
+LBR/UBR - Lower/Upper Bound Range to calculate random
+
+value, blocks per batch - number of blocks per range split
+
+Output: enc range splits list - list of encrypted ranges,
+
+ranges hash set - hashes of ranges intersecting query range
+
+1 fetch query, process query ← parse(SQL like query)
+
+2 LB, UB ← parse(fetch query) // query Lower/Upper Bounds
+
+3 rand lower ← get random in range(LBR)
+
+4 rand upper ← get random in range(UBR)
+
+5 ELB ← min(1, LB - rand lower) // Extended Lower Bound
+
+6 EUB ← UB + rand upper // Extended Upper Bound
+
+7 ranges hash set ← {}
+
+8 enc range splits list ← list()
+
+9 extended range size ← (EUB - ELB + 1)
+
+10 splits count ← extended range size/blocks per batch
+
+11 for i ← 0 to splits count by 1 do
+
+12
+
+split start ← ELB + i · blocks per batch
+
+13
+
+split end ← split start + blocks per batch
+
+14
+
+add range split(IN LB, IN UB, IN split start, IN split end, IN
+
+Sk, OUT enc range splits list, OUT ranges hash set)
+
+15 // last remaining range split will be addressed similarly
+
+missing data from Geth clients. To serve queries that contain a block number range, the server executes two MapReduce tasks (Algorithm 2):
+1) A MapReduce task to fetch missing blocks/transactions that are not already stored in the HDFS repository from
+
+Table I: Query examples
+
+Q1
+
+SELECT MAX(value) FROM transactions WHERE block number BETWEEN <LB> AND <UB>
+
+SELECT * FROM transactions
+
+Q2 WHERE block number BETWEEN <LB> AND <UB>
+
+AND account address=<address>
+
+Table II: Fetch/Processing query extraction example
+
+FQ
+
+SELECT * FROM transactions WHERE block number BETWEEN <ELB>AND <EUB>
+
+PQ
+
+SELECT MAX(value) FROM fetched results WHERE account address = <address>
+
+400
+
+Algorithm 2: server get data
+
+Input: enc range splits list, Sk - client/server shared key,
+
+blocks per task, Geth client ip addresses, threads per task,
+
+HDFS output dir, local results dir, block number pos -
+
+position in results line
+
+Output: enc ranged res hash map - all blocks in range, split by
+
+ranges, encrypted and hashed
+
+1 range splits list ← list()
+
+2 for enc range in enc range splits list do
+
+3
+
+range ← AES.decrypt(enc range, Sk)
+
+4
+
+range splits list.add(range)
+
+5 ELB ← range splits list.ﬁrst().LB // Extended Lower Bound 6 EUB ← range splits list.last().UB // Extended Upper Bound 7 missing blocks list ← Index.get missing blocks(ELB, EUB) 8 if missing blocks list = ∅ then 9 server fetch data from Geth(IN missing blocks list, IN
+blocks per task, IN Geth client ip addresses, IN threads per task) 10 server retrieve data from Hadoop(IN ELB, IN EUB, IN range splits list, IN HDFS output dir, IN local results dir, IN block number pos, OUT enc ranged res hash map)
+
+Geth [19] clients using Web3j [20]. 2) A MapReduce task to retrieve existing
+blocks/transactions from the HDFS repository (Algorithm 3).
+Upon receiving the encrypted query from the proxy containing the extended block numbers range splits, the server decrypts the ranges and extracts the extended lower bound (ELB) and extended upper bound (EUB) of the range. It then searches the index for the block numbers that are missing in the index, and consequently, in HDFS. If there are such blocks, a MapReduce task is run to fetch the missing blocks/transactions from the Geth clients. To do so the server prepares an input ﬁle for the MapReduce task. The MapReduce task is conﬁgured to consume the input ﬁle one line at a time. Each input ﬁle line contains a different iterating Geth client IP address in order to distribute the fetching load between all tasks, in addition to a user deﬁned threads per task count to use in each node to fetch the blocks concurrently. The number of input ﬁle lines and, hence, the number of tasks is calculated by missing blocks list.size()/blocks per task. The blocks per task parameter should be determined in advance to maximize memory consumption in each node in order to utilize the nodes efﬁciently. The MapReduce task is conﬁgured to not use reducers in order to prevent memory issues when downloading a large amount of data and to maximize resources usage (more nodes are used as mappers) when fetching the data from Geth clients. Each mapper communicates with a synchronized Geth client using Web3j to fetch the missing data and produces a result ﬁle in the HDFS output dir directory. When all MapReduce tasks are complete, the mappers’ result ﬁles are downloaded locally to the server from HDFS and merged into one ﬁle that contains all blocks/transactions delimited by a new line. The ﬁle is then uploaded to the HDFS repository to be used in future queries. The index is updated to point to the uploaded ﬁle, which contains the missing blocks. An ofﬂine process is
+
+Algorithm 3: server retrieve data from Hadoop
+
+Input: ELB/EUB - Extended Lower/Upper Bound, range splits list
+
+- range splits, HDFS output dir, local results dir,
+
+block number pos - position in results line
+
+Output: enc ranged res hash map - all blocks in range, split by
+
+ranges, encrypted and hashed
+
+1 index ﬁle name list ← Index.get indexed ﬁle names(ELB, EUB)
+
+2 update retrieve map reduce template source code to fetch only data
+
+in the block numbers range between ELB and EUB
+
+3 compile the updated map reduce code into
+
+updated retrieve map reduce
+
+4 updated retrieve map reduce.task(index ﬁle name list,
+
+HDFS output dir)
+
+5 copy all mapppers results ﬁles from HDFS output dir to
+
+local results dir 6 results ← merge all mappers results ﬁles in local results dir
+
+7 ranged results hash map ← {}
+
+8 for range in range splits list do
+
+9
+
+ranged results hash map.add(range, list())
+
+10 sorted range splits list ← sort range splits list on LB
+
+11 for res in results do
+
+12
+
+block number ← res.get(block number pos)
+
+13
+
+range ← sorted range splits list.get range(block number)
+
+14
+
+// get range function searches sorted range splits list for a
+
+15
+
+// range with the largest LB that is smaller or equal to block
+
+16
+
+// number. Works in O(log n)
+
+17
+
+ranged results hash map.get(range).add(res)
+
+18 enc ranged res hash map ← {}
+
+19 for range in ranged results hash map.keys do
+
+20
+
+range hash ← SHA256(range|Sk)
+
+21
+
+batch ← ranged results hash map.get(range)
+
+22
+
+enc batch ← AES.encrypt(batch, Sk)
+
+23
+
+enc ranged res hash map.add(range hash, enc batch)
+
+used to split this ﬁle into smaller ﬁles and update the index accordingly for more efﬁcient retrievals in future queries. In the next step, the server retrieves all the blocks requested by the query from the HDFS repository, encrypts them, generates their hashes, and returns both to the proxy. To do so (see Algorithm 3), the server searches the index for all the HDFS repository indexed ﬁle paths that contain all block numbers in the extended query range. The resulting list of ﬁle paths is used as input to the MapReduce task that retrieves blocks/transactions from HDFS. To prepare this MapReduce task, the server uses a Java template code snippet that provides the functionality for a task to get each line from its input ﬁle and output the line only if it passes a ﬁlter statement. The ﬁlter statement is a placeholder for an if-condition that is generated by the server according to the extended lower and upper bounds (ELB/EUB) of the query. The code is then compiled to produce the mapper task binaries. This MapReduce task is also conﬁgured to not use reducers to preserve memory and maximize node resources. Each mapper uses a text ﬁle input split with a default split size of 64M. The task is then run with the indexed ﬁle paths retrieved from the indexer and the mappers’ results ﬁles are copied to the server locally and merged into a single ﬁle whose lines are delimited by a new line. The merged results ﬁle is then partitioned into batches. Each batch contains block lines with block numbers in the batch’s speciﬁc range. The ranges are extracted from the range splits provided in the query. Each batch is encrypted using the secret key shared with the client and the hash of the batch range plus the secret
+
+401
+
+key is calculated. Server to proxy The server sends the encrypted results and their hashes to the proxy. The results are composed of tuples. Each tuple contains an encoded batch with block/transaction lines, and the second item in the tuple is the hash of the batch range plus the shared key. The proxy ﬁlters the received results by retaining only the batches whose range hash is contained in hashes provided by the client. Proxy to client The proxy sends the ﬁltered results to the client. The client decrypts each batch with the shared key and merges it into a fetch results list. Since a batch may contain information on block numbers not in the full user’s query range, the client ﬁlters these lines. The client continues to locally execute the process query on the fetch results, which includes the aggregate functions and other WHERE clause ﬁlters.
+
+IV. EVALUATION We used a dataset from live Ethereum feed provided by Geth clients. The experiments were conducted on a cluster of four machines, each having an Intel(R) Xeon(R) CPU E5472 @ 3.00GHz and 8GB of memory. Two additional machines were used for running Ethereum Geth clients. Table I shows the queries used for evaluation. Table III shows the varied block numbers and their ranges values used in our experiments. Each block range conﬁguration was run with either 1 or 4 nodes per cluster. See Table IV for the conﬁguration details. ”Blocks per batch” indicates the number of blocks each task downloads. ”Threads per task” indicates the number of threads each task uses to download the transactions/blocks concurrently from the Geth clients. The experiments evaluate two independent processes:
+1) Server fetch time, which consists of fetching missing blocks, index update, storing of newly fetched data into HDFS, and fetching all query data from HDFS.
+2) All steps of the query processing time after the server’s data fetch. This includes server results encryption, proxy ﬁltering, client results decryption, applying WHERE clause ﬁltering and aggregate function.
+The server’s total fetch time is dependent only on the query’s extended range size and not on any other part of the query. This means that different queries with the same extended range should present similar server total fetch times. Fig. 2 demonstrates the signiﬁcant improvement of
+
+Table III: Block numbers and ranges used
+
+Blocks LB
+
+UB
+
+100 3000000 3000100
+
+1K 3000000 3001000
+
+10K 3000000 3010000
+
+100K 3000000 3100000
+
+Blocks LB
+
+UB
+
+200K 3000000 3200000
+
+300K 3000000 3300000
+
+400K 3000000 3400000
+
+500K 3000000 3500000
+
+Table IV: Single and multiple nodes conﬁguration
+
+Nodes Geth clients Blocks per batch Threads per task
+
+4
+
+2
+
+5000
+
+4
+
+1
+
+1
+
+5000
+
+8
+
+our solution due to the parallel downloading and fetching of all the query blocks/transactions. 5.1 Fetching missing data from Geth clients When the system is initialized (ﬁrst time), all Ethereum blocks generated until that point are needed to be fetched from Geth client(s) and the index needs to be built. After that, a background process is run periodically to fetch newer blocks from Geth clients. Fig. 2(a) shows the time improvement when all blocks are fetched from Geth client(s) by using multiple Hadoop nodes in comparison to that with a single node. The average speedup achieved is 1.52×. In this conﬁguration, 2 Geth clients are used with the 4 Hadoop nodes. It may seem that the speedup should be at least 2. However, since all 4 nodes send requests to the same 2 Geth clients, the consequent load on each Geth client lowers the speedup gain. Using at least 2 more Geth clients would signiﬁcantly increase the speedup. 5.2 Fetching data from HDFS repository For most queries, it is expected that the blocks speciﬁed by the query ranges are already fetched from Geth clients. Fig. 2(b) shows the time improvement for the data retrieval from HDFS, when all blocks are already fetched from Geth clients and the index is updated accordingly. Multiple nodes conﬁguration is compared to the single node conﬁguration. The average speedup achieved is 2.47×. This can be attributed to our use of the default text ﬁle split size of 64M. We believe that the speedup can be further improved by reducing default text ﬁle split size or alternatively, by retrieving a bigger range of blocks resulting in bigger data ﬁles. Fetching from HDFS is the typical use case where most data is already indexed and occasionally few blocks from live data are fetched from Geth clients. 5.3 Steps following server data fetching Following the fetch of missing/existing data, the server encrypts and calculates the range hash of each batch and sends these results to the proxy, which ﬁlters the relevant batches according to the hashes it received from the client and sends them to the client. The client then decrypts the results and ﬁlters the data that are in the user query range (before continuing to execute the processing query). The summary and breakdown of the processing times for these steps are shown in Fig. 3 for the two types of queries in Table I. Fig. 3(a) shows the processing times for query Q2 in Table I and Fig. 3(b) shows the processing times for query Q1 in Table I. As can be seen, the relative processing times of the different steps are similar for 100k and above ranges in both query types. The average breakdown of the different processing parts can be seen in the pie charts. Here, about 50% of the processing time is attributed to the results encryption by the server, followed by about 30% of the processing time for the decryption of the ﬁltered results by the client, and about 20% of the processing time to ﬁlter the results by the proxy. In Query Q1 there is an additional use of an aggregation function, which is not speciﬁed in Q2.
+
+402
+
+Time(s)
+
+3000
+
+Multiple Nodes
+
+Single Node
+
+2500 969
+
+2000 712
+
+1500 1000
+
+543 363
+
+500
+
+12
+
+0
+
+0
+
+11 170
+
+100 1K 10K 100K 200K 300K 400K 500K
+
+(a) Fetching from Ethereum Geth clients
+
+120 Multiple Nodes
+100
+
+Single Node
+
+80
+
+63
+
+60
+
+60
+
+45
+
+40
+
+26
+
+20
+
+1
+
+0
+
+1
+
+14
+
+0 100 1K 10K 100K 200K 300K 400K 500K
+
+(b) Fetching from HDFS
+
+Time(s)
+
+Figure 2: (a) Fetching all data blocks from Ethereum Geth clients (system initialization). (b) Fetching of all requested data from HDFS (already indexed).
+
+Time(s)
+
+350
+
+300
+
+32.15
+
+48.49
+
+250
+
+19.36 200
+
+Averall Average
+
+150
+
+Breakdown
+
+Client - Response Decryption & Apply Filtering Proxy - Filter Result Server - Result Encryption
+
+100
+
+50
+
+0 100 1K 10K 100K 200K 300K 400K 500K
+
+(a) Query Q2 in Table I
+
+400
+
+3.81
+
+350 30.19 49.82
+300
+
+250
+
+16.18
+
+Client - Execute Aggregate Function Client - Response Decryption & Apply Filtering Proxy - Filter Result Server - Result Encryption
+
+200 Overall Average Breakdown
+150
+
+100
+
+50
+
+0
+100 1K 10K 100K 200K 300K 400K 500K
+
+Time(s)
+
+(b) Query Q1 in Table I
+Figure 3: Performance breakdown following data fetch
+
+This adds the aggregation time to the client side, which is relatively negligible in comparison to the other parts.
+V. RELATED WORK Ethereum block explorers are useful tools for block and transaction queries, as they allow to follow transactions and
+
+diagnose possible problems. Some usage examples include: ﬁnding all the information about a speciﬁc block/transaction, all transactions in a speciﬁc block, what transactions were made to/from speciﬁc account-address, etc. Some implementations of Ethereum blockchain explorer include: ERC20Exporter [21] - a lightweight explorer that looks into all information on-the-ﬂy from a back-end Ethereum node. It was developed with Node.js, Express.js and Parity. ERC20 [22] provides a common list of rules for Ethereum tokens to follow within the larger Ethereum ecosystem, allowing developers to accurately determine interaction between tokens. These rules include how the tokens are passed between addresses and how data within each token are accessed. ERC20-Exporter is used to explore the ERC20based Ethereum tokens and supports Parity back-end node (the authors state it also supports Geth client although this was not tested yet [21]). Initial data export for large tokens takes up to 30 minutes, as it tries to scrape the blocks’ info like Ethereum Scraper [23] that exports the blockchain data by indicating start and end block number. EthExplorer [24] is a work in progress explorer developed with Node.js. EtherScan [25], ETCExplorer [26], and Ethplorer [27] provide web-based UI and supports mostly related RESTful APIs, such as getTopTokens and getTokenHistory. They are implemented by calling basic methods from Ethereum clients and each implementation enforces its own limitation. For example, in EthersScan the API requests are limited to 5 requests/sec.
+Privacy-preserving concerns or even simple logical combinations in the user requests are not supported by any of the existing systems. Etherchain Light [28], another lightweight blockchain explorer built with Node.js, Express.js and Parity, retrieves information on the ﬂy from a back-end Parity node. It has extended the Ethereum Web3 API to provide some statistical measures such as transaction count and is still under development. Ethereum Explorer [29] is a decentralized client for Ethereum that interacts with the Ethereum blockchain via the Ethereum Web3 API, and provides users with basic interfaces to explore blocks. EtherQL [15] implements a query layer for Ethereum that supports some powerful APIs e.g., range query and top-k queries and is backed by MongoDB as the persistence layer to store blockchain data. vChain [16] proposes a solution to produce privacy preserving boolean query results in blockchain. The query result is paired with a cryptographic proof to guaranty its integrity. To support this veriﬁable query processing, vChain requires to modify the block structure to incorporate an authenticated data structure. To optimize query efﬁciency, inter-block and intra-block indexes are implemented. Our solution differs by not requiring any modiﬁcations to the blockchain. Whereas vChain requires a query to be in a speciﬁc format, our solution supports SQL query. vChain uses homomorphic encryption techniques, which are costly compared to our solution’s use of relatively lightweight symmetric encryption
+
+403
+
+AES and SHA256. In addition, vChain performs all cryptographic calculations on the server containing the full node, in our solution the fetch query execution initiates the encryption and download of the ranged data from a blockchain node and eventually continues with the processing of the query’s main logic on the client side. This results in server (and client) processing times, which are orders of magnitude lower than in vChain. Finally, The SQL query in our system provides more capabilities (e.g. aggregation), which can be easily extended to support more complex features, which are not restricted by the homomorphic encryption constraints as in vChain.
+VI. CONCLUSION As an increasing number of sectors are integrating blockchain technologies, it is important to have an efﬁcient and secure auditing system to help monitor and analyze blockchain repositories, while preserving the auditors’ privacy. To this end, our proposed system uses big data processing techniques to support all the above requirements. Our system provides a secure, robust, and scalable way to process SQL queries over any blockchain. It enables multiple auditors to execute queries in an efﬁcient and scalable way, while preserving the privacy of auditors’ identities and prevent the disclosure of the queries being used and their results. The system supports SQL queries with range and aggregate functions, which are transformed into MapReduce tasks to be run on Hadoop. The system uses Hadoop’s MapReduce tasks to efﬁciently fetch missing blocks from Ethereum clients. In addition, an in-memory B+Tree-based index is utilized to index previously downloaded and stored Ethereum blocks. We conducted a systematic performance study, which suggests that the system’s performance can improve by adding more Hadoop nodes and more synchronized Ethereum clients.
+REFERENCES
+[1] S. Nakamoto, “Bitcoin: A peer-to-peer electronic cash system,” 2008.
+[2] V. Buterin, “Ethereum: A next-generation smart contract and decentralized application platform, 2013.”
+[3] “ZCash, 2016,” https://z.cash/.
+[4] E. Androulaki, A. Barger, V. Bortnikov, C. Cachin, K. Christidis, A. De Caro, D. Enyeart, C. Ferris, G. Laventman, Y. Manevich et al., “Hyperledger fabric: a distributed operating system for permissioned blockchains,” in EuroSys, 2018.
+[5] Z. Xu, S. Han, and L. Chen, “Cub, a consensus unit-based storage scheme for blockchain system,” in ICDE ,2018.
+[6] T. T. A. Dinh, J. Wang, G. Chen, R. Liu, B. C. Ooi, and K.-L. Tan, “Blockbench: A framework for analyzing private blockchains,” in SIGMOD, 2017.
+
+[7] D. Puthal, N. Malik, S. P. Mohanty, E. Kougianos, and G. Das, “Everything you wanted to know about the blockchain: Its promise, components, processes, and problems,” IEEE Consumer Electronics Magazine, vol. 7.
+
+[8] “Blockchain has grabbed the attention of investors,” https://www.cnbc.com/2018/04/02/blockchain-has-grabbedtheattention-of-investors.html, 2018.
+
+[9] E. Yavuz, A. K. Koc¸, U. C. C¸ abuk, and G. Dalkılıc¸, “Towards secure e-voting using ethereum blockchain,” in 2018 6th ISDFS.
+
+[10] V. Gatteschi, F. Lamberti, C. Demartini, C. Pranteda, and V. Santamar´ıa, “Blockchain and smart contracts for insurance: Is the technology mature enough?” Future Internet, vol. 10.
+
+[11] “From farm to blockchain: Walmart tracks its lettuce,” https://www.nytimes.com/2018/09/24/business/walmartblockchain-lettuce.html.
+
+[12] “D. G. Wood, Ethereum: A secure decentralised generalised transaction ledger,” https://github.com/ethereum/yellowpaper, 2017.
+
+[13] “Leveldb, 2014,” https://github.com/google/leveldb.
+
+[14] “Ethereum json rpc,” https://github.com/ethereum/wiki/wiki/JSONRPC, 2014.
+
+[15] Y. Li, K. Zheng, Y. Yan, Q. Liu, and X. Zhou, “EtherQL: a query layer for blockchain system,” in DASFAA, 2017.
+
+[16] C. Xu, C. Zhang, and J. Xu, “vchain: Enabling veriﬁable boolean range queries over blockchain databases,” SIGMOD, 2019.
+
+[17] “Apache hadoop, 2009,” http://hadoop.apache.org/.
+
+[18] “Antlr,” http://www.antlr.org/, 1995.
+
+[19] “Go ethereum, 2014,” https://github.com/ethereum/goethereum.
+
+[20] “Web3j , 2016,” https://github.com/web3j/web3j.
+
+[21] “Erc20exporter,” https://github.com/gobitﬂy/erc20-explorer, 2017.
+
+[22] “Erc20 token standard,” https://theethereum.wiki/w/index.php/ ERC20 Token Standard#The ERC20 Token Standard Interface.
+
+[23] “Ethereumscraper,” https://github.com/medvedev1088/ethereumscraper, 2018.
+
+[24] “Ethexplorer,” https://github.com/etherparty/explorer, 2015.
+
+[25] “Etherscan,” https://github.com/sebs/etherscan-api, 2016.
+
+[26] “Etcexplorer,” https://github.com/ethereumproject/explorer, 2016.
+
+[27] “Ethplorer,” https://ethplorer.io/, 2016.
+
+[28] “Etherchain light,” https://github.com/gobitﬂy/etherchainlight, 2017.
+
+[29] “Ethereum
+
+explorer,”
+
+https://github.com/mix-
+
+blockchain/ethereum-explorer, 2017.
+
+404
+
+

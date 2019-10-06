@@ -1,0 +1,488 @@
+2017 IEEE 5th International Conference on Future Internet of Things and Cloud
+
+Proposal of Adaptive Data Rate Algorithm for
+LoRaWAN-based Infrastructure
+Vojteˇch Hauser∗, Tomáš Hégr∗ ∗Department of Telecommunication Engineering
+Faculty of Electrical Engineering Czech Technical University in Prague
+Prague, Czech Republic Email: [hausevoj, tomas.hegr]@fel.cvut.cz
+
+Abstract—Low Power Wide Area Networks (LPWAN) are expected to interconnect a high number of simple and inexpensive devices. The ability to control transmission parameters including modulation scheme and output power, enables reduction of the deployment costs, improvement of the network reliability, in terms of error performance under suboptimal conditions, and could contribute to the reduction of the maintenance complexity with respect to scaling of the network. This paper presents an analysis of the widely accepted adaptive data rate (ADR) algorithm implementation used in current LoRaWAN™-based network infrastructures. The authors propose improved variants of the algorithm concerning the design goals listed above and provide an experimental evaluation of their network performance.
+Index Terms—IoT, LPWAN, ADR, LoRaWAN™, LoRa®.
+I. INTRODUCTION
+As the term Internet of Things (IoT) became commonplace, the early predictions of the rapid growth in the amount of more or less sophisticated devices connected to the Internet are being partially fulﬁlled by an increasing number of reallife implementations. The market is slowly shifting from the early adopters to the frequent users as many pilot projects have matured and are now appealing to a wider customer base. The key enabler of this development is the increasing coverage by the LPWAN in unlicensed spectra extending the availability of IoT solutions to any public or private networks operators as opposed to licensed spectra preferably intended for cellular network operators.
+LPWAN ﬁll a previously empty market segment of widearea constrained networks, as deﬁned by the RFC 7228 [1], i.e. those interconnecting low-powered devices with constrained resources. While the contradictory nature of the requirements poses a problem for classical wireless and cellular network technologies a number of novel, both proprietary and internationally-standardized, solutions were proposed. The most commonly mentioned include SigFox, Ingenu, LoRa® (LoRaWAN™), Telensa, IEEE 802.15.4k, IEEE 802.15.4g, and Weightless as compared in [2].
+Recently, the wide-area data acquisition from constrained devices was based on the M2M (Machine to Machine) approach commonly leveraging full TCP/IP connectivity. However, the full TCP/IP stack is often unnecessary for IoT applications focused on irregular, burst transmissions of sensor
+
+data or actuator commands. Furthermore, those networks are commonly implemented using cellular technologies introducing high power requirements and operating costs and thus dramatically limiting the efﬁciency of the IoT applications’ whose requirements could be satisﬁed by relatively constrained capabilities of the LPWAN in non-licensed bands. The 3GPP has already published IoT-oriented standards (LTE-M, ECGSM, and NB-IoT) to be implemented in licensed spectra. It is expected that those will complement the LPWAN technologies listed above [3], [4].
+Since business models of LPWAN technologies differ, network operators are considering various models of the network ownership. For example, the SigFox networks are owned and operated directly by the SigFox and its regional partners. On the other hand the LoRa Alliance™ maintains the classical approach of enabling network operators to build and operate their LoRa®-based infrastructure without any involvement of third-parties. The LoRa® Modulation is a closed standard owned and licensed by Semtech Corporation describing only the lowest communication layer. LoRa® MAC is governed by the LoRaWAN™ [5] which is an open standard maintained by the LoRa Alliance™.
+As the LoRaWAN™ signaling is rather simplistic when compared to cellular network signaling, the implementation of the ADR is not speciﬁed and is relayed towards the Network Manager (NM). As the end-devices’ time-on-air (TOA), which is a critical parameter in the unlicensed spectra regulated by a strict duty-cycle limits, depends on the data-rate (modulation scheme), the NM can leverage the ADR commands to inﬂuence the maximal transmission frequency and other QoSrelated properties of the network.
+The goal of this paper is to propose a set of ways to improve ADR decision algorithms based on those already introduced in open-source projects and to evaluate their performance.
+The paper is organized as follows. Section II reviews the literature regarding relevant properties of the LoRa® Modulation and the LoRaWAN™ MAC, section IV provides an overview of the the LoRa® and LoRaWAN™ in greater detail. Section IV presents the system used to evaluate the proposed ADR implementations. Section V deﬁnes the optimization goals and introduces proposed algorithm improvements. The simulation results are evaluated in Section VI, and the paper
+
+978-1-5386-2074-8/17 $31.00 © 2017 IEEE
+
+85
+
+DOI 10.1109/FiCloud.2017.47
+
+is concluded with a summary and insight into our future work in Section VII.
+II. RELATED WORK
+Wireless transmission parameters in the unlicensed spectra are regulated regionally with occasional additions by countrylevel regulators. Regulations typically include, but are not limited to, deﬁnition of maximal effective radiated power (ERP) and duty-cycle, and medium access methods. As reported by Petajajarvi, Mikhaylov, Roivainen, et al. [6], the performance of the LoRa® modulation is satisfactory in real-life environment experiments even under relatively strict European regulations [7, p. 7, band h1.4].
+Although multiple simultaneously emitted LoRa® transmissions can be processed by a single gateway exploiting the orthogonality of the spreading factors in addition to using multiple transmission sub-bands, the nature of the ALOHAbased access to the medium inevitably leads to the presence of transmission collisions. As conﬁrmed by Georgiou and Raza [8], the exponential dependence of the TOA on SF introduces exponential upper bound on the network performance. As Adelantado, Vilajosana, Tuset-Peiró, et al. state [9], the throughput of the network is upper-bound either by the collision rate (lower DR, shorter TOA) or by the duty-cycle limitation (higher DR, longer TOA). The systems containing end-nodes whose transmission parameters are constant with respect to time are particularly affected. As a partial solution, Bor, Roedig, Voigt, et al. suggest [10] implementing a dynamic transmission scheme, i.e. ADR in LoRaWAN™, and to densify the infrastructure by adding additional gateways.
+Since as seen by the network operators, the implementation of an ADR is a CAPEX-efﬁcient way to optimize the capacity of the networks, vendors offering NM on the market keep their algorithms as a part of the intellectual property. Contrary to this trend, the general customer availability of LoRaWAN™ products catalyzed the creation of several open source NM implementation projects which include the globally recognized The Things Network (TTN) and a younger LoRa Server whose ADR algorithms are publicly available [11]. In this paper, their algorithm was adapted and further improved as part of the effort to support the community project.
+III. TECHNOLOGY OVERVIEW
+Since the ultimate scope of this paper is to consider ADR algorithms, and since the LoRaWAN™ standard is publicly available, we provide only a brief overview of the technologies and refer the interested reader to more specialized works [2], [12], [13].
+The LoRa® at a physical layer utilizes a modulation based on the chirp spread spectrum (CSS) technique. The narrow band signal is modulated by chirp pulses of varying sinusoidal frequency over time making the signal resilient to interferences caused by the Doppler effect in to the narrow-band interference resilience provided by the redundancy associated with the wide-band spread spectrum. The modulation ensures a phase continuity between chirp symbols in the packet preamble part.
+
+This feature allows using simpler timing synchronization, and thus less expensive components.
+A modulation conﬁguration (data-rate, DR) is given by two parameters: a bandwidth, and a spreading factor (SF) speciﬁed by the LoRaWAN™Regional Parameters speciﬁcation [14]. Bandwidths range from 125 kHz to 500 kHz depending on the region. Chirp symbol duration is given by Ts = 2SF/BW , where SF ∈ [7, 12]. The TOA therefore depends exponentially on the SF. On the other hand the receiver sensitivity is proportional to the SF. Additionally, the spread spectrum technique is combined with the forward error correction (FEC) with coding rates ∈ {4/5, 4/6, 4/7, 4/8}. A LoRa® packet consists of a preamble, a header, a payload and a CRC ﬁelds.
+LoRaWAN™ speciﬁcation identiﬁes three classes of devices Class A, where end-devices uses pure ALOHA to access the medium for uplink. This class is the simplest and also a most commonly used. It supports a downlink only in two receive windows (by default 1 s and 2 s) with a deﬁned DR following an uplink transmission. Class A end-devices have the lowest power consumption. Class B devices additionally can utilize periodic beacon signals emitted by gateways to synchronize with the network and schedule an additional receive window. Class C devices are always listening to the channel when they are not transmitting.
+The LoRaWAN™ speciﬁcation deﬁnes a double layer security framework (network and application session keys) adopting AES cryptography known from IEEE 802.15.4.
+The part of the LoRaWAN™ speciﬁcation dedicated to the ADR-related commands [5, sec. 5.2] outlines following procedure the end-device should follow to achieve optimal data rate. Initially, the end-device has to request data rate adaptation from the NM by setting the ADR bit in a uplink message header. Subsequently the end-device adjusts its DR, transmission power level, repetition rate of unconﬁrmed frames and the set of allowed uplink channels according to received LinkADRReq MAC commands. The end-device conﬁrms each part of the requested conﬁguration to the NM in a LinkADRAns MAC command.
+As the over-optimistic setting of the DR may render the enddevice unreachable the LoRaWAN™ speciﬁcation deﬁnes [5, sec. 4.3.1.1] a following safeguard procedure: If an end-device does not receive any downlink within ADR_ACK_LIMIT uplinks and the current DR is greater than the minimum DR, any subsequent uplinks are sent with ADR acknowledgment request bit (ADRACKReq) set. If the end-device does not receive any downlink within ADR_ACK_DELAY subsequent uplinks, the end-device may try to regain connectivity by switching to the next lower DR providing an extended range. Subsequently, every time the ADR_ACK_DELAY is reached the end-device reduce the DR by one step down. The enddevice uses an internal counter (ADR_ACK_CNT) which is reset on reception of every downlink message.
+IV. SYSTEM DESCRIPTION
+We consider a point to point wireless system utilizing LoRa® and LoRaWAN™ as PHY and MAC layer implemen-
+
+86
+
+tations. Parameters of the (AWGN) communication channel and the endpoint PHY blocks (transceivers) were obtained experimentally using IMST iU880A-USB serving as an enddevice and IMST iC880A-SPI serving as a gateway while the MAC layer blocks (nodes) were implemented analytically according to the LoRaWAN™ speciﬁcation as a MATLAB® simulation.
+
+A. Channel & transceiver model derivation
+
+Since the devices listed above were operated in the EU 863 MHz to 870 MHz SRD band there are 8 data rates (DR) deﬁned by the LoRaWAN™ Regional Parameters speciﬁcation [14, p. 7–8] (RPS) whose values 0 to 5 correspond to LoRa® modulation with SF 12 to 7, in that order, utilizing 125 kHz bandwidth. We restrict ourselves to those conﬁgurations because the other either use wider bandwidth (DR 6) rendering the results harder to compare or do not support ADR (DR 7). Moreover, the RPS deﬁnes 6 output (TX) power levels 0 to 5 corresponding to 20 dBm, 14 dBm, 11 dBm, 8 dBm, 5 dBm and 2 dBm, respectively. To comply with the regulation [7, p. 7, band h1.4], we further restrict ourselves to TX powers 1 to 5.
+Initial measurements were carried out in a simple point to point arrangement in hallways at the FEE CTU building at Technická 2, Prague during evenings (to minimize channel fast fading caused by movement of faculty staff and other students). For each DR the distance between the endpoints was experimentally chosen so that at TX power 3 there was roughly 50% packet loss between the end-device and the gateway. Subsequently, for every combination of DR and TX power, a set of 60 packets of maximal length1 was broadcast by the enddevice and recorded with the respective average SNR during the reception by the gateway, if successfully received.
+
+1
+
+DR 5
+
+0.8
+
+DR 4
+
+DR 3
+
+DR 2
+
+0.6
+
+DR 1
+
+DR 0
+
+0.4
+
+ADR 1
+
+threshold
+
+0.2
+
+Pe [1]
+
+0
+
+−30
+
+−20
+
+−10
+
+0
+
+SNR [dB]
+
+Fig. 1: Packet loss probability Pe(SNR) model. Model for DR 0 was obtained by interpolation for comparison.
+
+The transceiver was modeled by a piecewise linear regression of the packet error ratio as a function of the SNR (Fig. 1). Communication channel was modeled as an AWGN channel with noise power variance equal to the average of variances
+
+1The decision to use a relatively small number of samples was made with respect to the time requirements of the measurement signiﬁcantly impacted by the local radio regulations’ duty cycle limit of 1% [7, p. 7, band h1.4].
+
+of the SNR over the set of sets of recorded messages and the mean system gain G = output SNR − input SNR measured at the respective LoRa® modem terminals being a simulation parameter.
+
+B. Simulation
+The MATLAB® based simulation modeled packet exchange between Class-A end-device and a gateway as described by the LoRaWAN™ MAC protocol [5]. In each run of the simulation, the end-device sent sequentially 2000 unconﬁrmed uplink LinkCheckReq requests with a payload of maximal length, and the Gateway responded with a conﬁrmed LinkCheckAns appropriately according to the current ADR implementation as discussed in section V. The simulation was parameterized by mean system gain G in the range −50 dB to 5 dB with a 1 dB step, initial DR setting of the end-device in the range 0 to 5 and an ADR implementation.2
+
+TX power data rate
+
+End-device 1a
+parameter
+
+Gateway 0 0
+
+TABLE I: Initial values for endpoint devices.
+
+aAs speciﬁed by the RPS [14, p. 7]
+
+V. PROBLEM FORMULATION
+Since the ﬁrst two major LoRaWAN™ open source projects (LoRa Server and The Things Network (TTN)) to implement ADR are using the same algorithm; the general objective was set to evaluate the algorithm performance with respect to error rate, energy consumption and scalability and to propose appropriate optimizations, if possible.
+
+A. LoRa Server / TTN algorithm
+
+The main idea of the algorithm 1 is to estimate the SNR margin of the link based on the history of 20 received packets and then to adjust the DR and the TX power accordingly whenever a given ﬁxed threshold is exceeded. As the initial measurements discussed in section IV-A indicate, the threshold values visible in Fig. 1 correspond approximately to 50% error rate.
+Additionally, the algorithm sets maximal unconﬁrmed message retransmission count based on packet loss rate calculated using the counter values included in every message (FCnt) over previous 20 packets.
+B. Proposed improvements
+1) Adjustment of the DR: The algorithm 1 leverages LoRaWAN™ safeguard that protects an end-device from becoming unreachable by setting DR value too high (see section III).
+2Simulation was run on an Intel® Core™ i7-3630QM CPU for 132 iterations (≈ 2.5 days), i.e. ≈ 621 million uplink requests.
+
+87
+
+Pe [1]
+
+1: i ← 0
+
+2: history[j] ← 0 for ∀j ∈ [0, 19]
+
+3: oﬀset = 10
+
+4: threshold = {−20.0, −17.5, −15.0, −12.5, −10.0, −7.5}
+
+5: DR ← −1, TX ← 1
+
+6:
+7: function RECEIVEPACKET(mSNR, mDR) 8: if DR = −1 then
+
+9:
+
+DR ← mDR
+
+10: end if
+
+11:
+
+12: history[i] ← mSNR
+
+13: i ← i + 1
+
+14:
+15: if i = 20 then
+
+16:
+
+ADJUSTADR
+
+17:
+
+i←0
+
+18: end if
+
+19: end function
+
+20:
+21: function ADJUSTADR
+
+22: margin ← max(history) − threshold [DR] − oﬀset
+
+23: steps ← round(margin/3)
+
+24:
+25: if steps > 0 then
+
+26:
+
+increase DR by steps until DR = 5
+
+27:
+
+decrease TX by remaining steps until TX = 0
+
+28: else if steps < 0 then
+
+29:
+
+increase TX by steps until TX = 5
+
+30: end if
+
+31: end function
+
+Algorithm 1: LoRa Server / TTN ADR algorithm (ADR 1).
+
+of the past 20 recorded SNRs. Statistically insigniﬁcant high outliers could, therefore, have a signiﬁcant impact on the link margin estimation. Furthermore, the calculation could be easily extended to provide a long-term prediction of the link margin.
+
+We, therefore, propose to replace the max operator at line 22
+
+with an average operator and to calculate the history used
+
+for estimation as an exponentially decaying weighted average
+
+of past N averages with coefﬁcients exp (−λi) where {λi}
+
+satisfy
+
+N i=1
+
+exp
+
+(−iλi)
+
+=
+
+1.
+
+3) Hysteresis: ADR optimization decisions are based on comparison of the link margin estimate with a set of constant thresholds. When the link margin lies approximately at the midpoint between two “decision levels” the algorithm may lead to oscillation of the solution between the suboptimal and the superoptimal state resulting in increase in the number of ADR requests sent by the gateway thus ultimately decreasing network performance due to collisions and duty cycle limitations.
+
+DR, TX [1, 1]
+
+5
+
+Data rate
+
+4
+
+TX power
+
+3
+
+0.6
+
+0.5
+
+2
+
+0.4
+
+0.3
+
+1
+
+0.2
+
+0.1
+
+0
+
+500
+
+1,000
+
+1,500
+
+2,000
+
+Request [1]
+
+Fig. 3: Oscillation of the ADR solution for ADR 1 with mean gain −10 dB and initial DR = 3.
+
+DR, TX [1, 1]
+
+1 0.9 0.8 0.7 3
+
+1
+
+Data rate
+
+TX power
+
+0
+
+500
+
+1,000
+
+1,500
+
+2,000
+
+Request [1]
+
+Fig. 2: Simulation results for ADR 1 with mean gain −38 dB and initial DR = 3. Despite the packet loss ratio ≈ 95% the end-device is unable to decrease the DR setting due to occasional reception of packets.
+
+Pe [1]
+
+This effect could be mitigated by the introduction of a hysteresis (variable hysteresis) into the algorithm 1. Whenever steps > 0, hysteresis ← steps. Subsequently, whenever margin > 0 the steps ← max {0, round(margin/3 − hysteresis · 0.5)}, i.e. the margin required to any further improvement of the data rate / TX power is increased.
+A more adaptive variant of the algorithm would exponentially decay the hysteresis value over time to account for small link margin enhancements.
+
+If an end-device rarely ever receives a downlink packet ADR_ACK_DELAY may not be reached although the device is effectively unreachable because the internal counter is reset on any downlink.
+We propose an extension of the algorithm 1 which decrements DR before incrementing TX when steps < 0 (line 28).
+2) Averaging of the history: A representative value of the SNR used by the algorithm 1 is obtained as a maximum
+
+3Calculated as a product of the time on air [15, p. 7] and the output power.
+
+88
+
+B [B]
+
+106
+
+105
+
+104
+
+103
+
+102
+
+10−1 50
+
+−40
+
+−30
+
+−20
+
+−10
+
+G [dB]
+
+ADR0 ADR1 ADR2 ADR3 ADR4 ADR5 ADR6
+
+0
+
+10
+
+(a) Maximal number of recieved bytes by the gateway B
+
+ADR0
+
+200
+
+ADR1
+
+ADR2
+
+ADR3
+
+ADR4
+
+ADR5
+
+100
+
+ADR6
+
+S [1]
+
+R [1]
+
+2,000 1,500 1,000
+500
+
+ADR0 ADR1 ADR2 ADR3 ADR4 ADR5 ADR6
+
+0
+
+−50 −40 −30 −20 −10
+
+0
+
+10
+
+G [dB]
+
+(b) Packets received by the gateway R
+
+3,500 3,000 2,500
+
+ADR0 ADR1 ADR2 ADR3 ADR4 ADR5 ADR6
+
+E [J]
+
+0
+
+−50 −40 −30 −20 −10
+
+0
+
+10
+
+G [dB]
+
+2,000
+
+−50 −40 −30 −20 −10
+
+0
+
+10
+
+G [dB]
+
+(c) End-device output energy E3
+
+(d) Packets sent by the end-node S
+
+Fig. 4: Metrics used for evaluation of proposed improvements.
+
+VI. EVALUATION
+
+ADR 0a 1 2 3 4 5 6
+
+Proposed improvements
+
+DR adjustment history averaging
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+hysteresis    b   
+
+TABLE II: ADR implementation nomenclature.
+
+aADR 0 does not implement ADR. Used as a reference. bHysteresis not decayed over time.
+
+A. High mean gain
+For G ≥ −15 dB all ADR implementations achieve negligible error rate while equally maximizing the throughput. ADR 1 and 2 achieve very low energy consumption (Fig. 4c) by using higher DR at the expense of higher error rate compensated by more frequent retransmissions as opposed to ADR 3 to 6 which require signiﬁcantly fewer retransmissions.
+
+B. Medium mean gain
+When G < −15 dB ADR 1 reaches maximal retransmission limit and begins failing to compensate the increasing error probability ultimately resulting in a rapid downswing in received packet count. As the gain G decreases beyond −25 dB ADR 2–6 decrease the data rate throttling the throughput and subsequently begin to increase retransmission frequency resulting in a rapid increase in energy consumption.
+C. Low mean gain
+As G approaches −35 dB, the end-nodes begin performing safeguard mechanism discussed in section V-B1 resulting in a further increase in energy consumption as the DR is decreased.
+For G > −40 dB neither of the discussed mechanisms is capable of compensating the error rate and therefore metrics B, R and S approach zero as the E approaches a constant corresponding to sending packets at minimum DR and initial TX power.
+VII. CONCLUSION
+The aim of the study was to evaluate the ADR implementations in major open-source projects. Our proposed variants of the algorithm achieve signiﬁcantly better error performance in badly conditioned channels enabling of extension the range of
+
+89
+
+the network. Additionally, our algorithms introduce measures to improve the scalability of the network by reducing the number of both the data messages in the uplink direction and MAC command messages in the downlink direction.
+As it can be inferred from the results of the works discussed in section II, the overall network performance is further affected by collisions and delays caused by the duty-cycle limit exhaustion. Notwithstanding the discussion of those factors in sections V-B2 and V-B3, the simulation model will have to be extended to support more complex networks in order to be able to evaluate the proposed algorithms’ performance with respect to scalability in quantitative terms.
+ACKNOWLEDGMENT
+This work was supported by Student grant at Czech Technical University in Prague SGS16/158/OHK3/2T/13.
+Authors would like to thank Lukáš Gregora and Lukáš Krupka who provided valuable comments and assisted with the experiments.
+REFERENCES
+[1] C. Bormann, M. Ersue, and A. Keranen, “Terminology for constrained-node networks,” RFC Editor, RFC 7228, May 2014. [Online]. Available: http://www.rfc-editor. org/rfc/rfc7228.txt.
+[2] U. Raza, P. Kulkarni, and M. Sooriyabandara, “Low power wide area networks: An overview,” IEEE Communications Surveys Tutorials, PP, no., pp. 1–1, 2017, ISSN: 1553-877X. DOI: 10 . 1109 / COMST . 2017 . 2652320.
+[3] 3GPP, “Network architecture (release 12), ts 23.002 v12.7.0,” no., 2015.
+[4] ——, “Cellular system support for ultra-low complexity and low throughput internet of things (ciot) (release 13), tr 45.820 v13.1.0,” no., 2015.
+[5] N. Sornin, M. Luis, T. Eirich, T. Kramp, and O. Hersent, Lorawan™ speciﬁcation, version 1.0.2, LoRa™ Alliance, Jul. 2016.
+[6] J. Petajajarvi, K. Mikhaylov, A. Roivainen, T. Hanninen, and M. Pettissalo, “On the coverage of lpwans: Range evaluation and channel attenuation model for lora technology,” in 2015 14th International Conference on ITS Telecommunications (ITST), Dec. 2015, pp. 55–59. DOI: 10.1109/ITST.2015.7377400.
+[7] ERC Recommendation 70-03, ERC Recommendation 70-03 relating to the use of Short Range Devices, CEPT, Feb. 2017. [Online]. Available: http://www.erodocdb. dk/Docs/doc98/ofﬁcial/pdf/REC7003E.PDF (visited on 03/09/2017).
+[8] O. Georgiou and U. Raza, “Low power wide area network analysis: Can lora scale?” CoRR, abs/1610.04793, no., 2016. [Online]. Available: http://arxiv.org/abs/1610. 04793.
+
+[9] F. Adelantado, X. Vilajosana, P. Tuset-Peiró, B. Martınez, J. Melià-Seguí, and T. Watteyne, “Understanding the limits of lorawan,” CoRR, abs/1607.08011, no., 2016. [Online]. Available: http://arxiv.org/abs/1607. 08011.
+[10] M. C. Bor, U. Roedig, T. Voigt, and J. M. Alonso, “Do lora low-power wide-area networks scale?” In Proceedings of the 19th ACM International Conference on Modeling, Analysis and Simulation of Wireless and Mobile Systems, ser. MSWiM ’16, Malta, Malta: ACM, 2016, pp. 59–67, ISBN: 978-1-4503-4502-6. DOI: 10 . 1145/2988287.2989163. [Online]. Available: http://doi. acm.org/10.1145/2988287.2989163.
+[11] The things network - adaptive data rate (adr), Accessed: 2017-03-05, 2017. [Online]. Available: https : / / www. thethingsnetwork.org/wiki/LoRaWAN/ADR.
+[12] C. Goursaud and J.-M. Gorce, “Dedicated networks for iot: Phy / mac state of the art and challenges,” EAI Endorsed Transactions on Internet of Things, 15, no., Oct. 2015. DOI: 10.4108/eai.26-10-2015.150597.
+[13] L. Vangelista, A. Zanella, and M. Zorzi, “Long-range iot technologies: The dawn of lora,” in Future Access Enablers of Ubiquitous and Intelligent Infrastructures, Springer, 2015, pp. 51–58.
+[14] LoRa Alliance Technical committee, Lorawan™ regional parameters, version 1.0, LoRa™ Alliance, Jul. 2016.
+[15] ——, Sx1272/3/6/7/8: Lora modem, Designer’s guide, version 1, LoRa™ Alliance, Jul. 2013. [Online]. Available: http : / / www . semtech . com / images / datasheet / LoraDesignGuide_STD.pdf (visited on 03/08/2017).
+
+90
+
+

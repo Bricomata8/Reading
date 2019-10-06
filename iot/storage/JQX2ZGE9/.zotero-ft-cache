@@ -1,0 +1,541 @@
+2019 IEEE International Conference on Blockchain (Blockchain)
+
+DaiMoN: A Decentralized Artiﬁcial Intelligence Model Network
+
+Surat Teerapittayanon Harvard University Cambridge, USA
+steerapi@seas.harvard.edu
+
+H. T. Kung Harvard University Cambridge, USA kung@harvard.edu
+
+Abstract—We introduce DaiMoN, a decentralized artiﬁcial intelligence model network, which incentivizes peer collaboration in improving the accuracy of machine learning models for a given classiﬁcation problem. It is an autonomous network where peers may submit models with improved accuracy and other peers may verify the accuracy improvement. The system maintains an append-only decentralized ledger to keep the log of critical information, including who has trained the model and improved its accuracy, when it has been improved, by how much it has improved, and where to ﬁnd the newly updated model. DaiMoN rewards these contributing peers with cryptographic tokens. A main feature of DaiMoN is that it allows peers to verify the accuracy improvement of submitted models without knowing the test labels. This is an essential component in order to mitigate intentional model overﬁtting by model-improving peers. To enable this model accuracy evaluation with hidden test labels, DaiMoN uses a novel learnable Distance Embedding for Labels (DEL) function proposed in this paper. Speciﬁc to each test dataset, DEL scrambles the test label vector by embedding it in a low-dimension space while approximately preserving the distance between the dataset’s test label vector and a label vector inferred by the classiﬁer. It therefore allows proof-of-improvement (PoI) by peers without providing them access to true test labels. We provide analysis and empirical evidence that under DEL, peers can accurately assess model accuracy. We also argue that it is hard to invert the embedding function and thus, DEL is resilient against attacks aiming to recover test labels in order to cheat. Our prototype implementation of DaiMoN is available at https://github.com/steerapi/daimon.
+Index Terms—blockchain, decentralized ledger technology (DLT), neural network, artiﬁcial intelligence, distributed machine learning, distance-preserving embedding
+I. INTRODUCTION
+Network-based services are at the intersection of a revolution. Many centralized monolithic services are being replaced with decentralized microservices. The utility of decentralized ledgers showcases this change, and has been demonstrated by the usage of Bitcoin [1] and Ethereum [2].
+The same trend towards decentralization is expected to affect the ﬁeld of artiﬁcial intelligence (AI), and in particular machine learning, as well. Complex models such as deep neural networks require large amounts of computational power and resources to train. Yet, these large, complex models are being retrained over and over again by different parties for similar performance objectives, wasting computational power and resources. Currently, only a relatively small number of
+
+pretrained models such as pretrained VGG [3], ResNet [4], GoogLeNet [5], and BERT [6] are made available for reuse.
+One reason for this is that the current system to share models is centralized, limiting both the number of available models and incentives for people to participate and share models. Examples of these centralized types of systems are Caffe Model Zoo [7], Pytorch Model Zoo [8], Tensorﬂow Model Zoo [9], and modelzoo.co [10].
+In other ﬁelds seeking to incentivize community participation, cryptocurrencies and cryptographic tokens based on decentralized ledger technology (DLT) have been used [1], [2]. In addition to incentives, DLT offers the potential to support transparency, traceability, and digital trust at scale. The ledger is append-only, immutable, public, and can be audited and validated by anyone without a trusted third-party.
+In this paper, we introduce DaiMoN, a decentralized artiﬁcial intelligence model network that brings the beneﬁts of DLT to the ﬁeld of machine learning. DaiMoN uses DLT and a token-based economy to incentivize people to improve machine learning models. The system will allow participants to collaborate on improving models in a decentralized manner without the need for a trusted third-party. We focus on applying DaiMoN for collaboratively improving classiﬁcation models based on deep learning. However, the presented system can be used with other classes of machine learning models with minimal to no modiﬁcation.
+In traditional blockchains, proof-of-work (PoW) [1] incentivizes people to participate in the consensus protocol for a reward and, as a result, the network becomes more secure as more people participate. In DaiMoN, we introduce the concept of proof-of-improvement (PoI). PoI incentivizes people to participate in improving machine learning models for a reward and, as an analogous result, the models on the network become better as more people participate.
+One example of a current centralized system that incentivizes data scientists to improve machine learning models for rewards is the Kaggle Competition system [11], where a sponsor puts up a reward for contestants to compete to increase the accuracy of their models on a test dataset. The test dataset inputs are given while labels are withheld to prevent competitors from overﬁtting to the test dataset.
+In this example, a sponsor and competitors rely on Kaggle to keep the labels secret. If someone were to hack or compromise
+
+978-1-7281-4693-5/19/$31.00 ©2019 IEEE
+
+132
+
+DOI 10.1109/Blockchain.2019.00026
+
+Kaggle’s servers and gain access to the labels, Kaggle would be forced to cancel the competition. In contrast, because DaiMoN utilizes a DLT, it eliminates this concern to a large degree, as it does not have to rely on a centralized trusted entity.
+However, DaiMoN faces a different challenge: in a decentralized ledger, all data are public. As a result, the public would be able to learn about labels in the test dataset if it were to be posted on the ledger. By knowing test labels, peers may intentionally overﬁt their models, resulting in models which are not generalizable. To solve the problem, we introduce a novel technique, called Distance Embedding for Labels (DEL), which can scramble the labels before putting them on the ledger. DEL preserves the error in a predicted label vector inferred by the classiﬁer with respect to the true test label vector of the test dataset, so there is no need to divulge the true labels themselves.
+With DEL, we can realize the vision of PoI over a DLT network. That is, any peer veriﬁer can vouch for the accuracy improvement of a submitted model without having access to the true test labels. The proof is then included in a block and appended to the ledger for the record.
+The structure of this paper is as follows: after introducing DEL and PoI, we introduce the DaiMoN system that provides incentive for people to participate in improving machine learning models.
+The contributions of this paper include:
+1) A learnable Distance Embedding for Labels (DEL) function speciﬁc to the test label vector of the test dataset for the classiﬁer in question, and performance analysis regarding model accuracy estimation and security protection against attacks. To the best of our knowledge, DEL is the ﬁrst solution which allows peers to verify model quality without knowing the true test labels.
+2) Proof-of-improvement (PoI), including detailed PROVE and VERIFY procedures.
+3) DaiMoN, a decentralized artiﬁcial intelligence model network, including an incentive mechanism. DaiMoN is one of the ﬁrst proof-of-concept end-to-end systems in distributed machine learning based on decentralized ledger technology.
+II. DISTANCE EMBEDDING FOR LABELS (DEL)
+In this section, we describe our proposed Distance Embedding for Labels (DEL), a key technique by which DaiMoN can allow peers to verify the accuracy of a submitted model without knowing the labels of the test dataset. By keeping these labels conﬁdential, the system prevents model-improving peers from overﬁtting their models intentionally to the test labels.
+A. Learning the DEL Function with Multi-Layer Perceptron
+Suppose that the test dataset for the given C-class classiﬁcation problem consists of m (input, label) test pairs, and each label is an element in Q = {c ∈ Z | 1 ≤ c ≤ C}, where
+
+Z denotes the set of integers. For example, the FashionM-
+
+NIST [12] classiﬁcation problem has C = 10 image classes
+
+and m = 10, 000 (input, label) test pairs, where for each pair,
+
+the input is a 28 × 28 greyscale image, and the label is an
+
+element in Q = {1, 2, . . . , 10}.
+
+For a given test dataset, we consider the corresponding test
+label vector xt ∈ Qm, which is made of all labels in the test dataset. We seek a xt-speciﬁc DEL function f : x ∈ Qm → y ∈ Rn, where R denotes the set of real numbers, which can
+
+approximately preserve distance from a predicted label vector x ∈ Qm (inferred by a classiﬁcation model or a classiﬁer
+
+we want to evaluate its accuracy) to xt, where n m. For example, we may have n = 256 and m = 10, 000. The error
+
+of x, or the distance from x to xt, is deﬁned as
+
+e(x, xt)
+
+=
+
+1 m
+
+m
+
+1(xi = xti ),
+
+i=1
+
+where 1 is the indicator function, x = {x1, . . . , xm} and xt =
+{xt1 , . . . , xtm }. Finding such a distance-preserving embedding function f is
+
+generally a challenging mathematical problem. Fortunately, we
+
+have observed empirically that we can learn this xt-speciﬁc embedding function using a neural network.
+
+More speciﬁcally, to learn an xt-speciﬁc DEL function f ,
+we train a multi-layer perception (MLP) for f as follows. For each randomly selected x ∈ Qm, we minimize the loss:
+
+Lθ(x, xt) = |e(x, xt) − d(f (x), f (xt))|,
+
+where θ is the MLP parameters, and d(·, ·) is a modiﬁed cosine
+
+distance function deﬁned as
+
+d(y1, y2) =
+
+1−
+
+y 1 ·y 2 y1 y2
+
+1
+
+y1 · y2 ≥ 0 otherwise.
+
+The MLP training ﬁnds a distance-preserving lowdimensional embedding function f speciﬁc to a given xt. The existence of such embedding is guaranteed by the JohnsonLindenstrauss lemma [13], [14], under a more general setting which does not have the restriction about the embedding being speciﬁc to a given vector.
+
+B. Use of DEL Function
+We use the trained DEL function f to evaluate the accuracy or the error of a classiﬁcation model or a classiﬁer on the given test dataset without needing to know the true test labels. As deﬁned in the preceding section, for a given test dataset, xt ∈ Qm is the true test label vector of the test dataset. Given a classiﬁcation model or a classiﬁer, x ∈ Qm is a predicted label vector consisting of labels inferred by the classiﬁer on all the test inputs of the test dataset. A veriﬁer peer can determine the error of the predicted label vector x without knowing the true test label vectorxt, by checking d(f (x), f (xt)) instead of e(x, xt). This is because these two quantities are approximately equal, as assured by the MLP training, which minimizes their absolute difference. If d(f (x), f (xt)) is deemed to be sufﬁciently lower than that of the previously known model, then a veriﬁer peer may conclude
+
+133
+
+Loss Error (%)
+
+1: procedure GENERATEDATA(xt)
+
+2: Pick a random number v in {1, 2, . . . , m}
+
+3: Pick a random set K in {1, 2, . . . , m}v
+
+4: Initialize x as {x1, x2, . . . , xm} with x ← xt
+
+5: for k ∈ K do
+
+6:
+
+Pick a random number c in {1, 2, . . . , C}
+
+7:
+
+xk ← c
+
+8: return x
+
+that the model has improved the accuracy of the test dataset. That is, the veriﬁer peer uses d(f (x), f (xt)) as a proxy for e(x, xt).
+Note that the DEL function f is xt-speciﬁc. For a different test dataset with a different test label vector xt, we will need to train another f . For most model benchmarking applications, we expect a stable test dataset; and thus we will not need to retrain f frequently.
+III. TRAINING AND EVALUATION OF DEL
+In this section, we evaluate how well the neural network approach described above can learn a DEL function f : Qm → Rn with m = 10, 000 and n = 256. We consider a simple multi-layer perceptron (MLP) with 1024 hidden units and a rectiﬁed linear unit (ReLU). The output of the network is normalized to a unit length. The network is trained using the Adam optimization algorithm [15]. The dataset used is FashionMNIST [12], which has C = 10 classes and m = 10, 000 (input, label) test pairs. The true test label vector xf is thus composed of these 10,000 test labels.
+To generate the data to train the function, we perturb the test label vector xt by using the GENERATEDATA procedure shown. First, the procedure picks v, the number of labels in xt to switch out, and generates the set of indices K, indicating the positions of the label to replace. It then loops through the set K. For each k ∈ K, it generates the new label c to replace the old one. Note that with this procedure, the new label c can be the same as the old label.
+
+0.30
+
+Training Loss
+
+Testing Loss
+
+0.25
+
+0.20
+
+0.15
+
+0.10
+
+0.05
+
+0.00 0
+
+20
+
+40
+
+60
+
+80 100 120 140
+
+Epochs
+
+Figure 1: The training and testing loss as the number of epochs increases.
+
+We use the procedure to generate the training dataset and the test dataset for the MLP. Figure 1 shows the convergence of the network in learning the function f . We see that as the number of epochs increases, both training and testing loss decrease, suggesting that the network is learning the function.
+100
+
+80
+
+60
+
+40
+
+20
+
+00.0
+
+0.2
+
+0.4
+
+0.6
+
+0.8
+
+1.0
+
+Distance
+
+Figure 2: Correlation between error (%) in x with respect to xt and the distance between them in the embedding space under f .
+
+After the neural network has been trained, we evaluate how well the learned f can preserve error in a predicted label vector x inferred by the classiﬁer. Figure 2 shows the correlation between the error and the distance in the embedding space under f . We see that both are highly correlated.
+
+IV. ANALYSIS ON DEFENSE AGAINST BRUTE-FORCE ATTACKS
+In this section, we show that it is difﬁcult for an attacker to launch a brute-force attack on DEL. To learn about the test label vector xt ∈ Qm that produces yt ∈ Rn under a known f : x ∈ Qm → y ∈ Rn, the attacker’s goal is to ﬁnd x such that d(f (x), yt) < , for a small . There are Cm possible instances of x to try, where C is the number of classes. Note Cm can be very large. For example, for a test dataset of 10 classes and 10,000 samples, we have C = 10, m = 10, 000 and Cm = 1010000. The attacker may use the following bruteforce algorithm:
+The success probability (α) of this attack where at least one out of q tried instances for x is within the distance of xt is
+α = 1 − (1 − p)q ≈ pq,
+
+where p is the probability that d(f (x), yt) < . We now derive p and show its value is exceedingly small for
+
+a small , even under moderate values of n. Assume that the
+
+outputs of f is uniformly distributed on a unit (n-1)-sphere or
+
+equivalently normally distributed on an n-dimension euclidean
+
+space [16]. Suppose that yt = f (xt). We align the top of the unit (n-1)-sphere at yt. Then, p is the probability of a random
+vector on a (n-1)-hemisphere falling onto the cap [17] which
+
+is
+
+p
+
+=
+
+Isin2
+
+β
+
+(
+
+n
+
+− 2
+
+1
+
+,
+
+1 2
+
+),
+
+134
+
+1: procedure BRUTEFORCEATTACK(yt, , q) 2: Pick a random set X 0 of q values in Qm
+
+3: for x ∈ X 0 do
+
+4:
+
+if d(f (x), yt) < then
+
+5:
+
+return x
+
+1.0
+
+n=32
+
+n=64
+
+0.8
+
+n=128
+
+n=256
+
+0.6
+
+Probability
+
+0.4
+
+0.2
+
+0.0
+
+1.0
+
+0.8
+
+0.6
+
+0.4
+
+0.2
+
+0.0
+
+Distance
+
+Figure 3: The probability p as distance decreases for varying n.
+
+where n is the dimension of a vector, β is the angle between xt and a vector on the sphere, and Ix(a, b) is the regularized incomplete beta function deﬁned as:
+
+Ix(a, b)
+
+=
+
+B(x; a, b) B(a, b)
+
+.
+
+In the above expression, B(x; a, b) is the incomplete beta function, and B(a, b) is the beta function deﬁned as:
+
+B(x; a, b) = B(a, b) =
+
+x
+ta−1 (1 − t)b−1 dt,
+0 1
+ta−1 (1 − t)b−1 dt.
+0
+
+Figure 3 shows the probability p as the distance ( ) from xt decreases for different values of n. We observe that for a small
+, this probability is exceedingly low and thus to guarantee
+attacker’s success (α = 1), the number of samples (q = α/p =
+1/p) of x needed to be drawn randomly is very high. For
+instance, for a 10% error rate, = 0.10 and n = 32, the probability p is 6.12×10−13 and the number of trials q needed to succeed is 1.63 × 1012. In addition, the higher the n, the
+smaller the p and the larger the q. For example, for a 10% error rate, = 0.10 and n = 256, the probability p is 3.33 × 10−93 and the number of trials q needed to succeed is 3.01 × 1092.
+
+V. ANALYSIS ON DEFENSE AGAINST INVERSE-MAPPING ATTACKS
+In this section, we provide an analysis on defense against attacks attempting to recover the original test label vector xt from yt = f (xt). We consider the case that the attacker tries to learn an inverse function f −1 : y ∈ Rn → x ∈ Qm
+
+1: procedure GENERATEINVERSEDATANEARBY(xt, f ) 2: x ← GENERATEDATA(xt) 3: y ← f (x) 4: return {y, x}
+1: procedure GENERATEINVERSEDATARANDOM(f, C) 2: Pick a random number x in {1, 2, . . . , C}m 3: y ← f (x) 4: return {y, x}
+using a neural network. Suppose that the attacker uses a multilayer perceptron (MLP) for this with 1024 hidden units and a rectiﬁed linear unit (ReLU). The network is trained using Adam optimization algorithm [15]. The loss function used is the squared error function:
+Lθ(y, yt) = f −1(y) − f −1(yt) 22.
+We generate the dataset using the two procedures: GENERATEINVERSEDATANEARBY and GENERATEINVERSEDATARANDOM shown. The former has the knowledge that the test label vector xt is nearby, and the latter does not. We train the neural network to ﬁnd the inverse function f −1 and compare how the neural network learns from these two generated datasets.
+The GENERATEINVERSEDATANEARBY procedure generates a perturbation of the test label vector xt, passes it through the function f , and returns a pair of the input y and the target output vector x used to learn the inverse function f −1.
+The GENERATEINVERSEDATARANDOM procedure generates a random label vector xt where each element of the vector has a value representing one of the C classes, passes it through the function f and returns a pair of the input y and the target output vector x used to learn the inverse function f −1.
+Figure 4 shows the error e(f −1(yt), xt) as the number of training epochs increases. On one hand, using the data generated without the knowledge of the test label vector xt using the GENERATEINVERSEDATARANDOM procedure, we see that the network does not reduce the error as it trains. This means that it does not succeed in learning the inverse function f −1 and therefore, it will not be able to recover the test label xt from its output vector yt. On the other hand, using the data generated with the knowledge of the test label vector xt using the GENERATEINVERSENEARBY procedure, we see that the network does reduce the the error as it trains and has found the test label vector xt from its output vector yt at around 40 epochs. This experiment gives an empirical evidence that without the knowledge of xt, it is hard to ﬁnd f −1.
+VI. PROOF-OF-IMPROVEMENT
+In this section, we introduce the concept of proof-ofimprovement (PoI), a key mechanism supporting DaiMoN. PoI allows a prover P to convince a veriﬁer V that a model M improves the accuracy or reduces the error on the test dataset via the use of DEL without the knowledge of the true test label
+
+135
+
+1: procedure VERIFY(M, πP , dc, δ) → πV
+
+80
+
+2: Verify the signature of πP with πP .pkP 3: Verify the digest: πP .g = digest(M)
+
+4: Verify the DEL function output: πP .y = f (M(Z))
+
+60
+
+5: Verify the distance: d(πP .y, yt) < dc − δ, δ ≥ 0
+
+6: if all veriﬁed then
+
+40
+
+7:
+
+return {πP , dc, δ, pkV }skV
+
+Error (%)
+
+20
+0 0
+
+Random x Around xt
+20
+
+40
+
+60
+
+Epoch
+
+80
+
+100
+
+Figure 4: Error (e(f −1(yt), xt)) in percentage as the number of epochs increases for data generated with random x and
+near xt.
+
+1: procedure PROVE(M) → πP 2: g ← digest(M) 3: y ← f (M(Z)) 4: return {g, y, pkP }skP
+
+vector xt. PoI is characterized by the PROVE and VERIFY procedures shown.
+As a part of the system setup, a prover P has a public and private key pair (pkP , skP ) and a veriﬁer V has a public and private key pair (pkV , skV ). Both are given our learnt DEL function f (·), yt = f (xt), the set of m test inputs Z = {z}m i=1, and the current best distance dc achieved by submitted models, according to the distance function d(·, ·) described in Section II.
+Let digest(·) be the message digest function such as IPFS hash [18], MD5 [19], SHA [20] and CRC [21]. Let {·}sk denotes a message signed by a secret key sk.
+Let M be the classiﬁcation model for which P will generate a PoI proof πP . The model M takes an input and returns the corresponding predicted class label. The PROVE procedure called by a prover P generates the digest of M and calculates the DEL function output of the predicted labels of the test dataset Z by M. The results are concatenated to form the
+body of the proof, which is then signed using the prover’s secret key skP . The PoI proof πP shows that the prover P has found a model M that could reduce the error on a test
+dataset.
+To verify, the veriﬁer V runs the following procedure to generate the veriﬁcation proof πV , the proof that the veriﬁer V has veriﬁed the PoI proof πP generated by the prover P. The procedure ﬁrst veriﬁes the signature of the proof with public key πP .pkP of the prover P. Second, it veriﬁes that the digest is correct by computing digest(M) and comparing it with the digest in the proof πP .g. Third, it veriﬁes the DEL function output by computing f (M(Z)) and comparing it with the the DEL function output in the proof πP .y. Lastly,
+
+it veriﬁes the distance by computing d(πP .y, yt) and sees if it is lower than the current best with a margin of δ ≥ 0, where δ is an improvement margin commonly agreed upon among peers. If all are veriﬁed, the veriﬁer generates the body of the veriﬁcation proof by concatenating the PoI proof πP with the current best distance dc and δ. Then, the body is signed with the veriﬁer’s secret key skV , and the veriﬁcation proof is returned.
+VII. THE DAIMON SYSTEM
+In this section, we describe the DaiMoN system that incentivizes participants to improve the accuracy of models solving a particular problem. In DaiMoN, each classiﬁcation problem has its own DaiMoN blockchain with its own token. An append-only ledger maintains the log of improvements for that particular problem. A problem deﬁnes inputs and outputs which machine learning models will solve for. We call this the problem deﬁnition. For example, a classiﬁcation problem on the FashionMNIST dataset [12] may deﬁne an input z as a 1-channel 1 × 28 × 28 pixel input whose values are ranging from 0 to 1, and an output x as 10-class label ranging from 1 to 10:
+{z ∈ R1×28×28 | 0 ≤ z ≤ 1},
+{x ∈ Z | 1 ≤ x ≤ 10}.
+Each problem is characterized by a set of test dataset tuples. Each tuple (Z, f, yt) consists of the test inputs Z = {z}m i=1, the DEL function f , and the DEL function output yt = f (xt) on the true test label vector xt.
+A participant is identiﬁed by its public key pk with the associated private key sk. There are six different roles in DaiMoN: problem contributors, model improvers, validators, block committers, model runners, and model users. A participant can be one or more of these roles. We now detail each role below:
+Problem contributors contribute test dataset tuples to a problem. They can create a problem by submitting a problem deﬁnition and the ﬁrst test dataset tuple. See Section VII-B on how additional test tuples can be added.
+Model improvers compete to improve the accuracy of the model according to the problem deﬁnition deﬁned in the chain. A model improver generates a PoI proof for the improved model and submit it.
+Validators validate PoI proofs, generate a veriﬁcation proof and submit it as a vote on the PoI proofs. Beyond being a veriﬁer for verifying PoI, a validator submits the proof as a vote.
+
+136
+
+Block committers create a block from the highest voted PoI proof and its associated veriﬁcation proofs and commit the block.
+Model runners run the inference on the latest model given inputs and return outputs and get paid in tokens.
+Model users request an inference computation from model runners with an input and pay for the computation in tokens.
+
+A. The Chain
+Each chain consists of two types of blocks: Problem blocks and Improvement blocks. A Problem block contains information, including but not limited to: the block number, the hash of the parent block, the problem deﬁnition, the test dataset tuples, and the block hash. An Improvement block contains information, including but not limited to: the block number, the hash of the parent block, PoI proof πP from model improver P, veriﬁcation proofs {πP } from validators {V}, and the block hash. The chain must start with a Problem block that deﬁnes the problem, followed by Improvement blocks that record the improvements made for the problem.
+
+B. The Consensus
+After a DaiMoN blockchain is created, there is a problem deﬁnition period Tp. In this period, any participant is allowed to add test dataset tuples into the mix. After a time period Tp has passed, a block committer commits a Problem block containing all test dataset tuples submitted within the period to the chain.
+After the Problem block is committed, a competition period Tb begins. During this period, a model improver can submit the PoI proof of his/her model. A validator then validates the PoI proof and submit a veriﬁcation proof as a vote. For each PoI proof, its associated number of unique veriﬁcation proofs are tracked. At the end of each competition period, a block committer commits an Improvement block containing the model with the highest number of unique veriﬁcation proofs, and the next competition period begins.
+
+C. The Reward
+
+Each committed block rewards tokens to the model improver and validators. The following reward function, or similar ones, can be used:
+
+R(d,
+
+dc)
+
+=
+
+I1−d(a,
+
+1 2
+
+)
+
+−
+
+I1−dc (a,
+
+1 2
+
+),
+
+where I·(·, ·) is the regularized incomplete beta function, d is the distance of the block, dc is the current best distance so far, and a is a parameter to allow for the adjustment to the shape of the reward function. Figure 5 shows the reward function as
+the distance d decreases for different current best distance dc for a = 3. We see that more and more tokens are rewarded as the distance d reaches 0, and the improvement gap dc − d increases.
+Each validator is given a position as it submits the validation
+proof: the s-th validator to submit the validation proof is given the s-th position. The validator’s reward is the model improver’s reward scaled by 2−s: R(d, dc)2−s, where s ∈ Z>0
+
+1.0
+
+dc = 1.00
+
+dc = 0.50
+
+0.8
+
+dc = 0.30
+
+dc = 0.20
+
+dc = 0.10
+
+0.6
+
+dc = 0.05
+
+0.4
+
+R(d, dc)
+
+0.2
+
+0.0
+
+1.0
+
+0.8
+
+0.6
+
+0.4
+
+0.2
+
+0.0
+
+d
+
+Figure 5: The reward function R(d, dc) as the distance d decreases for varying current best distance dc for a = 3.
+
+is the validator’s position, and Z>0 denotes the set of integers greater than zero. This factor encourages validators to compete
+
+to be the ﬁrst one to submit the validation proof for the PoI
+
+proof in order to maximize the reward. Two is used as a base
+
+of the scaling factor here since
+
+∞ s=1
+
+2−s
+
+=
+
+1.
+
+D. The Market
+
+In order to increase the value of the token of each problem, there should be demand for the token. One way to generate demand for the token is to allow it to be used as a payment for inference computation based on the latest model committed to the chain. To this end, model runners host the inference computation. Each inference call requested by users is paid for by the token of the problem chain that the model solves. Model runners automatically upgrade the model, as better ones are committed to the chain. The price of each call is set by the market according to the demand and supply of each service. This essentially determines the value of the token, which can later be exchanged with other cryptocurrencies or tokens on the exchanges. As the demand for the service increases, so will the token value of the problem chain.
+Model runners periodically publish their latest services containing the price for the inference computation of a particular model. Once a service is selected, model users send a request with the payment according to the price speciﬁed. Model runners then verify the request from the user, run the computation, and return the result.
+To keep a healthy ecosystem among peers, a reputation system may be used to recognize good model runners and users, and reprimand bad model runners and users. Participants in the network can upvote good model runners and users and downvote bad model runners and users.
+
+E. System Implementation
+DaiMoN is implemented on top of the Ethereum blockchain [2]. In this way, we can utilize the security and decentralization of the main Ethereum network. The ERC20 [22] token standard is used to create a token for each
+
+137
+
+problem chain. Tokens are used as an incentive mechanism and can be exchanged. Smart contracts are used to manage the DaiMoN blockchain for each problem. This includes managing the position of each validator as it submits the validation proof.
+Identity of a participant is represented by its Ethereum address. Every account on Ethereum is deﬁned by a pair of keys, a private key and public key. Accounts are indexed by their address, which is the last 20 bytes of the Keccak [20] hash of the public key.
+The position of the veriﬁers is recorded and veriﬁed on the Ethereum blockchain. As a veriﬁer submits a vote on the smart contract on the Ethereum blockchain, his/her position is recorded and used to calculate the reward for veriﬁer.
+The InterPlanetary File System (IPFS) [18] is used to store and share data ﬁles that are too big to store on the Ethereum blockchain. Files such as test input ﬁles and model ﬁles are stored on IPFS and only their associated IPFS hashes are stored in the smart contracts. Those IPFS hashes are then used by participants to refer to the ﬁles and download them. Note that since storing ﬁles on IPFS makes it public, it is possible that an attacker can ﬁnd and submit the model before the creator of the model. To prevent this, model improvers must calculate the IPFS hash of the model and register it with the smart contract on the Ethereum blockchain before making the model available on IPFS.
+VIII. DISCUSSION
+One may compare a DEL function to an encoder of an autoencoder [23]. An autoencoder consists of an encoder and a decoder. The encoder maps an input to a lower-dimensional embedding which is then used by the decoder to reconstruct the original input. Although a DEL function also reduces the dimensionality of the input label vector, it does not require the embedding to reconstruct the original input and it adds the constraint that the output of the function should preserve the error or the distance of the input label vector to a speciﬁc test label vector xt. In fact, for our purpose of hiding the test labels, we do not want the embedding to reconstruct the original input test labels. Adding the constraint to prevent the reconstruction may help further defense against the inversemapping attacks and can be explored in future work.
+Note that a model with closer distance to the test label vector (xt) in the embedding space may not have better accuracy. This results in a reward being given to a model with worse accuracy than the previous best model. This issue can be mitigated by increasing the margin δ. With the appropriate δ setting, this discrepancy should be minimal. Note also that as the model gets better, it will be easier for an attacker to recover the true test label vector (xt). To mitigate this issue, multiple DEL and reward functions may be used at various distance intervals.
+By building DaiMoN on top of Ethereum, we inherit the security and decentralization of the main Ethereum network as well as the limitations thereof. We now discuss the security of each individual DaiMoN blockchain. An attack to consider is the Sybil attack on the chain, in which an attacker tries
+
+to create multiple identities (accounts) and submit multiple veriﬁcation proofs on an invalid PoI proof. Since each problem chain is managed using Ethereum smart contracts, there is an inherent gas cost associated with every block submission. Therefore, it may be costly for an attacker to overrun the votes of other validators. The more number of validators for that chain, the higher the cost is. In addition, this can be thwarted by increasing the cost of each submission by requiring validators to also pay Ether as they make the submission. All in all, if the public detects signs of such behavior, they can abandon the chain altogether. If there is not enough demand in the token, the value of the tokens will depreciate and the attacker will have less incentives to attack.
+Since we use IPFS in the implementation, we are also limited by the limitations of IPFS: ﬁles stored on IPFS are not guaranteed to be persistent. In this case, problem contributors and model improvers need to make sure that their test input ﬁles and model ﬁles are available to be downloaded on IPFS. In addition to IPFS, other decentralized ﬁle storage systems that support persistent storage at a cost such as Filecoin [24], Storj [25], etc. can be used.
+IX. RELATED WORKS
+One area of related work is on data-independent locality sensitive hashing (LSH) [26] and data-dependent locality preserving hashing (LPH) [27], [28]. LSH hashes input vectors so that similar vectors have the same hash value with high probability. There are many algorithms in the family of LSH. One of the most common LSH methods is the random projection method called SimHash [29], which uses a random hyperplane to hash input vectors.
+Locality preserving hashing (LPH) hashes input vectors so that the relative distance between the input vectors is preserved in the relative distance between of the output vectors; input vectors that are closer to each other will produce output vectors that are closer to each other in the output space. The DEL function presented in this paper is in the family of LPH functions. While most of the work on LSH and LPH focuses on dimensionality reduction for nearest neighbor searches, DEL is novel that it focuses on learning an embedding function that preserves the distance to the test label vector of the test dataset. For the purpose of hiding the test label vector from veriﬁer peers, it is appropriate that DEL’s distance preserving is speciﬁc to this test vector. By being speciﬁc, ﬁnding the DEL function becomes easier.
+Another area of related work is on blockchain and AI. There are numerous projects covering this area in recent years. These include projects such as SingularityNET [30], Effect.ai [31] and Numerai [32]. SingularityNET and Effect.ai are decentralized AI marketplace platforms where anyone can provide AI services for use by the network, and receive network tokens in exchange. This is related to the DaiMoN market, where model runners run inference computation for model users in exchange for tokens. Numerai has an auction mechanism where participants stake network tokens to express conﬁdence in their models’ performance on forthcoming new
+
+138
+
+data. The mechanism will reward participants according to the performance of their models on unspeciﬁed yet future test data, their conﬁdence, and their stake. While these platforms all use a single token, DaiMoN has a separate token for each problem. It also introduces the novel ideas of DEL and PoI, allowing the network to fairly reward participants that can prove that they have a model that improves the accuracy for a given problem.
+X. CONCLUSION
+We have introduced DaiMoN, a decentralized artiﬁcial intelligence model network. DaiMoN uses a Distance Embedding for Labels (DEL) function. DEL embeds the predicted label vector inferred by a classiﬁer in a low-dimensional space where its error or its distance to the true test label vector of the test dataset is approximately preserved. Under the embedding, DEL hides test labels from peers while allowing them to assess the accuracy improvement that a model makes. We present how to learn DEL, evaluate its effectiveness, and present the analysis of DEL’s resilience against attacks. This analysis shows that it is hard to launch a brute-force attack or an inverse-mapping attack on DEL without knowing a priori a good estimate on the location of the test label vector, and that the hardness can be increased rapidly by increasing the dimension of the embedding space.
+DEL enables proof-of-improvement (PoI), the core of DaiMoN. Participants use PoI to prove that they have found a model that improves the accuracy of a particular problem. This allows the network to keep an append-only log of model improvements and reward the participants accordingly. DaiMoN uses a reward function that scales according to the increase in accuracy a new model has achieved on a particular problem. We hope that DaiMoN will spur distributed collaboration in improving machine learning models.
+XI. ACKNOWLEDGMENT
+This work is supported in part by the Air Force Research Laboratory under agreement number FA8750-18-1-0112 and a gift from MediaTek USA.
+REFERENCES
+[1] S. Nakamoto, “Bitcoin: A peer-to-peer electronic cash system,” 2008.
+[2] G. Wood, “Ethereum: A secure decentralised generalised transaction ledger,” Ethereum project yellow paper, vol. 151, pp. 1–32, 2014.
+[3] K. Simonyan and A. Zisserman, “Very deep convolutional networks for large-scale image recognition,” arXiv preprint arXiv:1409.1556, 2014.
+[4] K. He, X. Zhang, S. Ren, and J. Sun, “Deep residual learning for image recognition,” in Proceedings of the IEEE conference on computer vision and pattern recognition, 2016, pp. 770–778.
+[5] C. Szegedy, W. Liu, Y. Jia, P. Sermanet, S. Reed, D. Anguelov, D. Erhan, V. Vanhoucke, and A. Rabinovich, “Going deeper with convolutions,” in Proceedings of the IEEE conference on computer vision and pattern recognition, 2015, pp. 1–9.
+[6] J. Devlin, M.-W. Chang, K. Lee, and K. Toutanova, “Bert: Pre-training of deep bidirectional transformers for language understanding,” arXiv preprint arXiv:1810.04805, 2018.
+[7] “Model Zoo,” https://github.com/BVLC/caffe/wiki/Model-Zoo.
+
+[8] “PyTorch Model Zoo,” https://pytorch.org/docs/stable/ torchvision/models.html.
+[9] “Models and examples built with TensorFlow,” https://github. com/tensorﬂow/models.
+[10] “Model Zoo,” https://modelzoo.co/. [11] “Kaggle,” https://www.kaggle.com. [12] H. Xiao, K. Rasul, and R. Vollgraf, “Fashion-MNIST: a novel
+image dataset for benchmarking machine learning algorithms,” arXiv preprint arXiv:1708.07747, 2017. [13] W. B. Johnson and J. Lindenstrauss, “Extensions of lipschitz mappings into a hilbert space,” Contemporary mathematics, vol. 26, no. 189-206, p. 1, 1984. [14] K. G. Larsen and J. Nelson, “Optimality of the johnsonlindenstrauss lemma,” in 2017 IEEE 58th Annual Symposium on Foundations of Computer Science (FOCS). IEEE, 2017, pp. 633–638. [15] D. P. Kingma and J. Ba, “Adam: A method for stochastic optimization,” arXiv preprint arXiv:1412.6980, 2014. [16] A. Stam, “Limit theorems for uniform distributions on spheres in high-dimensional euclidean spaces,” Journal of Applied probability, vol. 19, no. 1, pp. 221–228, 1982. [17] S. Li, “Concise formulas for the area and volume of a hyperspherical cap,” Asian Journal of Mathematics and Statistics, vol. 4, no. 1, pp. 66–70, 2011. [18] J. Benet, “IPFS-content addressed, versioned, P2P ﬁle system,” arXiv preprint arXiv:1407.3561, 2014. [19] R. Rivest, “The MD5 message-digest algorithm,” Tech. Rep., 1992. [20] G. Bertoni, J. Daemen, M. Peeters, and G. Van Assche, “Keccak,” in Annual international conference on the theory and applications of cryptographic techniques. Springer, 2013, pp. 313–314. [21] W. W. Peterson and D. T. Brown, “Cyclic codes for error detection,” Proceedings of the IRE, vol. 49, no. 1, pp. 228–235, 1961. [22] F. Vogelsteller and V. Buterin, “ERC-20 token standard, 2015,” URL https:// github.com/ ethereum/ EIPs/ blob/ master/ EIPS/ eip20-token-standard.md, 2018. [23] D. E. Rumelhart, G. E. Hinton, and R. J. Williams, “Learning internal representations by error propagation,” California Univ San Diego La Jolla Inst for Cognitive Science, Tech. Rep., 1985. [24] “Filecoin: A decentralized storage network,” URL https:// ﬁlecoin.io/ ﬁlecoin.pdf , 2017. [25] S. Wilkinson, T. Boshevski, J. Brandoff, and V. Buterin, “Storj a peer-to-peer cloud storage network,” 2014. [26] P. Indyk and R. Motwani, “Approximate nearest neighbors: towards removing the curse of dimensionality,” in Proceedings of the thirtieth annual ACM symposium on Theory of computing. ACM, 1998, pp. 604–613. [27] P. Indyk, R. Motwani, P. Raghavan, and S. Vempala, “Localitypreserving hashing in multidimensional spaces,” in STOC, vol. 97. Citeseer, 1997, pp. 618–625. [28] K. Zhao, H. Lu, and J. Mei, “Locality preserving hashing.” in AAAI, 2014, pp. 2874–2881. [29] M. S. Charikar, “Similarity estimation techniques from rounding algorithms,” in Proceedings of the thiry-fourth annual ACM symposium on Theory of computing. ACM, 2002, pp. 380– 388. [30] B. Goertzel, S. Giacomelli, D. Hanson, C. Pennachin, and M. Argentieri, “SingularityNET: A decentralized, open market and inter-network for AIs,” 2017. [31] J. Eisses, L. Verspeek, and C. Dawe, “Effect network: Decentralized network for artiﬁcial intelligence,” URL http:// effect.ai/ download/ effect whitepaper.pdf , 2018. [32] R. Craib, G. Bradway, X. Dunn, and J. Krug, “Numeraire: A cryptographic token for coordinating machine intelligence and preventing overﬁtting,” Retrieved, vol. 23, p. 2018, 2017.
+
+139
+

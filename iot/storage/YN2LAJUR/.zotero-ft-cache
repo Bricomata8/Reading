@@ -1,0 +1,334 @@
+Enhanced Dynamic Duty Cycle in LoRaWAN Network
+Norhane Benkahla1(B), Hajer Tounsi1, Ye-Qiong Song2, and Mounir Frikha1
+1 Higher School of Communication Tunis, Aryanah, Tunisia {norhane.benkahla,hajer.tounsi,mounir.frikha}@supcom.tn
+2 LORIA, University of Lorraine, Nancy, France ye-qiong.song@loria.fr
+Abstract. LoRa’s long-range and low-power features have made it an attractive candidate for IoT devices in various ﬁelds. In this work, we present an enhanced LoRaWAN protocol. LoRaWAN MAC protocol is characterized by the restrictive use of the channel, limited by the regulatory authorities to a 1% duty cycle per cycle (i.e., 36 s per hour) per node. This regulation penalizes the nodes which require a channel access time greater than the limited duty cycle to occasionally transmit a large amount of data such as video surveillance or access control information in applications like smart school surveillance. However, some other nodes like environment sensors sharing a same LoRaWAN server may send very small amounts of information (e.g. temperature, humidity, ...) and under-use the authorized activity time of 1% duty cycle. Hence the idea of implementing an activity time sharing mechanism among nodes that allows devices to borrow additional activity time from a device or set of devices that have completed the transmission of their packets and do not need the remaining time of the corresponding duty cycle. Our work extends and improves the activity time sharing mechanism initially proposed in [1]. Instead of FIFO sharing-time allocation based on a global activity time, which may lead to the starvation of the nodes that are others than that in the head of FIFO line, we propose a new time allocation algorithm based on the classiﬁcation of the diﬀerent requests according to their needs in terms of their QoS requirements. It allows to satisfy a larger number of nodes requiring extra time, with less control overheads while ensuring fairness. Our time-sharing algorithm has been implemented and tested on the wasp-mote chip of libelium, showing the performance improvement and its practical usability.
+Keywords: IoT · LPWAN · LoRa · Duty cycle · QoS
+1 Introduction
+IoT devices are used in a wide variety of intelligent systems: smart cities, smart transport, smart industry applications, security and emergencies, e-Health applications, etc. [2]. The deployment of these IoT devices is limited by challenges
+c Springer Nature Switzerland AG 2018 N. Montavont and G. Z. Papadopoulos (Eds.): ADHOC-NOW 2018, LNCS 11104, pp. 147–162, 2018. https://doi.org/10.1007/978-3-030-00247-3_15
+
+148 N. Benkahla et al.
+such as range, cost, autonomy, etc. The use of traditional long-range and highspeed (3G, 4G) technologies for IoT is constrained by the relatively high cost and high energy consumption. Low power wireless technologies such as low energy Bluetooth or ZigBee are limited in their short range and are not suitable for applications requiring deployment in rural or isolated environments. In order to reduce the complexity and obtain longer range at low cost, the concept of extended networks low-power, low-bandwidth and long range (LPWAN) [3,4] is proposed. This type of networks is suitable for equipment that requires several years of autonomy and does not require high throughput. It is therefore promising for the Internet of Things. Among several LPWAN technologies, Semtech’s LoRa is an interesting one, which can reach a range of 5 km in the urban area and 15 km in the rural area exploiting license-free sub-GHz frequency bands [5]. The ﬂexibility of LoRa’s long-range transmission is in expense of a low throughput and a limited channel activity time. In fact, the ETSI regulations impose to each node a maximum use of duty cycle of 1% per cycle, that means 36 s per hour. If this duty cycle limitation does not bother traditional low data rate IoT applications, it may exclude important applications where some sensors occasionally need more than 36 s per one hour cycle to transmit their urgent data following burst events detection, exceeding the per cycle authorized channel activity time. To introduce more ﬂexibility while still keeping the total duty cycle limitation of an application composed of n sensor nodes, in [1], Pham has ﬁrst introduced the idea to allow some throughput demanding nodes to occasionally exceed their 1% limitation (a kind of “last chance” solution) while still keeping the global duty cycle of the application under n × 1%. The basic mechanism, called activity time sharing, consists in broadcasting a “global activity time” GAT informing each node the total remaining available time of the current cycle. A node needing more time will be allowed to use additional time until this GAT . This approach provides indeed more ﬂexibility to better manage the QoS issues, as demonstrated in [1]. It arises however some additional issues. One is the risk to starve the ﬂowing nodes, especially if we assume that devices share 100% of their local activity time or the LoRa gateway allows the use of the maximum GAT (i.e., α = 100% where α is the GAT ratio allowed for usage). Another issue is related to the way to broadcast GAT , which introduces overheads and needs a synchronized radio wake-up mechanism.
+In this paper, we leverage those limitations. We extend and improve the activity time sharing mechanism proposed in [1]. Instead of FIFO sharing-time allocation which may lead to the starvation of the nodes other than that in the head of FIFO line, we propose to deﬁne three classes of nodes (classical, donor and requester) and a new time allocation algorithm based on the classiﬁcation of the diﬀerent requests according to their needs in terms of QoS. It allows to satisfy a larger number of nodes requiring extra time, with less control overheads while ensuring fairness and without impacting other nodes’ due time.
+The rest of the paper is organized as follows. In Sect. 2, we present the LoRa/LoRaWAN technology. In Sect. 3, we review and discuss the principle of the time activity sharing mechanism presented in [1]. In Sect. 4, we present
+
+Enhanced Dynamic Duty Cycle in LoRaWAN Network 149
+our solution and proposed improvements to solve the above-mentioned issues by describing the new activity time sharing mechanism and the time allocation algorithm according to a classiﬁcation strategy that depends on a QoS criterion. Our implementation and our experimentation scenario will be discussed in Sect. 5 by showing how the mechanism is adapted to the devices and the server. We conclude in Sect. 6.
+2 LoRa Network Overview
+In this section, we present the LoRa/ LoRaWAN technology. Even if the terms LoRa and LoRaWAN are used interchangeably but they refer to two diﬀerent concepts in the network. In fact LoRa corresponds to the PHYSICAL layer and precisely to the modulation technique used and LoRaWAN deﬁnes the LoRa MAC layer.
+2.1 LoRa Modulation: Physical Layer
+LoRa technology is a proprietary physical modulation designed and patented by Semtech Corporation. It is based on Chirp-Spread Spectrum (CSS) modulation [8] with Integrated Forward Error Correction. LoRa operates in the lower ISM bands (EU: 868 MHz and 433 MHz, USA: 915 MHz and 433 MHz). It oﬀers different conﬁgurations (data rates, transmission range, energy consumption and resilience to noise) according to the selection of four parameters which are Carrier Frequency (CF), Bandwidth (BW), Coding Rate (CR) and Spreading Factor (SF). Each LoRa symbol is composed of 2SF chirps [7], where SF represents the corresponding spreading factor in the range of 6 to 12. SF6 means a shortest range, SF12 will be the longest. Each step up in spreading factor doubles the time on air to transmit the same amount of data. The use of a larger SF decreases the bit rate and increases the time on Air (ToA) which induces greater power consumption. In fact, in the case of a 125 kHz bandwidth and a coding rate 4/5, the bit rate is equal to 250 bps for SF12 and it is equal to 5470 bps for SF7 [9]. With LoRa, transmissions on the same carrier frequency but with diﬀerent spreading factors are orthogonal, so there is no interference.
+2.2 LoRaWan: LoRa Mac Layer
+Unlike the proprietary LoRa protocol, LoRaWAN is an open protocol deﬁned by LoRa Alliance. A LoRaWAN network is based on star-of-stars topology and is composed of three elements.
+– End devices: nodes that send uplink (UL) traﬃc and receives Downlink (DL) traﬃc through LoRa gateways. The communication between end-devices and gateways is based on LoRa modulation.
+– LoRa gateways dispatch the LoRaWAN frames received from end devices via IP connections (using Ethernet, 3G, 4G or Wi-Fi, etc.) to a network server.
+
+150 N. Benkahla et al.
+– A network server decodes the packets, analyzes information mined by end devices and generate the packets that should be sent to end devices.
+LoRaWAN end devices implement three classes: a basic LoRaWAN named Class A and optional features (class B, class C) [13].
+LoRaWAN operates in ISM bands (863–870 MHz band in Europe) which are subject to regulations on radio emissions, thus radios are required to adopt either a Listen-Before-Talk (LBT) policy or a duty cycled transmission to limit the rate at which the end devices can actually generate messages. The current LoRaWAN speciﬁcation exclusively uses duty-cycled limited transmissions to comply with the ETSI regulations [9]. In fact, each device is limited to an aggregated transmit duty cycle of 1% that means 36 s per hour.
+LoRaWAN deﬁnes three MAC message types in [13] which are: the join message for connecting a device with a network server, the conﬁrmed message which have to receive an ACK from a network server, and the unconﬁrmed message without ACK. A MAC payload length varies between 59 and 250 Bytes depending on the modulation rate [9].
+3 Related Work on LoRa Performance Enhancement
+In order to optimize the performance of a LoRa network and the quality of service, we identiﬁed three complementary approaches: (1) parameter selection, (2) data compression, (3) activity time sharing.
+3.1 LoRa Parameter Selection
+As explained in previous section, for satisfying a desired performance level, one can choose his conﬁguration by combining the various parameters CR (4/5, 4/6, 4/7 and 4/8), BW (125 kHz, 250 kHz and 500 kHz), SF (from 7 to 12) and TP (2 dBm to 17 dBm), resulting in total 1152 combinations. In [10] the authors studied the impact of LoRa parameter settings (bandwith, coding rate, spreading factor, transmission power, etc.) on energy consumption and communication reliability. They proposed a mechanism to automatically select LoRa transmission parameters that satisfy the performance requirements. This solution is optimal for a given application scenario, but it is not convenient when traﬃc dynamically changes.
+3.2 Data Compression
+The authors in [11] were interested in data compression in order to reduce the size of the data sent and thus minimize the transmission time and optimize the energy consumption. A swapped huﬀman tree coding has been applied to transmit the necessary data with a compression ratio of 52.3%. Data compression has been used in various LoRa sensors in the industry [12] in order to reduce energy consumption and thus reduce the data transmission time that will provide
+
+Enhanced Dynamic Duty Cycle in LoRaWAN Network 151
+better optimization of the LoRa network. The two studies mentioned above were interested in optimizing energy consumption without worrying about the regulatory constraints relating to the channel occupancy time.
+
+3.3 Activity Time Sharing Mechanism
+
+[1], proposes a mechanism for sharing the channel occupancy time in order to improve the overall performance of the network. We give more details on this mechanism, to which we are interested in our work. [1] proposed an activity time sharing mechanism in a long-range unlicensed LoRa network to face the problem of activity time limitation in the case of video surveillance applications. The proposed mechanism supposes that all devices that will participate in the sharing mechanism register with the LoRa gateway and announce their local remaining activity time (initially can be the total authorized activity time or just a fraction). Thus, the gateway computes the global activity time allowed for usage which can be an addition of the allowed time of each device “Global Time” (1) or just a fraction of it. After it informs it to all devices which will share it. This step is performed each cycle (every hour).
+As long as this global activity time allows, a node Di that exhausts its duty cycle (allocated activity time) and needs additional time to send its data borrows the remaining time from the global time. A global view of the total remaining activity time is maintained by the LoRa Gateway (LR-BS) on reception of packets and sent back to devices at the appropriate moments.
+
+GlobalT ime = n × 36 s
+
+(1)
+
+In [1], the author did not evaluate nor propose a mechanism for selecting devices that will beneﬁt the shared extra time. Indeed, he limited himself to serving the ﬁrst applicant. Moreover, [1] assumes that all the nodes participating in the sharing mechanism must be on standby to be able to receive from the gateway the updated information of the global activity time and the list of nodes involved in the loan. Otherwise they must wake-up periodically to receive this update. This would not correspond to the behavior of class A nodes but rather to class B nodes. We believe that the activity time sharing mechanism proposed in [1] improves the quality of service but lacks an additional time allocation mechanism by a priority classiﬁcation or a strategy that satisﬁes a larger number of requesting devices taking into account the range of a device and its battery level in the management of the allocation of additional time. In the next section, we will describe our solution to those above-mentioned issues.
+
+4 Synopsis and Detailed Description of the Proposed Algorithm
+The main idea of our mechanism is to provide devices, that do not use all their maximal allowed activity time, with the ability to share their remaining transmission time to devices that need to exceed the 1% duty cycle restriction in
+
+152 N. Benkahla et al.
+
+order to provide a better global quality of service. Unlike [1], we will consider two modes of LoRa “Sleep mode” and “Standby mode”.
+We suppose that the number of packets that each device has to send is known at the beginning of the transmission, so, each device can calculate the needed time on air per cycle instead of using “Last packet ﬂag” as in [1]. The use of this ﬂag in [1] is to indicate that the device will ﬁnish its transmission during the cycle. The management of this remaining time will be in the server which doesn’t need to broadcast the information of the remaining global activity time as in [1] since if a node decides to share its remaining activity time then it will no longer need to use it. We also allow all the devices to beneﬁt from the dynamicity of duty cycle when the remaining time is suﬃcient. We propose that each node informs the server of its role in the sharing mechanism during the OTAA (Over The Air Activation) registration process [13]. We deﬁne 3 node’s roles:
+– “Classical” devices: those who will neither give nor receive any additional activity time. So, they don’t participate in the sharing mechanism.
+– “Donor” devices: those that do not consume all their activity time during 1 h cycle, so they will give their remaining time to the devices that will need it.
+– “Requester” devices: they are the devices whose local activity time is not suﬃcient to transmit their data in a cycle of 1 h. They try to beneﬁt from the oﬀer of the potential donors.
+
+4.1 Registration Phase
+
+At each cycle, during the registration phase, each node speciﬁes in the “join request” message its role according to the size of the data to be sent during this cycle and therefore the transmission time that it needs. The estimation of the time on air is calculated according to the Semtech formula (6) [14], where Tsym is the time taken to send 2SF chips at the chip rate and is calculated using (2). (3) deﬁnes a preamble duration where npreamble is the number of programmed preamble symbols. The number of symbols that make up the packet payload and header is given by (4) where PL is the payload size in bytes, CR is 16 if the CR is enabled and zero otherwise, H is 20 when the header is enabled and zero otherwise and DE is two when the low data rate optimization is enabled and zero otherwise. The payload duration is then the symbol period multiplied by the number of payload symbols which is deﬁned in (5). Finally, the time on air is simply the sum of the preamble and payload duration (6).
+Figure 1 illustrates the treatment done by a device to register with the server and be part of the sharing mechanism. In case of the device is a “Donor” (estimated transmission time < duty cycle), it will also indicate the remaining time it is willing to lend (7). Otherwise, if it is a “Requester” (estimated transmission time > duty cycle), it speciﬁes the needed time to borrow before starting transmission (7). We propose to encode the information of the role of the equipment and the calculated time (for the loan or the donation) respectively in the ﬁelds RFU and FOpts of the MHDR ﬁeld [13].
+
+2SF
+
+Tsym = BW
+
+(2)
+
+Enhanced Dynamic Duty Cycle in LoRaWAN Network 153
+
+Fig. 1. Device’s state registration
+
+Tpreamble = (npreamble + 4, 25) × Tsym
+
+(3)
+
+P ayloadSymbN b = 8+max
+
+ceil
+
+8P L − 4SF + 28 + 16 − 20H 4(SF − 2DE)
+
+Tpayload = payloadSymbN b × Tsym
+
+(CR + 4), 0
+(4) (5)
+
+T oAE = T preamble + T payload
+
+(6)
+
+(Requested/Given)time = LimitT oA − T oAE
+
+(7)
+
+When the server receives the registration message, it saves the received information according to the type of each device in the corresponding table and assigns a priority to the node according to some criteria (battery level, range, etc.).
+
+4.2 Description of the Activity Sharing Mechanism
+After the registration phase, each node starts to send its data according to the LoRaWAN protocol. The node continues to send information about its participation in the activity sharing mechanism. Therefore, it can possibly change its oﬀer or request dynamically. Also this allows a node that did not participate in the sharing mechanism during the join phase to do so during the transmission of its data. Upon receipt of the registration phase or a data frame from a given node, the server veriﬁes the received information and takes the necessary actions depending on the role of the equipment. So if it is a donor node then the server just checks that the information is stored in the appropriate table otherwise it adds it. If it is a requesting node, then the server checks according to the priority given to it, if it could beneﬁt from additional time then the server grants the requested time, otherwise the server ignores its request. Diﬀerent criteria can be considered to choose the highest priority requesting node to be satisﬁed. In our work, we are interested in two approaches. The ﬁrst one consists of serving ﬁrst
+
+154 N. Benkahla et al.
+
+Fig. 2. Server processing
+
+the lowest demand in order to satisfy the maximum number of demands. The
+
+second approach is to ﬁrst satisfy the nodes with the lowest battery to avoid
+
+that battery runs out before the end of transmission of their messages in case of
+
+equality of the battery level, then we choose the farthest node whose transmis-
+
+sion is the most unfavorable. The distance of each device is calculated according
+
+to (8).
+
+distance(m) = 10(RSSIm−ReceivedRSSI)/20
+
+(8)
+
+Figure 2 shows the treatment done by the server upon the reception of a frame. Once the request received from a given node can be satisﬁed (the time oﬀered by the donors is suﬃcient) then the server updates the remaining activity time of the donors, grants the borrowed time to the requester by sending to it an update message conﬁrming the allocation of the additional activity time. The update message will be sent only for responding to the demands of the requesters. The update message (ACK0 to say “unauthorized borrowing” and ACK1 to say “allocation of additional time is done”) must be sent during the two reception windows (class A). After additional time’s allocation, the server removes the requester from the appropriate table. In case of both windows are not open, the server will wait for the next opening of both windows reception.
+
+Enhanced Dynamic Duty Cycle in LoRaWAN Network 155
+5 Implementation and Discussion of Scenarios
+To evaluate our proposed mechanism, we have implemented it on waspmote SX1272 devices (wasp-mote SX1272 LoRa clients cards and a wasp-mote SX1272 LoRa gateway) [15,16]. We have integrated a ﬂag in the ACK frame so that the requesters know if their requests have been accepted or not yet. We have tested several scenarios that will be presented and analyzed in the next subsections.
+
+Table 1. LoRa modes for 250 bytes
+
+LoRa mode BW(kHz) CR SF 250 bytes
+
+1
+
+125
+
+4/5 12 8295.41 ms
+
+2
+
+250
+
+4/5 12 4509.69 ms
+
+3
+
+125
+
+4/5 10 2312.50 ms
+
+4
+
+500
+
+4/5 12 2254.84 ms
+
+5
+
+250
+
+4/5 10 1147.90 ms
+
+6
+
+500
+
+4/5 11 1050.30 ms
+
+7
+
+250
+
+4/5 9 625.15 ms
+
+8
+
+500
+
+4/5 9 312.57 ms
+
+9
+
+500
+
+4/5 8 176.76 ms
+
+10
+
+500
+
+4/5 7 99.90 ms
+
+Table 2. LoRa modes for 100 bytes
+
+LoRa mode BW(kHz) CR SF 100 bytes
+
+1
+
+125
+
+4/5 12 4104.18 ms
+
+2
+
+250
+
+4/5 12 2052.09 ms
+
+3
+
+125
+
+4/5 10 1067.00 ms
+
+4
+
+500
+
+4/5 12 1026.04 ms
+
+5
+
+250
+
+4/5 10 533.50 ms
+
+6
+
+500
+
+4/5 11 504.46 ms
+
+7
+
+250
+
+4/5 9 287.23 ms
+
+8
+
+500
+
+4/5 9 143.61 ms
+
+9
+
+500
+
+4/5 8 79.48 ms
+
+10
+
+500
+
+4/5 7 44.86 ms
+
+We consider an environment of smart school and smart bus scenario, where children take school buses to get school and to get home from school. The parents need to ensure the security of their children by checking the time of arrival at school or at home. A monitoring system allows a mobile application to notify parents during the get in and get out of their children from the bus. Children are identiﬁed by checking their cards and their information are sent to a server through a LoRa network.
+5.1 Test Scenario Without Activity Time Sharing
+We consider a ﬁrst simple scenario with two devices to verify our implementation. The ﬁrst (D1) is dedicated for capturing image. An image of 2000 bytes should be sent in 8 packets because of the constraint of the maximum payload length of LoRa packet which is 250 Bytes. The second device (D2) is a simple temperature sensor which sends 100 bytes’ message containing Temperature, date and time. Each device is limited by a maximum transmission time “Limit-ToA = 36 s/cycle”. The devices use LoRa mode 1, that means they use BW = 125 kHz and SF = 12. This choice is made because SF12 is the default one in some devices such as the waspmote ones and also because it is the most suitable for long range and in presence of obstacles which is the case of urban areas [17]. Indeed, our tests done in our school where the device was on the 1st ﬂoor and the gateway on the 2nd ﬂoor, at a distance of about 43 m using a
+
+156 N. Benkahla et al.
+Fig. 3. The ACK response in the node
+transmission power of 14 dB have conﬁrmed that SF7 and SF8 are not adequate for great distances inside a school. The same test was done using the SF12 under the same conditions, the transmission of all packets was successful.
+Tables 1 and 2 present the time on air respectively of a 250 Bytes and 100 bytes according to several parameters. The scenario is shown in Fig. 4. Table 3 shows the time of transmission consumed after the transmission of each packet for D1. The time on air of the packet sent by D2 is δ1 = 2052.09 ms. These time on air values are the same in all tests. After receiving the join accept, the cycle begins for all the clients in the network. Sending the ﬁfth packet, the device D1 realizes that it has consumed all its allowed activity time (36 s) so it reached the limit-ToA, the transmission of its following packets is stopped and it enters in a sleep mode until the next cycle when it will have 36 s again to ﬁnish its transmission. The same thing will happen for the data that should be sent during the second cycle. The image can only be decoded if all its packets are totally received which could be very late. Unlike the ﬁrst device, the second client D2 sends its packet and waits for an ACK, after that it enters in a sleep mode because it has ﬁnished its transmission during the ﬁrst cycle.
+Table 3. ToA for each packet sent by D1 ζ1 (ms) ζ2 (ms) ζ3 (ms) ζ4 (ms) ζ5 (ms) ζ6 (ms) ζ7 (ms) ζ8 (ms) 8295.41 16590.82 24886.23 33181.64 41477.05 49772.46 58067.87 66363.28
+5.2 Test Scenarios with Dynamic Activity Time Sharing In the two following scenarios (1 and 2) we suppose that there is no registration phase in the join procedure. We treat two cases: ﬁrst when the donor is available before any request and second when the requester’s demands are sent to the server but there are not yet available donors.
+
+Enhanced Dynamic Duty Cycle in LoRaWAN Network 157
+Fig. 4. LoRaWAN behavioral scenario
+Fig. 5. Scenario with dynamic duty cycle
+Scenario 1: “Donor Available Before the Transmission Time Limit of the Requester”. We will test the same previous scenario using activity time sharing without a registration phase. D1 begins the transmission of its image at t0 and D2 begins transmitting its 100 bytes at t1. The scenario is shown in Fig. 5. The client D1 informs the server that it is requesting a time of 30.37 s in its ﬁrst frame and D2 informs the server that is a donor of 33.94 s.
+As soon as the ﬁrst requester frame is received, the server starts updating its donor table to satisfy the requester. D1 receives a favorable response to its request after sending its 4th packet at ζ2 because at this time D2 is registered in the donor’s table. As a result, D1 has an additional time to complete its transmission through the activity sharing time mechanism. Scenario 2: “Donor Not Available Before the Transmission Time Limit of the Requester”. We take the same scenario in Fig. 5, but a donor client will not be available before that requester client reaches a limit-ToA, D2 will begin its transmission after that D1 consumes its authorized duty cycle. As a result, the transmission of D1 will be interrupted because the server could not answer the request of D1 (there is no available donors at this time). D1 can not beneﬁt from the dynamic duty cycle for a non-availability of donors before achieving its limit-ToA.
+
+158 N. Benkahla et al.
+For the following scenarios, we consider a registration phase during the join procedure.
+Scenario 3: “Adding of a Registration Phase: First Request Before”. The registration phase helps to satisfy the requester independently of the beginning of transmission of the donor, contrary to Scenario 2 where we haven’t integrate this registration phase. The requesters will beneﬁt from the shared duty cycle algorithm as long as donors are available in the registration phase. The requester is satisﬁed by the allocation of additional time.
+Scenario 4: “The Weakest Demand Before”. In this scenario, we consider a registration phase which each device is registered in the appropriate table. We have 4 devices (3 requesters and 1 donor), the ﬁrst is dedicated for identiﬁcation of children at the school, the second one is dedicated for capturing images, the third is dedicated to a stuﬀ’s identiﬁcation and the last one is dedicated for measurement of temperature (Date, time and temperature). The requesters will transmit at the same time using: Mode 1 for D2, mode 2 for D1 and mode 3 for D3. The three requesters need respectively: 24.95 s, 30.36 s and 5 s. The donor client gives 31.89 s. We have add a strategy of additional time’s allocation which is “The weakest demand is satisﬁed ﬁrstly”. The server will begin by satisfying D3 then we update the given time: 26.84 s. Then we respond to D1 and we update the given time: 1.89 s. Arriving to D2, the server realizes that the given time can not satisfy a D2’s demand. The goal of this strategy is to satisfy a maximum number of requesters, for example, if we have begin with the bigger demand, we will satisfy only D2. The number of the satisﬁed requesters will decrease.
+Scenario 5: “The Lowest Battery Level Before”. We resume the same Scenario 4 but with a priority’s strategy. D1, D2 and D3 send their registration message as requesters. By receiving the requests for the equipment D1, D2 and D3 during the registration phase, the server sets a priority for each of them according to the level of their batteries and their distance. So, the highest priority is given to the device with the lowest battery level and in case of equality the farthest one (the longest distance). The server will save the information (type of device, requested/given time, distance and the battery level) of each device. If there is a device with the same battery level and distance, we will ﬁrstly satisfy the smallest request in order to maximize the number of satisﬁed clients. The results of the attribution of additional time for Scenario 5 for each device are shown in Fig. 7.
+The devices begin the transmission of their ﬁrst frames, the server will satisfy the requester having a highest priority then will pass to the requester whose priority is less. In our experimentation, D1 and D3 have the same battery level and the same distance, so the server will attribute the highest priority to D3 because it has the lower request. After serving D3, the server satisﬁes D1. When the remaining given time is updated, the server veriﬁes it and realizes that
+
+Enhanced Dynamic Duty Cycle in LoRaWAN Network 159
+Fig. 6. Implementation result of Scenario 5 in the server
+it’s not suﬃcient compared to the client’s demand. D2 sends its frames but its transmission will be stopped when the limit-ToA is achieved, it will not beneﬁt from the sharing duty cycle. 5.3 Synthesis In Fig. 7 we present the number of devices that have ﬁnished their transmission in each scenario for both methods (with and without time activity sharing). We can see that our approach maximizes the number of satisﬁed clients. For Scenario 1 and 2, we can beneﬁt from the sharing mechanism if the available donors are present before a requester reaches its limited authorized time. In the opposite case we will have a basic behavior of the clients where a requester’s transmission stops at 36 s. Regarding scenarios 3, 4 and 5, thanks to the conﬁguration phase, we ensure the sharing of duty cycle even if a donor arrives after ﬁnishing the transmission of a requester. This means that the sharing do not depend anymore on the beginning of donor’s transmission but on its availability in the network during the one-hour cycle (If a donor exists in a network regardless of its tstart, the requester can always beneﬁt from the given time provided that it is suﬃcient to meet the demand of the requesting client). As can be seen, our approach satisﬁes a larger number of devices by using a additional time management strategy.
+
+160 N. Benkahla et al.
+As conclusion, our algorithm, in addition to a dynamic duty cycle, allows the devices which have a low battery level (their batteries may be exhausted) and are distant from the LoRa Gateway to beneﬁt from the duty cycle before the others devices. It means we start by the emergency cases (exhausted battery level). This proposition is a combination of the default algorithm, an enhanced duty cycle and a management mechanism of additional time in order to maximize the number of satisﬁed clients starting with the highest priority. The mechanism occurs normally in the case where the additional time is not enough to make a sharing mechanism, but when the conditions are good and the request can be satisﬁed the mechanism follows a sharing algorithm with selection of clients. In both cases each donor client register its remaining time in the server in order to allow the requester to beneﬁt from an additional time when this remaining time is suﬃcient.
+
+Fig. 7. Number of satisﬁed clients
+
+Fig. 8. Join request processing time
+
+Table 4. Join request packet size and processing time
+
+Join request payload Join request processing time
+
+Basic LoRaWAN 18 bytes
+
+1.48 s
+
+Proposal
+
+24 bytes
+
+1.646 s
+
+As can be seen in Table 4 and Fig. 8, the payload length of the join request message is bounded by an increase of 6 bytes. The join request processing time (basic join request + registration phase) is increased by about 0.166 s on average in the proposed approach. This overhead is the same when coded in data frames and is kept scalable for practical use. Also our mechanism did not introduce new messages but was based on the LoRa messages (join, conﬁrmed message).
+
+Enhanced Dynamic Duty Cycle in LoRaWAN Network 161
+6 Conclusions
+In this paper, we proposed a new algorithm allowing dynamic time sharing among LoRaWAN nodes for allowing ﬂexible node duty cycles while still respecting the total duty cycle limitation of 1% in average. We have improved the previous result in [1] based on the remaining activity time of each device, where the server will allow a client requiring additional time to ﬁnish its transmission by borrowing additional time from the unused time left by other clients, thus by adding an allocation management mechanism according on the QoS requirement of each client. This solves the problem of clients that want to exceed their limitToA for urgent applications for example. With this algorithm, we can maximize the number of satisﬁed requesters needing to occasionally exceed their duty cycle limitation. Our solution has been implemented and thoroughly tested. According to the experimental results, we have shown that the proposed sharing mechanism with an appropriate priority-based requester selection improves the overall quality of service. Also our mechanism includes both the sharing in a static mode (registration phase) and in a dynamic situation during the node transmission. Due to the limited available nodes in our lab, our study was limited to a few devices for validating the prove of our concept in real. In our future work, the scalability will be further conducted with a high number of devices. For further enhance the performance, diﬀerent approaches must be combined. So we also plan to investigate the dynamic LoRa parameter selection and especially the adaptive data rate (ADR) and its combination with the activity time sharing approach.
+References
+1. Pham, C.: QoS for long-range wireless sensors under duty-cycle regulation with shared activity time usage. TOSN 12, 1–33 (2016)
+2. Atzori, L., Iera, A., Morabito, G.: The Internet of Things: a survey. Comput. Netw. 54, 2787–2805 (2010)
+3. Link Labs: A Comprehensive Look at Low Power, Wide Area Networks For Internet of Things Engineers and Decision Makers (2016)
+4. Xiong, X., Zheng, K., Xu, R., Xiang, W., Chatzimisios, P.: Low power wide area machine-to-machine networks: key techniques and prototype. IEEE Commun. Mag. 53(9), 64–71 (2015)
+5. Sinha, R.S., Wei, Y., Hwang, S.-H.: A survey on LPWA technology: LoRa and NB-IoT. ICT Express 3, 14–21 (2017)
+6. LoRa & LoRaWAN Primer. https://www.leverege.com/research-papers/loralorawan-primer
+7. Sikken, B.: Project DecodingLoRa (2016) 8. Springer, A., Gugler, W., Huemer, M., Reind, L., Ruppel, C., Weigel, R.:
+Spread spectrum communications using chirp signals. In: Proceedings of the IEEE/AFCEA, Munich, Germany, pp. 166–170, 19 May 2000 9. LoRa Alliance Technical committee LoRawan regional parameters, Revision 1.0, July 2016
+
+162 N. Benkahla et al.
+10. Bor, M., Roedig, U.: LoRa transmission parameter selection. In: 13th International Conference DCOSS, Ottawa, ON, Canada, June 2017
+11. Jang, Y.S., Usman, M.R., Usman, M.A., Shin, S.Y.: Swapped Huﬀman tree coding application for low power wide area network (LPWAN). In: International Conference ICSGTEIS, October 2016
+12. nkeWatteco: LoRaWANTM Press’O. V2.0. Updated 04 Sept 2016 13. Sornin, N., Luis, M., Eirich, T., Kramp, T., Hersent, O.: LoRa speciﬁcation 1.0
+LoRa alliance standard speciﬁcation, January 2015 14. Semtech corporation SX1272/3/6/7/8: LoRa modem an1200.13, Revision 1, July
+2017 15. Libelium comunicaciones Distribuidas S.L.: Waspmote LoRa 868 MHz 915 MHz
+SX1272 networking guide, Revision 4.2, November 2015 16. Libelium Comunicaciones Distribuidas S.L.: Waspmote data frame programming
+guide. version 7.2, October 2017 17. Blenn, N., Kuipers, F.: LoRaWAN in the Wild: Measurements from The Things
+Network. ArXiv2017, June 2017
+

@@ -1,0 +1,626 @@
+This paper has been submitted to IEEE for publication. Copyright may be transferred without notice.
+A Thorough Study of LoRaWAN Performance Under Different Parameter Settings
+Davide Magrin, Martina Capuzzo, and Andrea Zanella Dept. of Information Engineering (DEI), University of Padova – Via Gradenigo 6/b, 35131 Padova, Italy
+Email: {magrinda, capuzzom, zanella}@dei.unipd.it
+
+arXiv:1906.05083v1 [cs.NI] 12 Jun 2019
+
+Abstract—LoRaWAN is an emerging Low-Power Wide Area Network (LPWAN) technology, which is gaining momentum thanks to its ﬂexibility and ease of deployment. Conversely to other LPWAN solutions, LoRaWAN indeed permits the conﬁguration of several network parameters that affect different network performance indexes, such as energy efﬁciency, fairness, and capacity, in principle making it possible to adapt the network behavior to the speciﬁc requirements of the application scenario. Unfortunately, the complex and sometimes elusive interactions among the different network components make it rather difﬁcult to predict the actual effect of a certain parameters setting, so that ﬂexibility can turn into a stumbling block if not deeply understood. In this paper we shed light on such complex interactions, by observing and explaining the effect of different parameters settings in some illustrative scenarios. The simulation-based analysis reveals various trade-offs and highlights some inefﬁciencies in the design of the LoRaWAN standard. Furthermore, we show how signiﬁcant performance gains can be obtained by wisely setting the system parameters, possibly in combination with some novel network management policies.
+I. INTRODUCTION
+In the last few years the Internet of Things (IoT) paradigm has been attracting enormous interest from the scientiﬁc and industrial communities, thanks to the remarkable potential of the vision in which virtually every object can be remotely accessed and controlled through a connection to the Internet. Such a pervasive connectivity would enable various services in a wide array of scenarios. For example, cities could beneﬁt from smart lighting control, a more efﬁcient waste management and continuous infrastructure monitoring [1]. In industrial scenarios, connected sensors can help to continuously monitor the production process, making it possible to quickly detect or even predict failures, while in the agricultural sector the widespread collection of environmental data, such as temperature and soil moisture, can improve quantity and quality of the soil production, while reducing costs. Health monitoring, home security and home automation are yet other examples of possible application scenarios [2].
+In general, the communication needs of such scenarios differ signiﬁcantly from the classic high throughput and low delay requirements that have so-far driven the design of traditional communication systems. For example, long communication range and low energy consumption are more important than high bitrates, and supporting sporadic transmission of short packets from a massive number of devices is more important than providing stable high-throughput connections to few users [3].
+
+Numerous technologies are currently rushing to close the gap opened by this paradigm shift. One prominent solution is provided by LoRaWAN, an open standard promoted by the LoRa Alliance that deﬁnes Medium Access Control (MAC) and network management protocols on top of the Long Range (LoRa) Physical (PHY) layer, which is instead proprietary of Semtech.1
+The network topology is very simple: the radio signals transmitted by end-devices are received by one (or multiple) gateways, which then forward the packets to a Network Server (NS) for further processing. The NS is indeed in charge of the network management, which can be performed through a set of conﬁgurable parameters. In standard mode, communication is initiated by the end devices, but after each uplink transmission the devices can receive data packets or acknowledgements sent by the NS. The LoRa chipset is designed to be very energy efﬁcient and it promises to enable up to 10 years of energy autonomy for battery-powered devices. Furthermore, the transmission range has been proven to reach up to 1.5 km in urban scenarios and 15 km in rural areas [1]. The PHY layer is based on a chirp modulation and supports multiple Spreading Factors (SFs), which make it possible to trade bitrate for range. In addition, signals transmitted with different SFs are almost orthogonal, thus potentially enabling multi-packet reception at the gateway. Another beneﬁt is that the PHY operates on Industrial, Scientiﬁc, and Medical (ISM) bands in the MHz range, pushing down the deployment cost of the technology.
+The open MAC standard stimulates the creation of publicly available solutions for the back-end [4], and makes scrutiny from the scientiﬁc community possible. In addition, the LoRaWAN standard offers large ﬂexibility in the network conﬁguration, which is another attractive factor. Indeed, the NS can choose the SF used by the different nodes, the duration of the receive windows, the transmission/reception channels, the priority of acknowledgement and downlink data packets, and so on. By properly setting these parameters it is hence possible to support reliable/bidirectional communications and to change the balance between communication reliability, delay, energy-efﬁciency and system capacity. However, while the effect of certain parameters settings can be predicted in simple scenarios, with a relatively low number of nodes, the interactions among the different mechanisms of the system become much more complex and less intuitive in the large-
+1https://www.semtech.com/products/wireless-rf/lora-transceivers
+
+2
+
+TABLE I: Main transmission features for different values of the SF parameters. Packet transmission (TX) time is speciﬁed for a PHY payload of 32 bytes, explicit header mode, code rate equal to 2, and 125 kHz channel bandwidth.
+
+SF DR Data rate [kbit/s] Sensitivity [dBm] TX time [s]
+
+75 84 93 10 2 11 1 12 0
+
+5.470 3.125 1.760 0.980 0.440 0.250
+
+-130.0 -132.5 -135.0 -137.5 -140.0 -142.5
+
+0.740 0.136 0.247 0.493 0.888 1.777
+
+scale scenarios promised by the IoT paradigm. In this work, we leverage realistic network simulations to
+gain insight on the real performance of LoRaWAN technology in such scenarios, and show how even small adjustments in MAC layer parameters can signiﬁcantly affect the system performance (e.g., the packet success ratio). By doing so, we highlight some inherent issues raised by the duty cycle limitations in European ISM bands, and propose some improvements to mitigate the impairments that LoRaWAN may experience at scale. Such simple ingenuities can help increase the number of devices that can be served by a single gateway, postponing the potential collapse of the network in overcrowded scenarios and reducing the network management costs created by inefﬁcient network layouts.
+The rest of this paper is organized as follows. Sec. II provides a background on the technology, brieﬂy describing the LoRa PHY modulation and LoRaWAN standard, pointing out their most important features and mechanisms. Sec. III provides an outline of the state of the art on LoRaWAN simulations and performance investigations, while Sec. IV gives an overview of the simulation framework used in this article, describing the conﬁgurable parameters that have been considered and the simulation scenarios. In Sec. V we identify bottlenecks and relevant system dynamics. Furthermore, we discuss possible improvements to the standard and show how they can signiﬁcantly improve the performance. Finally, Sec. VI contains our conclusions and some possible avenues for future research.
+II. TECHNOLOGY OVERVIEW
+This section discusses the key features of the LoRa modulation and chipset and provides an overview of the LoRaWAN standard, highlighting the aspects that play a major role in determining the network performance.
+A. The LoRa modulation
+LoRa is a modulation scheme, patented by Semtech and based on chirp spread spectrum. Its design allows for long communication ranges, reaching 15 km in line-of-sight rural areas and 1.5 km in outdoor urban scenarios. The sensitivity (and, thus, the coverage) can be improved at the price of a lower bitrate, by changing the SF parameter that takes integer values from 7 to 12. Higher SF values correspond to lower transmission bitrates, but require a lower signal received power for correct reception, which turns into a longer coverage range. For each value of the SF parameter, Tab. I shows the
+
+TABLE II: LoRaWAN default channels and DC limitations in Europe.
+
+Frequency (MHz) Direction DC Power limit (dBm)
+
+868.1 868.3 868.5 869.525
+
+DL, UL 1%
+
+14
+
+DL, UL 1%
+
+14
+
+DL, UL 1%
+
+14
+
+DL
+
+10%
+
+27
+
+associated Data Rate (DR) index, the nominal data rate, the sensitivity level and the transmission (TX) time.
+A key feature of the LoRa modulation is that packets employing different SFs are almost orthogonal: transmissions overlapping in time and frequency can still be correctly decoded by the receiver, provided that the power of the target signal is sufﬁciently larger than that of interferers [5], [6].
+B. The LoRaWAN standard
+The LoRaWAN standard [7] deﬁnes MAC and network management protocols for devices using the LoRa modulation. The network topology is a star-of-stars, formed by three kinds of devices:
+• End Device (ED): a peripheral node, typically a sensor or actuator that communicates only through the LoRa PHY;
+• Network Server (NS): a centralized entity that controls the network parameters, forwards messages to applications and sends replies to the EDs through the gateway(s);
+• Gateway (GW): an intermediate node that relays messages between EDs and NS.
+EDs and GWs communicate using the LoRa modulation, while the connection between GWs and NS is realized using legacy IP technologies. Typically, the GWs are equipped with LoRa chipset that allow for the parallel reception of multiple signals. Commercial LoRa radio chipsets feature 8 parallel reception paths (or chains), each of which can listen to a speciﬁc frequency and demodulate overlapping signals, exploiting the quasi orthogonality of the different SFs.
+LoRaWAN devices operate in unlicensed ISM bands, in speciﬁc frequencies which vary based on the regional regulation: in this work we will consider the European 868 MHz ISM frequency band, which the standard divides in four channels centered at 868.1 MHz, 868.3 MHz, 868.5 MHz and 868.625 MHz. Bearing in mind this caveat regarding the number of channels and the different channel access regulations, the conclusions drawn in this work have however broader interest, being valid also for other regions.
+As described in Tab. II, according to the LoRaWAN speciﬁcations the ﬁrst three channels can be used both for uplink (UL) and downlink (DL) transmissions, while the 868.625 MHz channel is reserved for DL communications. Moreover, the channels are regulated by different limitations on transmission power and Duty Cycle (DC). In particular, the three bidirectional channels belong to the same sub-band and, hence, are collectively subject to a common DC limitation of 1%, so that an UL (resp. DL) transmission in any of such channels will consume the UL (resp. DL) DC budget of all three channels. Instead, the DL-only channel at 869.525 MHz belongs to a different sub-band that permits a DC of 10% and a larger transmission power. Note that the Data Rate (DR)
+
+3
+
+parameter in Tab. I is generally used to indicate a pair of SF and bandwidth values. Limiting our attention to the 125 kHz wide channels, the DR is in one-to-one association with the SF, as shown in Tab. I.
+The standard also deﬁnes three classes of EDs, namely Class-A (All), Class-B (Beacon) and Class-C (Continuous), which differ in the management of the DL transmissions: Class-A devices can receive DL packets only immediately after an UL transmission; Class-B can schedule so-called ping-interval during which they can receive DL packets; ﬁnally, Class-C can always receive packets, unless they are themselves transmitting.
+In this work, we will focus on Class-A devices, which are the most popular and challenging, considering the more constrained communication capabilities. They are expected to be battery-powered and can receive only during two reception windows (RX1 and RX2) that are opened, respectively, 1 s and 2 s after the end of each uplink transmission. The radio interface is then switched off till the next UL to save energy. RX2 is opened only if no DL message is successfully received during RX1. According to the standard setting, the NS can reply to an UL transmission by sending a DL packet in RX1, using the same channel and SF of the UL packet, or in RX2, using a dedicated channel (at 868.625 MHz in Europe) and SF 12 (i.e., the lowest bitrate) to maximize the coverage range. These default settings can be changed by the NS through appropriate MAC commands.
+UL transmissions can either be unconﬁrmed or conﬁrmed. In the ﬁrst case, a message is transmitted only once and is not expected to be acknowledged by the NS, while in the latter case, messages are retransmitted until an Acknowledgment (ACK) packet is returned by the receiver, for a maximum of m transmission attempts, with m ∈ {1, . . . , 8}. Note that, setting m = 1 coincides with the unconﬁrmed case (the total number of transmissions can not exceed m in both cases), but in case of conﬁrmed message, the receiver will be required to generate an ACK.2
+For conﬁrmed trafﬁc, the LoRaWAN standard also provides an Adaptive Data Rate (ADR) mechanism through which the NS can control the transmission parameters of the ED to optimize the performance either of the device itself or of the global network.
+III. RELATED WORK
+In the last years, the LoRaWAN technology has been the subject of many studies, which analyzed its performance and features with empirical measurements, mathematical analysis and simulative tools.
+Some seminal papers on LoRaWAN such as [8], [9] test the coverage range and packet loss ratio by means of empirical measurements, but without investigating the impact of the parameters setting on the performance. Other works, such as [10], examine the impact of the modulation parameters on the single communication link between an ED and its GW, without considering more complex network conﬁgurations.
+2Note that, from the GW perspective, ACK packets are not distinguishable from any other DL packet and, hence, are subject to the same rules and constraints.
+
+To obtain more general results, [11] uses a stochastic geometry model to jointly analyze interference in the time and frequency domains. It is observed that when implementing a packet repetition strategy, i.e., transmitting each message multiple times, the failure probability reduces, but clearly the average throughput decreases because of the introduced redundancy. In [12] the author proposes closed-form expressions for collision and packet loss probabilities and, under the assumption of perfect orthogonality between SFs, it is shown that the Poisson distributed process does not accurately model packet collisions in LoRaWAN. Network throughput, latency and collision rate for uplink transmissions are analyzed in [13] that, using queueing theory and considering the Aloha channel access protocol and the regulatory constrains in the use of the different sub-bands, points out the importance of a clever splitting of the trafﬁc in the available sub-bands to improve the network performance. In [14] the authors present a mathematical model of the network performance, taking into account factors such as the capture effect and a realistic distribution of SFs in the network. However, the model does not include some important network parameters, preventing the study of their effect on the network perfomance. A step further is made in [15] where the authors develop a model that makes it possible to consider various parameters conﬁgurations, such as the number of ACKs sent by the GW, the SF used for the downlink transmissions, and the DC constraints imposed by the regulations. In this work, however, multiple retransmissions have not been considered.
+The study presented in [16] features a system-level analysis of LoRaWAN, and gives signiﬁcant insights on bottlenecks and network behavior in presence of downlink trafﬁc. However, besides pointing out some ﬂaws in the design of the LoRaWAN medium access scheme, this work does not propose any way to improve the performance of the technology. In [17], system-level simulations are again employed to assess the performance of conﬁrmed and unconﬁrmed messages and show the detrimental impact of conﬁrmation trafﬁc on the overall network capacity and throughput. Here, the only proposed solution is the use of multiple gateways, without deeply investigating the speciﬁcities of the LoRaWAN standard. In [18] a module for the ns-3 simulator is proposed and used for a similar scope, comparing the single- and multigateway scenarios and the use of unconﬁrmed and conﬁrmed messages. In this case, the authors correctly implement the GW’s multiple reception paths, but do not take into account their association to a speciﬁc UL frequency, which usually occurs during network setup: indeed, the number of packets that can be received simultaneously on a given frequency can not be greater than the number of reception paths that are listening on that frequency. Also in this case, the study only focuses on the performance analysis, without proposing any improvement.
+The authors in [19], [20] target the original ADR algorithm proposed by [4], suggesting possible ameliorations. Generally, the modiﬁed algorithms yield an increase of network scalability, fairness among nodes, packet delivery ratio and robustness to variable channel conditions. In [21], the authors compute the optimal SFs distribution to minimize the collision
+
+4
+
+probability and propose a scheme to improve the fairness for nodes far from the station by optimally assigning SFs and transmit power values to the network nodes, in order to reduce the packet error rate.
+In [22] it is shown how the use of a persistent-Carrier Sense Multiple Access (p-CSMA) MAC protocol when transmitting UL messages can improve the packet reception ratio. However, attention must be payed to the fact that having many EDs that defer their transmission because of a low value of p may lead to channel under-utilization. In [23], the authors investigate, via simulation, the impact of DC restrictions in LPWAN scenarios, showing that rate adaptation capabilities are indeed pivotal to maintain reasonable level of performance when the coverage range and the cell load increase. However, the effect of other parameters setting on the network performance is not considered.
+In this study we differ from the existing literature in that we target large networks with bidirectional trafﬁc, a scenario that makes it possible to observe some unforeseen effects rising from the interaction of multiple nodes served by one single GW and NS. Furthermore, in our analysis we examine one by one the role played by the conﬁgurable network parameters, as detailed in Sec.IV-A, thus highlighting some pitfalls that can affect the network performance. We then propose possible counteractions that require some small changes at the MAC layer, and we evaluate their effectiveness in some representative scenarios. As a side result, we enriched the ns-3 lorawan module with new functionalities.
+IV. SIMULATION SETUP AND SCENARIOS
+The analysis carried out in this work leverages the ns-3 lorawan module described in [6], [24]. The module has been improved in order to support various network conﬁgurations and test the proposed ameliorations, with the aim of gaining a deeper understanding of the role played by each conﬁgurable parameter and identifying unforeseen behaviors. The module supports both conﬁrmed and unconﬁrmed messages, permits the conﬁguration of multiple network parameters, and implements a realistic model of the GW chip, accounting for the eight available parallel reception paths. In the following of this section, we give more details on the available functionalities that will be leveraged to analyze the network.
+A. Available network settings
+Next we give a brief introduction to the network conﬁguration options that are available in the simulator and that make it possible to control the behavior and features of both the GW and the EDs.
+• Gateway DC: in the simulator we have the opportunity of turning on or off the DC restriction at the GW to analyze its impact on the network performance.
+• Transmission/reception priority: since the GW cannot receive and transmit simultaneously, this option determines the relative priority of transmission (TX) over reception (RX), in case of conﬂict. If priority is given to RX, then DL packet transmissions will be deferred until the reception events are concluded (provided a
+
+suitable reception window will be open). Conversely, if priority is given to TX, then the reception of any incoming signal will be immediately interrupted to start the DL transmission. Note that, to date, transmission prioritization is the only available option in commercial GWs. • Sub-band prioritization: the LoRaWAN standard requires that RX1 is opened on the same channel where the corresponding UL was received, while RX2 is opened on a dedicated DL channel, which in Europe also features more lenient DC restrictions (10% instead of the 1% allowed on the other channels). In the simulator, we have enabled a mode that switches this setting, making it possible to open RX1 on the dedicated DL channel, and RX2 on the channel used for the UL communications. The effect of this trick will be illustrated in Sec. V-D. • Acknowledgment data rate: the LoRaWAN speciﬁcations recommend that ACKs transmitted on RX1 should use the same SF for the UL transmission, while transmissions on RX2 use the lowest available data rate (SF=12). To explore other options, the simulation module has been modiﬁed to enable the use of higher data rates on both the reception windows. This setting involves a trade-off between robustness and efﬁcient use of the available DC and time resources. Note that such an option can actually be implemented in LoRaWAN through a dedicated MAC command. • Number of transmission attempts: for conﬁrmed trafﬁc, the maximum number m of transmission attempts for the same message is conﬁgurable, and can take values in the set {1, 2, 4, 6, 8}. • Full-duplex GW: as mentioned, currently GWs cannot transmit and receive simultaneously. However, it might be interesting to investigate the potential performance gain obtained by implementing a full-duplex GW. This functionality may be realized by co-locating two GWs or combining a GW with a simple LoRa chipset to be used for transmissions only, leaving the GW free to receive messages. In order to test this functionality, we added a new mode to the lorawan module in the ns-3 simulator that allows for ideal full duplex communication. • Number of reception paths: the number r of parallel reception paths in the GW is a parameter that can be toggled in the simulator. Beside the standard value r = 8, we also considered the values r = 3 and r = 16 to study how the parallel reception capabilities of the GW can affect the overall system performance.
+B. Reference scenarios
+We considered two main simulation scenarios. Since we are interested on the optimization of MAC layer parameters, we assume a single GW serving multiple EDs, which generate packets periodically, with equal period but random phases. Furthermore, the trafﬁc generated by the devices can be either conﬁrmed, unconﬁrmed, or mixed, i.e., with half of the devices requiring acknowledgments and the other half sending unconﬁrmed packets.
+
+5
+DR0 DR1 DR2 DR3 DR4 DR5
+
+(a) Baseline
+
+(b) Shadowing
+
+(c) Shadowing and buildings
+
+Fig. 1: Distribution of Data Rates for different channel models.
+
+In the ﬁrst scenario, we assume that EDs are randomly distributed within the coverage range of the GW, and we only consider path loss.
+The second scenario consists of a more realistic urban deployment, where EDs are randomly located outside or inside buildings having different height and wall width, following the model described in [25]. Here, the channel propagation is affected by path loss, spatially correlated shadowing, and attenuation due to the presence of buildings, as described in [6]. To obtain a realistic setup, we consider the trafﬁc model described in the Mobile Autonomous Reporting (MAR) reports [25], according to which the devices send packets with periods that vary from 30 minutes to 24 hours. The number of devices is also varied to estimate the capacity (in terms of number of active devices) that can be supported by a GW in a realistic scenario.
+To ease the interpretation of the results, we neglect shortterm fading phenomena that may affect the received signal power, also considering that the chirp modulation is rather robust to multi-path fading.
+The effects of the channel model on the distribution of the SFs (and, thus, of DRs) can be observed in Fig. 1, where dots show the position of randomly placed EDs around the central GW, while colors are used to represent the bitrate of each device, i.e., its DR value (see Tab. I). The bitrate is the highest permitted by the signal received power at the GW, according to the sensitivity thresholds in Tab. I. Note that the rate distribution becomes more erratic in presence of longterm shadowing and wall attenuation factors that affect the propagation.
+C. Performance metrics
+A packet transmission at the PHY layer can have ﬁve possible outcomes:
+• Success (S): the packet is correctly received by the GW. • Lost because under sensitivity (U): the packet arrives at
+the GW with power lower than the sensitivity, and the GW can not lock on it.
+
+• Lost because of interference (I): the packet is correctly locked-on by the GW, but its reception fails because of the interference from overlapping packets with enough power to disrupt signals orthogonality.
+• Lost because of saturated receiver (R): the packet arrives at the GW with sufﬁcient power, but all parallel reception paths tuned on the packet’s transmission channel are already engaged in the reception of other packets.
+• Lost because of GW transmission (T): the packet reception gets disrupted by the transmission of a DL packet (which could either be ongoing at the packet arrival time, or started during the packet reception, in case the GW gives priority to transmission).
+In the case of unconﬁrmed trafﬁc, we label a packet as successful when it is successfully received at the GW that, in turn, forwards it to the NS through a reliable connection. For conﬁrmed trafﬁc, we distinguish two cases, depending on whether the DL packets carry information (e.g., the UL packet is a query to the NS, and the corresponding DL packet is the reply), or are just an ACK used to stop retransmissions of the UL packets. In the ﬁrst case, the transmission is successful when both the UL and the successive DL packet are successfully received by the NS and ED, respectively, within the available transmission attempts. In the second case, instead, we assume that a transmission is successful if at least one of the generated UL packets is delivered to the NS, irrespective of whether the ACK is received by the device.
+Accordingly, we deﬁne two performance metrics:
+• Conﬁrmed Packet Success Rate (CPSR): probability that both the conﬁrmed UL packet and the corresponding DL packet are correctly received in one of the available transmission attempts;
+• Uplink Packet Delivery Ratio (UL-PDR): probability that an UL packet is correctly received (whether or not the ACK is requested).
+V. PERFORMANCE EVALUATION
+In this section we ﬁrst provide the baseline for our performance analysis considering the default settings, which reveals
+
+6
+
+UL-PDR
+
+1
+
+0.98
+
+0.96
+
+0.94
+
+0.92
+
+Unconﬁrmed-only trafﬁc Conﬁrmed-only trafﬁc Mixed trafﬁc, unconﬁrmed Mixed trafﬁc, conﬁrmed
+
+0.9
+
+10−2
+
+10−1
+
+100
+
+λ[pkt/s]
+
+Fig. 2: Baseline UL-PDR performance for different kinds of trafﬁc.
+1 Unconﬁrmed Conﬁrmed
+0.8
+
+up to an aggregate trafﬁc load of almost λ = 0.7 pkt/s at the application layer (not including retransmissions). Beyond this point, it is more convenient to use unconﬁrmed-only communications. The reason behind this behavior becomes apparent in Fig. 3, which reports the fraction of packet losses caused by different events (I, R, T, see Sec. IV-C) for the two homogeneous scenarios. The results are obtained for an offered trafﬁc of λ = 0.7 pkt/s, for which the ULPDR is the same for both the homogeneous scenarios. We can observe that, with only unconﬁrmed trafﬁc packet losses are mainly due to the interference (I) produced by multiple UL transmissions. Instead, conﬁrmed trafﬁc (with m = 8), in addition to losses caused by interference, also suffers from other impairments, such as the saturation of the GW’s reception paths (R), and collision with ACKs (T), which plays a major role among the causes of failure. Therefore, conﬁrmed trafﬁc may enhance the data collection capabilities of the network as long as the overall load is light, but it can yield signiﬁcant degradation of the PHY layer performance for higher loads, which in turn impairs scalability.
+In the remaining of this section we will investigate the impact that the parameters introduced in Sec. IV-A can have on the performance metrics, and explore some simple precautions that can signiﬁcantly improve both performance and fairness in LoRaWAN.
+
+Fraction of lost packets (%)
+
+0.6
+
+0.4
+
+0.2
+
+0
+
+I
+
+R
+
+T
+
+Fig. 3: PHY outcomes for trafﬁc achieving the same UL-PDR.
+
+some issues with the current LoRaWAN standard. Then, we study the impact of the conﬁgurable parameters, and ﬁnally validate the effectiveness of the proposed improvements using the simulator described in Sec. IV.
+A. Baseline performance analysis
+To begin with, it is interesting to compare the performance attained by conﬁrmed/unconﬁrmed trafﬁc in the mixed and homogeneous scenarios, for the same offered trafﬁc at the application level. The solid lines in Fig. 2 show the UL-PDR for the conﬁrmed-only and unconﬁrmed-only cases (crossed and circle markers, respectively), while the dashed lines refer to the performance experienced by the two types of trafﬁc sources in the mixed scenario. It is apparent that the mixture of conﬁrmed and unconﬁrmed trafﬁc sources favors the ﬁrst class of sources, but penalizes much more severely the later, with respect to the corresponding homogeneous trafﬁc cases.
+Focusing on the homogeneous trafﬁc scenarios, we can see that the use of conﬁrmed trafﬁc maximizes the UL-PDR index
+
+B. Gateway DC
+The impact of the DC restriction at the GW is visible only when conﬁrmed trafﬁc is required by the EDs. The solid line with cross markers in Fig. 4 shows the baseline CPSR performance obtained in the case of only conﬁrmed trafﬁc. The solid line with circle markers, instead, gives the CPSR that can be obtained by removing the DC constraint at the GW. Comparing the two curves it is clear that the DC restriction at the GW represents a severe bottleneck in terms of CPSR since successfully received UL packets may not be acknowledged by the NS in the due time because of the DC limitations of the GW. Furthermore, the missed ACKs exacerbate the UL trafﬁc load, triggering retransmissions of otherwise successfully delivered UL packets.
+C. Priority of transmission over reception
+The effects of reception (RX) prioritization at the GW have been investigated both in terms of CPSR (Fig. 4) and UL-PDR (Fig. 5). It is worth to observe that RX prioritization can be implemented at the GW by simply avoiding transmissions of DL packets if at least one of the eight parallel receive chains is occupied.
+Fig. 4 shows that giving priority to RX yields a CPSR loss. In fact, as λ increases, the number of UL packets that are successfully received by the GW increases more rapidly than in the default case where TX is prioritized, and the probability that the GW is in the reception state quickly approaches 1, thus preventing the GW from transmitting ACKs. This, in turn, triggers packet re-transmissions from the devices. On the other hand, as shown in Fig. 5, in mixed trafﬁc scenarios, the RX prioritization improves the performance of both conﬁrmed and
+
+7
+
+1
+
+1
+
+0.9
+
+0.9
+
+CPSR
+
+CPSR
+
+0.8
+
+0.8
+
+0.7
+
+Baseline
+
+GW DC off
+
+RX priority
+
+0.6
+
+10−2
+
+10−1
+
+100
+
+λ[pkt/s]
+
+Fig. 4: CPSR of a network with only conﬁrmed trafﬁc sources.
+
+Baseline
+
+0.7
+
+Sub-bands swapping
+
+ACK Data Rate
+
+Both variations
+
+0.6
+
+10−2
+
+10−1
+
+100
+
+λ[pkt/s]
+
+Fig. 6: Effect of improvements on CPSR.
+
+1
+
+0.95
+
+UL-PDR
+
+0.9
+
+Conf., TX prioritization
+
+Conf., RX prioritization
+
+0.85
+
+Mixed Unconf., TX prioritization
+
+Mixed Unconf., RX prioritization
+
+Mixed Conf., TX prioritization
+
+Mixed Conf., RX prioritization 0.8
+
+10−2
+
+10−1
+
+100
+
+λ[pkt/s]
+
+Fig. 5: UL-PDR performance for unconﬁrmed, conﬁrmed and mixed trafﬁc when RX or TX is prioritized.
+
+unconﬁrmed trafﬁc sources in terms of UL-PDR. In summary, giving priority to RX at the GW makes it possible to receive more UL packets, but this can yield to congestion in the DL channel.
+More generally, DL packets could be marked by the NS based on their importance for the ED (which can either be explicitly signaled through a MAC header bit or inferred by the NS based on the application that is generating the data ﬂow). If ACKs are required, the DL packet could be marked as prioritized over reception, and immediately sent by the GW. If, on the other hand, conﬁrmation is merely used to stop retransmissions and the ED is only interested in maximizing its UL-PDR, then ACKs could be marked as low priority, and the GW would send them only if idle.
+D. ACK variations
+This section analyzes the effect of two variations to the standard acknowledgment mechanisms, named Sub-band swap-
+
+ping and ACK Data Rate, that try to alleviate the bottleneck due to the DC restrictions at the GW and improve the system performance in terms of throughput and energy efﬁciency.
+1) Sub-band swapping: As mentioned before, RX1 is always opened on the same sub-band used for the UL transmission, while RX2 is opened on a sub-band reserved to DL transmission, whose DC is 10%. Therefore, ACKs sent in RX1 will compete with other UL transmissions, generating and suffering interference, and can rapidly consume the 1% DC of that sub-band. We hence explored whether any beneﬁt could come from swapping the sub-bands used for RX1 and RX2: we hence implemented a sub-band swapping scheme, according to which RX1 opens in the DL-reserved sub-band, while RX2 opens in the shared sub-band used for the UL transmissions.
+2) ACK Data Rate: By default, LoRaWAN devices use the highest available SF (and thus the lowest DR) in RX2, in order to increase the probability that the downlink packet is received correctly. However, this can be detrimental, since longer transmission times of ACKs will rapidly consume the DC budget at the GW. To study which effect is dominant, we implemented the “ACK Data Rate scheme”, where all DL transmissions are always performed at the same DR used for the corresponding UL transmission. In Fig. 6 we report the CPSR achieved by using the default setting (solid line with cross markers), each one of the ACK improvement schemes (dotted lines with square and diamond markers, respectively), and both the improvements together (dashed line without markers). We can observe that the sub-band swapping has a very marginal (yet positive) impact in terms of CPSR, which implies that the interference produced by UL transmissions on DL reception is not very signiﬁcant. Conversely, the use of the same DR in all receive windows brings a signiﬁcant gain in terms of CPSR over the baseline. We can hence conclude that the use of the lowest DR in RX2 can severely limit the performance of the system, in particular when the missed reception in RX1 is not due to channel impairments, but rather to DC limitations of the GW in that sub-band.
+
+8
+
+A better strategy to provide efﬁcient and reliable DL transmissions is hence to implement independent rate-adaptation strategies on all DL sub-bands, rather than following the very conservative policy of retransmitting at the basic rate to increase robustness, but at the cost of lower spectral efﬁciency.
+The two ACK improvement schemes also have a positive impact on the energy consumption of the EDs. Indeed, the sub-band swapping mechanism makes it possible to return a larger number of ACKs in RX1, thanks to the looser DC constraint of the DL-reserved sub-band, thus avoiding the need to open RX2. This effect can be observed in Fig. 7, which shows the average number of times RX1 (above) and RX2 (below) are opened by the EDs, with the max number of retransmissions set to m = 8. The gain, however, tends to vanish as the trafﬁc increases, since both sub-bands will then be used to return ACKs. We can also notice that, by using the same DR in both receive windows we signiﬁcantly reduce the average number of opened receive windows per transmission, also for a relatively high trafﬁc. Indeed, transmitting DL packets at a higher rate contributes to alleviate the DC impairments, allowing the GW to serve more devices. In turn, this reduces the number of retransmissions and, consequently, the number of RX1 and RX2 that need to be opened.
+The effect of the proposed ACK variations on the UL-PDR metric are depicted in Fig. 8 for a network of only conﬁrmed trafﬁc sources. In this case, both sub-band swapping and ACK Data Rate mechanisms yield worse performance, when the GW adopts the standard TX prioritization policy. This is easily explained if we consider the type of DL trafﬁc that a saturated network (i.e., one where the ACKs queues are always full) will generate when the proposed improvements are turned on and off: in the default case, long DL transmissions using low data rates will be followed by long waiting times due to the DC. During these silence periods, the GW will be forced to listen to the network, resulting in an improved ULPDR performance. If, on the other hand, the GW sends short DL packets, it can do so more frequently, and in turn lose more UL packets because of DL transmissions. This behavior, however, can be counteracted by prioritizing RX over TX: as Fig. 8 shows, with this conﬁguration we get the best of both worlds, achieving simultaneously the improvements on ULPDR and the energy saving beneﬁts obtained with the subband swapping and use of the “ACK Data Rate” schemes.
+One ﬁnal consideration regards networks in which some devices are interested in the UL-PDR metric, while other need to maximize their CPSR: in this case, the considerable improvement in CPSR brought by the proposed acknowledgment variations would yield a slight loss in UL-PDR, which could be further reduced by implementing the dynamic transmission prioritization scheme proposed in Sec. V-C.
+E. Number of transmission attempts
+Our results showed that increasing the maximum number m of transmission attempts improves the CPSR by 5-10% (though with sharply diminishing returns as m grows larger). On the other hand, as we can see in Fig. 9, smaller values of m can slightly improve the fairness in terms of UL-PDR in
+
+Average number of opened RX1
+
+8
+
+Baseline
+
+Sub-bands swapping
+
+6
+
+ACK Data Rate
+
+Both variations
+
+DC off
+
+4
+
+2
+
+0
+
+10−2
+
+10−1
+
+100
+
+λ[pkt/s]
+
+(a) Average number of opened RX1.
+
+8
+
+Baseline
+
+Sub-bands swapping
+
+6
+
+ADR Data Rate
+
+Both variations
+
+GW DC off
+
+4
+
+Average number of opened RX2
+
+2
+
+0
+
+10−2
+
+10−1
+
+100
+
+λ[pkt/s]
+
+(b) Average number of opened RX2.
+Fig. 7: Effects of the proposed ACK improvements on the average number of opened RX1 and RX2 windows.
+
+mixed trafﬁc scenarios. In particular, at λ = 1 pkt/s, choosing m = 4 instead of m = 8 does not change signiﬁcantly the UL-PDR for conﬁrmed trafﬁc, but yields an improvement in the UL-PDR of unconﬁrmed trafﬁc, proving the sensitivity of the network performance to the setting of this parameter.
+F. Full-duplex gateway
+The impact of a full-duplex GW scheme described in Sec. IV-A is shown in Fig. 10, where UL-PDR performance is reported both for the standard GW conﬁguration and for the Full Duplex Gateway (FDGW). As expected, this solution achieves a rather marked gain in terms of UL-PDR performance. 3
+3Note that, when FDGW is employed, packets that are being received by the GW are still lost if a transmission on that same channel is performed due to the strong interference.
+
+9
+
+1
+
+1
+
+0.95
+
+0.9
+
+UL-PDR
+
+UL-PDR
+
+0.9
+
+0.85
+
+Baseline
+
+TX priority and ACK variations
+
+RX priority and ACK variations
+
+0.8
+
+10−2
+
+10−1
+
+100
+
+λ[pkt/s]
+
+Fig. 8: UL-PDR performance in case of only conﬁrmed trafﬁc, when ACK improvements and RX priority are applied.
+
+0.8
+
+Unconf., m = 2
+
+Unconf., m = 4
+
+0.7
+
+Unconf., m = 8
+
+Conf., m = 2
+
+Conf., m = 4
+
+Conf., m = 8 0.6
+
+10−2
+
+10−1
+
+100
+
+λ[pkt/s]
+
+Fig. 9: UL-PDR for mixed trafﬁc, different values of m.
+
+TABLE III: Interarrival times in realistic simulations.
+
+Inter-arrival time % of devices
+
+1 day
+
+40%
+
+2 hours
+
+40%
+
+1 hour
+
+15%
+
+30 minutes
+
+5%
+
+1 0.95
+
+UL-PDR
+
+G. Number of available Receive Paths
+Our simulation results (not reported here due to space constraints) showed that UL-PDR performance increases with the number of receive paths in the GW, but with diminishing returns after 8 reception paths, as interference still causes a relevant portion of locked-on packets to be lost. Having a chip with only three parallel receive paths, on the other hand, may enable cheaper gateways, and yield a slightly lower but still appreciable performance. The number of available receive paths, on the other hand, has no impact on the CPSR, for which the bottleneck is the DL channel due to the DC constraints: by the time the additional receive paths can make a difference in the reception probability of UL packets, DL channels at the GW will already be saturated, limiting the maximum achievable CPSR.
+
+0.9
+
+Mixed Unconf.
+
+Mixed Unconf., FDGW
+
+0.85
+
+Conf.
+
+Conf., FDGW
+
+Mixed Conf.
+
+Mixed Conf., FDGW 0.8
+
+10−2
+
+10−1
+
+100
+
+λ[pkt/s]
+
+Fig. 10: Effects of Full Duplex GW on UL-PDR.
+
+TABLE IV: Best conﬁgurations for the UL-PDR and CPSR metrics.
+
+Parameter
+
+UL-PDR CPSR
+
+ACK variations True
+
+True
+
+m
+
+4
+
+8
+
+TX Prioritization False
+
+True
+
+H. Best conﬁgurations in a realistic scenario
+A ﬁnal simulation campaign was aimed at estimating the impact that the proposed variations would have on the performance of a sensor network deployed in a realistic urban scenario, featuring the channel model and SF distribution described in Sec. IV-B, whose conﬁguration is summarized in Tab. III. Note that the results have been plotted against the number of devices in the cell, in order to give an idea of the capacity gain that is achievable through a clever setting of the network’s operational parameters.
+Fig. 11a shows how the UL-PDR can improve by using the proposed conﬁguration, and accommodate up to 4 times the number of unconﬁrmed devices that it would be possible to serve with standard settings. Similarly, Figure 11b shows that
+
+the number of devices that can be provided a CPSR larger than 0.95 doubles when the proposed variations are applied.
+I. Additional observations
+1) EDs locking on uplink packets: The LoRaWAN standard does not allow direct transmission between EDs. Nonetheless, the simulation outcomes revealed that, when an ED opens its receive window to listen for DL packets, the device can actually lock onto a message sent in UL by a second ED. Experimental trials with real LoRa devices conﬁrmed this incorrect behavior. This is due to the fact that the same preamble is used in both UL and DL transmissions, so that a receiver is not aware of the transmission source until the
+
+10
+
+1
+
+TABLE V: Sensitivity comparison
+
+SF GW Sensitivity (dBm) ED Sensitivity (dBm)
+
+7
+
+-130.0
+
+-124.0
+
+0.9
+
+8
+
+-132.5
+
+9
+
+-135.0
+
+-127.0 -130.0
+
+10
+
+-137.5
+
+-133.0
+
+11
+
+-140.0
+
+-135.0
+
+12
+
+-142.5
+
+-137.0
+
+0.8
+
+UL-PDR
+
+Mixed Unconf.
+
+0.7
+
+Mixed Unconf. with ACK variations
+
+Mixed Conf.
+
+Mixed Conf. with ACK variations
+
+0.6 1,000 2,000 3,000 4,000 5,000 6,000 7,000
+
+Number of devices
+
+(a) UL-PDR performance.
+
+1
+
+0.9
+
+CPSR
+
+0.8
+
+0.7
+Baseline With variations 0.6 1,000 2,000 3,000 4,000 5,000 6,000 7,000
+Number of devices
+(b) CPSR performance.
+Fig. 11: Simulation results for a realistic scenario.
+packet is completely received and inspected. At the same time, an ED can also lock on a DL message intended for another receiver, experiencing, thus, a waste of energy and time, as the packet will eventually be discarded. The problem of EDs locking on UL messages could be easily avoided by using different preambles for UL and DL transmissions: in this way, the receiver would completely avoid the reception of UL packets and could return to sleep mode for the remaining duration of the ED receive window.
+2) Sensitivities asymmetry: Tab. V shows the sensitivity requirements of GW and EDs. We can observe that the requirements for EDs are more relaxed, mainly to reduce the manufacturing cost. However, the gap between the capabilities of the two kinds of device causes an asymmetric coverage range between UL and DL transmissions, and it may happen that the SF used by an ED to reach the GW is not sufﬁcient to correctly deliver the return packet to the same ED because of its worse sensitivity: as an example, an UL transmission
+
+that arrives at the GW with a power of -128 dBm and SF=7 may generate a DL transmission that, assuming a symmetric channel, will arrive with the same power at the ED, and thus below its sensitivity. While such an asymmetry is not an issue when all nodes send unconﬁrmed UL trafﬁc, it may become a problem in case of conﬁrmed trafﬁc, since some EDs could be prevented from receiving a DL packet in the ﬁrst receive window, in which the NS uses the same SF and carrier frequency of the UL message, forcing the systematic opening of the second receive window.
+This problem can be easily mitigated at the NS by checking that the reception power of the packets coming from one ED is not in an interval such that the situation described above can occur (assuming symmetric channel). In such a case, the NS can use the appropriate MAC commands to inform the device that future DL transmissions in RX1 will use a higher SF than that one used in the UL.4
+VI. CONCLUSIONS
+In this article we presented a systematic analysis of the impact of LoRaWAN tuneable parameters on two performance indexes, namely UL-PDR and CPSR, which measure the effectiveness of the technology in collecting data from remote devices, and to support conﬁrmed trafﬁc between devices and a central controller, respectively. First, we observed that, with a standard settings conﬁguration, the presence of conﬁrmed trafﬁc sources can signiﬁcantly degrade the performance of unconﬁrmed trafﬁc, due to the additional interference generated by DL (ACK) transmissions. Considering only conﬁrmed trafﬁc, instead, the most critical factor appeared to be the DC constraint of the GW, which throttles the DL channel that soon becomes the bottleneck of the system in presence of bidirectional ﬂows. More interestingly, we observed that, by slightly changing the ACK procedure (namely, introducing the sub-band swapping and ACK Data Rate mechanisms) and prioritizing reception over transmission at the GW (or, even better, enabling the selective prioritization of some DL transmissions), it is possible to signiﬁcantly improve the system performance in terms of packet delivery ratio, system capacity, energy efﬁciency and fairness, in particular in the presence of mixed trafﬁc sources. Conversely, other system parameters, such as the maximum number of transmission attempts and the number of parallel received paths, appear to be already well conﬁgured and dimensioned. Overall, however, the interplay among the different system’s tuneable knobs is often subtle and difﬁcult to predict, calling for the development of efﬁcient system design/conﬁguration tools.
+4The simulations in this article were performed by setting the ED’s SF based on the ED sensitivities, as to avoid this asymmetry problem.
+
+11
+
+ACKNOWLEDGMENTS
+The authors acknowledge the economical support by the
+POR FESR 2014-2020 Work Program of the Veneto Region
+(Action 1.1.4) through the project No. 10066183 titled “Sis-
+tema domotico IoT integrato ad elevata sicurezza informatica
+per smart building”.
+REFERENCES
+[1] A. Zanella, N. Bui, A. Castellani, L. Vangelista, and M. Zorzi, “Internet of things for smart cities,” IEEE Internet of Things Journal, vol. 1, no. 1, pp. 22–32, 2014.
+[2] D. Bandyopadhyay and J. Sen, “Internet of things: Applications and challenges in technology and standardization,” Wireless Personal Communications, vol. 58, no. 1, pp. 49–69, 2011.
+[3] M. Polese, M. Centenaro, A. Zanella, and M. Zorzi, “M2M massive access in LTE: RACH performance evaluation in a Smart City scenario,” in IEEE International Conference on Communications (ICC), 2016.
+[4] “The Things Network,” available: https://www.thethingsnetwork.org. [5] D. Croce, M. Gucciardo, S. Mangione, G. Santaromita, and I. Tinnirello,
+“Impact of LoRa Imperfect Orthogonality: Analysis of Link-Level Performance,” IEEE Communications Letters, vol. 22, no. 4, pp. 796– 799, 2018. [6] D. Magrin, M. Centenaro, and L. Vangelista, “Performance evaluation of LoRa networks in a smart city scenario,” in IEEE International Conference on Communications (ICC), May 2017. [7] LoRa Alliance, “LoRaWANTM 1.1 Speciﬁcation,” Oct. 2017. [8] J. Petajajarvi, K. Mikhaylov, A. Roivainen, T. Hanninen, and M. Pettissalo, “On the coverage of LPWANs: range evaluation and channel attenuation model for LoRa technology,” in International Conference on ITS Telecommunications (ITST), Dec. 2015. [9] A. J. Wixted, P. Kinnaird, H. Larijani, A. Tait, A. Ahmadinia, and N. Strachan, “Evaluation of LoRa and LoRaWAN for wireless sensor networks,” in IEEE SENSORS, Oct. 2016. [10] M. Bor and U. Roedig, “LoRa Transmission Parameter Selection,” in International Conference on Distributed Computing in Sensor Systems (DCOSS), Jun. 2017. [11] Z. Li, S. Zozor, J.-M. Drossier, N. Varsier, and Q. Lampin, “2D Time-frequency interference modelling using stochastic geometry for performance evaluation in Low-Power Wide-Area Networks,” in IEEE International Conference on Communications (ICC), May 2017. [12] G. Ferre´, “Collision and packet loss analysis in a LoRaWAN network,” in European Signal Processing Conference (EUSIPCO), Aug. 2017. [13] R. B. Sørensen, D. M. Kim, J. J. Nielsen, and P. Popovski, “Analysis of Latency and MAC-layer Performance for Class A LoRaWAN,” IEEE Wireless Communications Letters, vol. 6, no. 5, pp. 566–569, 2017. [14] D. Bankov, E. Khorov, and A. Lyakhov, “Mathematical model of LoRaWAN channel access with capture effect,” in Annual International Symposium on Personal, Indoor, and Mobile Radio Communications (PIMRC), Oct. 2017. [15] M. Capuzzo, D. Magrin, and A. Zanella, “Mathematical Modeling of LoRa WAN Performance with Bi-directional Trafﬁc,” in IEEE Global Communications Conference (GLOBECOM), Dec. 2018. [16] A. I. Pop, U. Raza, P. Kulkarni, and M. Sooriyabandara, “Does Bidirectional Trafﬁc Do More Harm Than Good in LoRaWAN Based LPWA Networks?” in IEEE Global Communications Conference (GLOBECOM), Dec. 2017. [17] F. Van den Abeele, J. Haxhibeqiri, I. Moerman, and J. Hoebeke, “Scalability Analysis of Large-Scale LoRaWAN Networks in ns-3,” IEEE Internet of Things Journal, vol. 4, no. 6, pp. 2186–2198, 2017. [18] B. Reynders, Q. Wang, and S. Pollin, “A LoRaWAN module for ns-3: implementation and evaluation,” in Workshop on ns-3, Jun. 2018. [19] V. Hauser and T. He´gr, “Proposal of Adaptive Data Rate Algorithm for LoRaWAN-Based Infrastructure,” in International Conference on Future Internet of Things and Cloud (FiCloud), Aug. 2017. [20] M. Slabicki, G. Premsankar, and M. Di Francesco, “Adaptive Conﬁguration of LoRa Networks for Dense IoT Deployments,” in 16th IEEE/IFIP Network Operations and Management Symposium (NOMS 2018), Apr. 2018. [21] B. Reynders, W. Meert, and S. Pollin, “Power and spreading factor control in low power wide area networks,” in IEEE International Conference on Communications (ICC), May 2017. [22] N. Kouvelas, V. Rao, and R. V. Prasad, “Employing p-CSMA on a LoRa Network Simulator,” CoRR, vol. abs/1805.12263, 2018. [Online]. Available: http://arxiv.org/abs/1805.12263
+
+[23] D. Zucchetto and A. Zanella, “Uncoordinated Access Schemes for the IoT: Approaches, Regulations, and Performance,” IEEE Communications Magazine, vol. 55, no. 9, pp. 48–54, 2017.
+[24] M. Capuzzo, D. Magrin, and A. Zanella, “Conﬁrmed trafﬁc in LoRaWAN: Pitfalls and countermeasures,” in Annual Mediterranean Ad Hoc Networking Workshop (Med-Hoc-Net), Jun. 2018.
+[25] 3GPP, “Cellular system support for ultra-low complexity and low throughput Internet of Things (CIoT),” 3GPP, Tech. Rep. 45.820 V13.1.0, Nov. 2015.
+

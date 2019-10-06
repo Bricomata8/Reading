@@ -1,0 +1,921 @@
+EXP3 with Drift Detection for the Switching Bandit Problem
+Robin Allesiardo∗†, Raphae¨l Fe´raud∗ ∗Orange Labs, 22300 Lannion, FRANCE †TAO - INRIA, LRI, Universite´ Paris-Sud, CNRS, 91405 Orsay, FRANCE
+
+Abstract—The multi-armed bandit is a model of exploration and exploitation, where one must select, within a ﬁnite set of arms, the one which maximizes the cumulative reward up to the time horizon T . For the adversarial multi-armed bandit problem, where the sequence of rewards is chosen by an oblivious adversary, the notion of best arm during the time horizon is too restrictive for applications such as ad-serving, where the best ad could change during time range. In this paper, we consider a variant of the adversarial multi-armed bandit problem, where the time horizon is divided into unknown time periods within which rewards are drawn from stochastic distributions. During each time period, there is an optimal arm which may be different from the optimal arm at the previous time period. We present an algorithm taking advantage of the constant exploration of EXP3 to detect when the best arm changes. Its analysis shows that on a run divided into N periods where the best √arm changes, the proposed algorithms achieves a regret in O(N T log T ).
+I. INTRODUCTION
+The multi-armed bandit problem is a repeating game where a player chooses one of the K arms (or actions) to play and receives a reward corresponding to the chosen action. In order to ﬁnd the most proﬁtable action, the player needs to explore different choices but also needs to exploit the best action identiﬁed so far in order to maximize her cumulative reward. The quality of the player policy at time horizon T is measured in terms of regret. The regret is the difference between the cumulative rewards of the player and the one that could be acquired by a policy assumed optimal such as “play only the arm with the highest expected reward”.
+In the stochastic formulation, the rewards are generated independently from unknown distributions associated with each arm. The oldest approach, the Thompson Sampling algorithm [1], is based on a Bayesian approach. At each time step, it draws an action by sampling from estimated posterior reward distributions. This policy achieves logarithmic expected regret [2] and is asymptotically optimal [3]. The UCB algorithm [4] computes an upper conﬁdence bound for each arm and plays the arm with the highest upper conﬁdence bound. This elegant and efﬁcient algorithm achieves logarithmic bound uniformly over time which is optimal.
+In the adversarial formulation, the rewards are chosen in advance by an adversary. This setting was studied extensively in the seminal work of Auer et al [5] and Cesa-Bianchi and Lugosi [6]. The most popular algorithms for the adversarial
+Copyright notice: 978-1-4673-8273-1/15/$31.00 2015 European Union
+
+multiarmed bandit problem are fr√om the EXP3 family [5]. EXP3 achieves a regret in O( T ), which is optimal. The switching bandit problem considers breakpoints in the reward sequences chosen in advance by an adversary [7]. Between breakpoints, the rewards are drawn from stochastic distributions. This setting is well suited for applications such as ad-serving (where the apparition of new ads may have a signiﬁcant impact on rewards of others).
+Summary of the Contributions. In order to handle the switching bandit problem, our contribution consists in combining the adversarial bandit algorithm EXP3 with a concept drift detector. This algorithm, called EXP3.R, takes advantage of the exploration factor of EXP3 to evaluate unbiased estimations of the mean rewards. When a change of the best arm is detected, the weights of EXP3 are reset by reinitializing the algorithm. The provided anal√ysis shows that our algorithm achieves a regret bound in O(N T log T ).
+II. PREVIOUS WORKS
+The drawback of EXP3 is that it is built to ﬁnd the best arm on the entire run. The notion of best arm during the time horizon is too restrictive for applications such as ad-serving. To handle this restriction, EXP3.S [5] uses a regularization method on the reward estimators to forget the past and ease arm switches. In addition, the analysis of EXP3.S allows the optimal policy to play N√different arms during the run and shows a regret bound in O( N T log T ). In DISCOUNTEDUCB [8], a discount factor γ is used to adapt UCB algorithm to the switching bandit problem. The use of a sliding windows to compute the index of UCB is another reasonable approach for this problem. These two adaptations of UC√B were analyzed in [7]. They achieve a regret bound in O( M T log T ), where M −1 is the number of distribution changes. To achieve such bounds, parameters of the algorithms have to be tu√ned with the knowledge of N or M . The lower bound of Ω( T ) for the switching bandit problem has been demonstrated in [7] an√d previously described algorithms match it up to a factor of log T . Another approach proposed for the scratch games problem is to reset EXP3 at each birth or death of arms [9]. The extension of this approach to any arbitrary arm switch of the optimal policy necessitates to know when abrupt changes occur.
+
+The change point detection has been intensively studied [10] for various applications including spam detection, fraud detection, meteorology, or ﬁnance. The monitored concept depends on the application. For instance, in online classiﬁcation, the variations of the performance of the model are often used to detect a concept drift: in [11], the authors assume that an error of classiﬁcation is a Bernoulli random variable to detect changes and in [12] the performance of the model on the training set and on a validation set is used to detect the drift. To deal with the partial information nature of the bandit problem, in META-EVE [13] the mean reward of the estimated best action is monitored. Page-Hinkley statistics are used to test if the time serie of means rewards of the best action can be attributed to a single statistical law or not. The drawback of this approach is that it does not handle the case of a suboptimal action becoming the best action. Conﬁdence intervals are used in [14] to detect changes in the mean reward of each action. This algorithm achieves a regret bound in O(N log T ) where N − 1 is the number of changes during the run. This bound is obtained by the use of “side observations”, i.e. information on the rewards of unplayed arms acquired with no impact on the regret. The Kullback-Leiber divergence can also be used as a drift detector [15], [16].
+
+III. OPTIMAL POLICY AND CUMULATIVE REGRET
+
+Setting. Following SW-UCB [7], we deﬁne the switching bandit problem as a set of K possible actions, where 1 ≤ k ≤ K is the index of each action, and a sequence of T reward vectors x(t) = (x1(t), ..., xK (t)) ∈ {0, 1}K . Each reward xk(t) is drawn from a Bernoulli distribution of mean µk(t). The M − 1 time steps where ∃k, µ(t)k = µk(t + 1)
+are called breakpoints. An adversary chooses the time steps
+when the breakpoints occur and then he draws the sequences of rewards. The action played at time t is denoted k(t). The goal of an algorithm A is to maximize the cumulative gain at time horizon T deﬁned by:
+
+T
+
+GA = xk(t)(t) .
+
+(1)
+
+t=1
+
+The optimal policy. The sequence of reward vectors is divided
+
+into N ≤ M sequences called segments. S is the index of the
+
+segment including the rounds [TS, TS+1). A segment S begins
+
+when arg max µk(TS) = arg max µk(TS − 1). The optimal
+
+arm
+
+on
+
+k
+the
+
+segment
+
+S
+
+is
+
+k
+denoted
+
+kS∗ ,
+
+where:
+
+TS +1 −1
+
+kS∗ = arg max
+
+µk(t) .
+
+(2)
+
+k
+
+t=TS
+
+The gain of the optimal policy up to time T is denoted G∗ and deﬁned by:
+
+N TS+1−1
+
+G∗ =
+
+xkS∗ (t) .
+
+(3)
+
+S=1 t=TS
+
+The cumulative regret of an algorithm A measured against this optimal policy is:
+
+R(A) = G∗ − GA .
+
+(4)
+
+Notice that
+
+N
+
+TS +1 −1
+
+G∗ ≤ max
+
+xk(t) ,
+
+(5)
+
+k
+
+S=1
+
+t=TS
+
+i.e. after the drawing by the adversary, the reward sequence of any arm might be greater than the sequence of the arm with the highest mean reward.
+
+IV. ALGORITHM
+While other algorithms use a passive approach through forgetting the past [5], [8], [7], we propose an active strategy, which consists in resetting the reward estimations when a change of the best arm is detected. First, we describe the adversarial bandit algorithm EXP3 [5], which will be used by the proposed algorithm EXP3.R between detections. We then describe the drift detector used to detect changes of the best arm. Finally, we combine the both to obtain the EXP3.R algorithm.
+
+Algorithm 1 EXP3 The parameter γ ∈ [0, 1] controls the exploration and the probability to choose an action k at round t is:
+
+pk(t) = (1 − γ)
+
+wk (t)
+
+k i=1
+
+wi
+
+(t)
+
++
+
+γ K
+
+.
+
+(6)
+
+The weight wk(t) of each action k is:
+
+
+
+
+
+γ wk(t) = exp  K
+
+t j=tr
+
+xk (j ) pk (j )
+
+k = k(j)
+
+,
+
+(7)
+
+where tr is the time steps of initialization or reset.
+
+The EXP3 algorithm (see Algorithm 1) minimizes the regret against the best arm using an unbiased estimation of the cumulative reward at time t for computing the choice probabilities of each action. While this policy can be viewed as optimal in an actual adversarial setting, in many practical cases the non-stationarity within a time period exists but is weak and is only noticeable between different periods. If an arm performs well in a long time period but is extremely bad on the next period, the EXP3 algorithm may require a number of trial equal to the ﬁrst period’s length to switch his most played arm.
+
+Coupled with a detection test, the EXP3 algorithm has several good properties. First in a non-stationary environment, we need a constant exploration to detect changes where a sub-optimal arm becomes optimal and this exploration is naturally given by the algorithm. Second, the number of breakpoints is higher than the number of best arm changes (M ≥ N ). This means that the number of resets required by
+
+weights of EXP3 are reset (by setting tr = t in Algorithm 1). Then a new interval of collect begins, preparing the next test. These steps are repeated until the run ends (see Algorithm 3).
+
+Fig. 1. Three drifts occur on this game but the optimal arm changes only one time. Here, M = 3 and N = 2.
+
+Algorithm 3 EXP3 with Resets
+
+Parameters: Reals δ, γ and Integer H
+
+I =1
+
+for each t = 1, ..., T do
+
+Run EXP3 on time step t
+
+if
+
+Γmin(I) ≥
+
+γH K
+
+then
+
+if Drif tDetection(I) then
+
+Reset EXP3
+
+end if
+
+I =I+1
+
+end if
+
+end for
+
+an adversarial algorithm is lower than the one required by a stochastic bandit algorithm such as UCB. EXP3 can handle sequences where the reward distributions of arm change but the best arm remains the same. Hence, we will reset the algorithm only when the best arm changes (see Figure 1). Third, due to its adversarial nature, EXP3 is robust against test failures (non detection) or local non-stationarity.
+
+The detection test (see Algorithm 2) uses conﬁdence
+
+intervals to estimate the expected reward in the previous
+
+time period. The action distribution in EXP3 is a mixture
+
+of uniform and Gibbs distributions. We call γ-observation an
+
+observation selected though the uniform distribution. Parame-
+
+ters γ, H and δ induce the minimal number of γ-observations
+
+by arm required to call a test of accuracy 2 with a probability
+
+1 − δ. They will be ﬁxed in the analysis (see Corollary 1) and the test validity is proved in Lemma 1. We denote µˆk(I) the
+
+empirical mean of the rewards acquired from the arm k on the
+
+interval I using only γ-observations and Γmin(I) the smallest
+
+number of γ-observations among each action on the interval I.
+
+The
+
+detector
+
+is
+
+called
+
+only
+
+when
+
+Γmin (I )
+
+≥
+
+γH K
+
+.
+
+The
+
+detector
+
+raises a detection when the upper conﬁdence bound of the
+
+mean of action kmax with the highest probability pk(t) (see
+
+Algorithm 1) is smaller than the lower conﬁdence bound of
+
+the mean of another action on the current interval.
+
+With an accuracy , only differences higher than 4 can be detected with high probability. We follow [14] and use Assumption 1 to ensure all changes of the best arm are detected with high probability.
+
+Assumption 1: During each of the M stationary periods, the difference between the mean reward of the optimal arm and any other is at least 4 with
+
+=
+
+K
+
+log(
+
+1 δ
+
+)
+
+.
+
+(8)
+
+2γH
+
+A. Analysis
+In this section we analyze the drift detector and then we bound the expected regret of the EXP3.R algorithm.
+Lemma 1 guarantees that when Assumption 1 holds and the interval I is included into the interval S then, with high probability, the test will raise a detection if and only if the optimal action kS∗ eliminates a sub-optimal action.
+
+Lemma 1: When Assumption 1 hold and I ⊆ S, then, with a probability at least 1 − 2δ, for any k = kS∗ :
+
+µˆkS∗ (I) − µˆk(I) ≥ 2
+
+K
+
+log(
+
+1 δ
+
+)
+
+⇔
+
+µkS∗ (I)
+
+≥
+
+µk(I) .
+
+(9)
+
+2γH
+
+Algorithm 2 DriftDetection()
+
+Parameters: Current interval I
+
+kmax = arg max pk(t)
+
+k
+
+=
+
+K
+
+log(
+
+1 δ
+
+)
+
+2γH
+
+return ∃k, µˆk(I) − µˆkmax (I) ≥ 2
+
+The EXP3.R algorithm is obtained by combining EXP3
+
+and the drift detector. First, one instance of EXP3 is initialized
+
+and used to select actions. The detection test is called when
+
+Γmin (I )
+
+≥
+
+γH K
+
+.
+
+If
+
+in
+
+the
+
+corresponding
+
+interval,
+
+the
+
+empirical
+
+mean of an arm exceeds by 2 the empirical mean of the
+
+current best arm then a drift detection is raised. In this case,
+
+Proof 1: We justify our detection test by considering an
+observation of a reward through γ-exploration as a drawing
+in an urn without replacement. More speciﬁcally, when all the
+necessary observations are collected, the detection test proce-
+dure is called. During the interval, rewards were drawn from 1 ≤ m ≤ M different distributions of mean µk0(I), ..., µkm(I). We denote ti the steps where the mean reward starts being µki (I) and tm+1 the time step of the call. When the test is called, all xk(t) have a probability (ti+1 − ti)/(tm+1 − t0) to be drawn from the distribution of mean µki (I). The mean µk(I) of the urn corresponding to the action k is:
+
+µk (I )
+
+=
+
+m i=1
+
+ti+1 tm+1
+
+− −
+
+ti t0
+
+µki
+
+(I
+
+)
+
+.
+
+(10)
+
+At each time step, by Assumption 1, the mean reward of the best arm is away by 4 from any suboptimal arms. Consequently, the difference between the mean reward of the urn of the optimal arm k∗ and that of another arm k is at least 4 if the best arm does not change during the interval.
+
+µk (I )
+
+≤
+
+m i=1
+
+ti+1 tm+1
+
+− −
+
+ti t0
+
+(µikS∗
+
+−4
+
+)
+
+≤
+
+µkS∗ (I) − 4
+
+.
+
+(11)
+
+The following arguments prove the equivalence between the detection and the optimality of kS∗ with high probability.
+Applying the Serﬂing inequality [17], we have:
+
+−2n 2
+
+P (µˆk(I) +
+
+≥
+
+µk (I )))
+
+≤
+
+e 1−
+
+n−1 U
+
+≤ e−2n 2 ,
+
+(12)
+
+the gain of our optimal policy is upper bounded by the gain the
+
+EXP3 optimal policy. Summing over each periods we obtain
+
+(e
+
+−
+
+1)γT
+
++
+
+(N −1+F (T ))K γ
+
+log K .
+
+The regret also include the delay between a best arm change
+
+and its detection. To evaluate the expected size of the inter-
+
+vals between each call of the detection test, we consider a
+
+hypothetical algorithm that collects only the observations of
+
+one arm and then proceeds on the next arm until collecting
+
+all the observations. The γ-observation are drawn with a
+
+probability
+
+γ K
+
+and
+
+γH K
+
+observations
+
+are required per action.
+
+The expectation of the number of failures before collecting
+
+γH K
+
+γ-observations
+
+follows
+
+a
+
+negative
+
+binomial
+
+distribution
+
+of
+
+expectation
+
+where n
+
+=
+
+γH K
+
+is the number of observation and U
+
+the
+
+size of the urn. We denote P (µˆk(I) + ≥ µk(I))) as
+
+δ. Using Assumption 1 and the union bound, we have µˆk(I) + ≥ µk(I) and µˆkS∗ (I) − ≤ µkS∗ (I) with probability at least 1 − 2δ. As consequence, if µˆkS∗ (I) − µˆk(I) ≥ 2 then with high probability µk∗ (I) ≥ µk(I). The detection
+
+test uses the upper bound of the conﬁdence interval for the
+
+current best arm and the lower bound for the candidate arm.
+
+When both hold, in the worst case, the estimators are away
+
+from the true mean each by , then the detector test add the
+
+two conﬁdence intervals of . The equation (11) ensures that
+
+all changes of the best arm are detected.
+
+Theorem 1 bounds the expected cumulative regret of EXP3.R.
+
+Theorem
+
+1:
+
+For
+
+any
+
+K
+
+>
+
+0,
+
+0
+
+<
+
+γ
+
+≤
+
+1,
+
+0
+
+≤
+
+δ
+
+<
+
+1 2
+
+,
+
+H
+
+≥
+
+K
+
+and N ≥ 1 when Assumption 1 holds, the expected regret of
+
+EXP3.R is
+
+G∗ − E[GEXP3.R] ≤ (e − 1)γT
+
++
+
+N
+
+−1+
+
+KδT H
+
++ Kδ
+
+K log(K)
+
+γ
+
+1
+
++ (N − 1)HK
+
++ 1 . (13)
+
+1 − 2δ
+
+γH
+
+γK
+
+γH
+
+(1 − ) = H − .
+
+(15)
+
+K
+
+Kγ
+
+K
+
+The expectation of the number of steps at the end of the collect is the number of success plus the expected number of failures:
+
+γH
+
+γH
+
++H− =H.
+
+(16)
+
+K
+
+K
+
+Summing over all arms gives a total expectation of HK. Because our algorithm collects γ-observations from any arm at any step, on a same sequence of drawings, our algorithm will collect the required observations before the hypothetical algorithm. By consequence, the expectation of the time between each query of the detection test is upper bounded by HK and lower bounded by H, the expected time of collect for one arm. There are N − 1 best action changes and the detections occur at most L(T ) HK time steps after the drifts. Finally, there are also at most N − 1 intervals where the optimal arm switches. In these intervals we do not have any guarantee on the test behavior due to this change. In the worst case, the test does not detect the drift and we set the instantaneous regret to 1.
+
+Proof 2: First we obtain the main structure of the bound. In
+
+the following, L(T ) denotes the expected number of intervals
+
+after a best action change occurs before detection and F (T )
+
+denotes the expected number of false detections up to time T .
+
+Using the same arguments as [14] we deduce the form of the
+
+bound with drift detector from the classical EXP3 bound. If
+
+there is N − 1 changes of best arm. Therefore, the expectation
+
+of the number of resets over a horizon T is upper bounded
+
+by N − 1 + F (T ). The regret of EXP3 on these periods is
+
+(e − 1)γT
+
++
+
+K log K γ
+
+[5].
+
+While
+
+our
+
+optimal
+
+policy
+
+plays
+
+the
+
+arm with the highest mean, the optimal policy of EXP3 plays
+
+the arm associated with the actual highest cumulative reward.
+
+As
+
+TS +1 −1
+
+TS +1 −1
+
+xkS∗ (t) ≤ mkax
+
+xk(t) ,
+
+(14)
+
+t=TS
+
+t=TS
+
+G∗ − E[GEXP3.R]) ≤ (e − 1)γT
+
+(N − 1 + F (T ))K log K
+
++
+
++ (N − 1)HK( L(T ) + 1) .
+
+γ
+
+(17)
+
+We now bound F (T ) and L(T ). As detection tests are
+
+computed with observations obtained on different intervals,
+
+their results are independent. Conﬁdence intervals hold with
+
+probability at least 1 − δ and they are used K times at each
+
+detection test. The maximal number of call of the test up to
+
+time
+
+horizon
+
+T
+
+is
+
+T H
+
++ 1.
+
+Using
+
+the
+
+union
+
+bound
+
+we
+
+deduce
+
+F (T )
+
+≤
+
+K
+
+δ(
+
+T H
+
++ 1).
+
+L(T )
+
+is
+
+the
+
+ﬁrst
+
+occurrence
+
+of
+
+the
+
+event DETECTION after a drift. When a drift occurs, Lemma 1
+
+ensures the detection happens with a probability at least 1−2δ.
+
+We
+
+have
+
+L(T )
+
+≤
+
+1 1−2δ
+
+.
+
+G∗ − E[GEXP3.R] ≤ (e − 1)γT
+
++
+
+N
+
+−1+
+
+KδT H
+
++ Kδ
+
+K log K
+
+γ
+
+1
+
++ (N − 1)HK
+
++ 1 . (18)
+
+1 − 2δ
+
+In Corollary 1 we optimize parameters of the bound obtained in Theorem 1.
+
+Corollary 1: For any K ≥ 1, T ≥ 10, N ≥ 1 and C ≥ 1 when Assumption 1 holds, the expected regret of EXP3.R run with input parameters
+
+δ= is
+
+log T ,γ =
+KT
+
+K log K log T and H = C T log T
+T (19)
+
+G∗ − E[GEXP3.R]) ≤ (e − 1) T K log K log T + N T K log K + (C + 1)K T log K + 3N CK T log T . (20)
+
+Accordingly to C, the precision is:
+
+1
+
+log
+
+KT log T
+
+K
+
+=
+
+.
+
+(21)
+
+2C log T log K
+
+Notice that, when T increases, towards a constant.
+
+log
+
+KT log T
+
+log T
+
+K log K
+
+tends
+
+Proof 3: We set δ = Theorem 1
+
+log T KT
+
+and H
+
+=
+
+√ C T log T
+
+in
+
+G∗ − E[GEXP3.R] ≤ (e − 1)γT √ (N − 1 + (C + 1) K)K log K
++ γ
++ 3(N − 1)CK T log T . (22)
+
+Finally, setting γ =
+
+K log K log T T
+
+we obtain:
+
+G∗ − E[GEXP3.R] ≤ (e − 1) T K log K log T + N T K log K + (C + 1)K T log K + 3N CK T log T . (23)
+
+B. Discussion. √
+The obtained bound of O√(N T log T ) matches the lower bound up to a factor of log T . In comparison, the cumulative regrets of SW√-UCB and EXP3.S√are respectively upper bounded by O( M T log T ) and O( N T log T ). To reach these bounds, the knowledge of the maximal number o√f changes is necessar√y, otherwise the bounds become O(M T log T ) and O(N T log T ). In practical uses, algorithms are deployed during long periods, N is small and H T.
+V. SIMULATIONS We consider two problems which are composed of 108 round with a choice of 20 arms. During these experimentations, EXP3.R is compared with ﬁve algorithms (Figure I) and the cumulative regret is averaged over 100 independent runs. Parameters of the different algorithms are shown in Table 1. They are tuned on the ﬁrst problem. On the two following problems, an index deﬁnes the optimal arm and will be incremented at ﬁxed time-steps. The ﬁrst problem considers constant arms. These arms are called constant because their mean rewards never change. The behavior of these constant arms is not in favor of META-EVE. When a constant arm is optimal, the UCB used as a sub-routine by META-EVE will quickly converge on this arm and may not see changes when the optimal index will be incremented. On the second problem, mean rewards of all the arms will change frequently, even when the index of the optimal arm is not incremented, illustrating a case where M is much higher than N .
+Problem 1. One arm in three has a mean reward of 0.7, including the ﬁrst arm and are called constant arms. An index, deﬁning the optimal arm, is initialized on a constant arm and is incremented all 2 × 107 rounds. The mean reward of the optimal arm stays 0.7 if the index is on a constant arm but else become 0.8. Other arms have 0.2 as mean reward.
+Unsurprisingly EXP3 and UCB, not built for arm switch, achieve a high regret. META-EVE is competitive but suffers from arms with mean rewards of 0.7. When such arm is optimal, because the algorithm does not explore, the detection test may not see the drift. Variance of this algorithm on this simulation is very high (see Table I). The runs where the drift is detected obtains a low regret and runs where the drift is unseen obtain a high regret. Behaviors of EXP3.S and EXP3.R on this problem are very similar, but the discount factor of EXP3.S hinders the convergence conducting to an higher regret. Finally, SW-UCB achieves the lowest cumulative regret than EXP3.R taking advantage of the long periods of stationarity.
+Problem 2. An index, deﬁning the optimal arm, is initialized on a random arm and is incremented all 2 × 107 rounds. The reward of the optimal arm changes all 105 rounds following this cycle: 0.6, 0.8 then 0.5. Thus, within the periods of lenght 2×107 the optimal arm never changes, even if its mean reward
+
+Algorithm EXP3 EXP3.S
+EXP3.R
+UCB SW-UCB
+Meta-Eve
+
+Parameter γ γ α γ δ H ∅ W δ λ α β
+
+Value 10−2 10−2 2 × 10−5 10−2 10−3 3 × 105
+∅ 8 × 105 10−3
+100 1 + 10−2 1 − 10−2
+
+Problem 1 6.1 × 106 ± 105 8.8 × 105 ± 104
+7.1 × 105 ± 105
+4.8 × 106 ± 106 2.2 × 105 ± 104
+1.3 × 106 ± 8 × 105
+
+Problem 2 8 × 106 ± 104 3.5 × 105 ± 5 × 104
+2.9 × 105 ± 105
+7.2 × 106 ± 106 3.5 × 106 ± 105
+1.1 × 106 ± 9.5 × 105
+
+TABLE I DIFFERENT ALGORITHMS TESTED WITH EXP3.R AND THEIR CUMULATIVE REGRET ON TWO PROBLEMS. THE CUMULATIVE REGRET IS AVERAGED OVER
+100 INDEPENDENT RUNS.
+
+Fig. 2. Cumulative regret over the time of different algorithms on Problem Fig. 3. Cumulative regret over the time of different algorithms on Problem
+
+1.
+
+2.
+
+changes during time. Suboptimal arms have as reward 0.1 less than the optimal arm.
+EXP3 and UCB achieve a high regret like in the previous experiment. The variance of META-EVE is still very high and constant drifts without changes of best arm prevent the tuning of λ. EXP3.S is still close to EXP3.R but is penalized even more on this problem by the discount factor. Thanks to its active strategy, EXP3.R achieves a low regret during intervals with no change of optimal arm. Finally, the recurrent drifts prevent totally the SW-UCB algorithm to converge.
+
+META-EVE. Parameters like discount factors or windows are hard to tune if the non-stationarity is aperiodic. When changes are close, algorithms need to forget the past quickly but when changes are faraway they would beneﬁt from a larger memory. The advantage of an active strategy is to allow the algorithm to converge on stationary periods and to reset the algorithm only when a change is detected.
+VI. CONCLUSION
+
+Non-stationarity introduces another exploration/exploitation dilemma. In addition to ﬁnd the best arm, algorithms must be able to cope with changes in reward distributions. In some cases, a low regret within stationary periods may become a handicap and prevent the detection of changes in suboptimal reward distributions, like in META-EVE. As demonstrated in [7] the regret in the non-s√tationary multi-armed bandit problem is lower bounded by T . Thereby, all algorithms showing a lesser upper bound on the stationary case may be tricked by certain kinds of drift, showed on Problem 2 with
+
+The p√roposed algorithm, EXP3.R achieving a regret bound in O(N T log T ). EXP3.R is also competitive with other state-of-the art algorithms, simulations showing promising results. The adversarial nature of EXP3 makes it robust to non-stationarity and the detection test accelerates the switch when the optimal arm changes while allowing convergence of the bandit algorithm during stationary periods. Further works may be concerned with the use of this algorithm as a meta-bandit [18] for tuning parameters and managing set of contextual bandit algorithms in a non-stationary environment.
+
+REFERENCES
+[1] Thompson, W.: On the likelihood that one unknown probability exceeds another in view of the evidence of two samples. Biometrika 25 (1933) 285–294
+[2] Agrawal, S., Goyal, N.: Analysis of thompson sampling for the multiarmed bandit problem. In: Proceedings of the 25th Annual Conference on Learning Theory (COLT). (June 2012)
+[3] Kaufmann, E., Korda, N., Munos, R.: Thompson sampling: An asymptotically optimal ﬁnite-time analysis. In Bshouty, N., Stoltz, G., Vayatis, N., Zeugmann, T., eds.: Algorithmic Learning Theory. Volume 7568 of Lecture Notes in Computer Science., Springer Berlin Heidelberg (2012) 199–213
+[4] Auer, P., Cesa-Bianchi, N., Fischer, P.: Finite-time analysis of the multiarmed bandit problem. Machine Learning 47(2-3) (2002) 235–256
+[5] Auer, P., Cesa-Bianchi, N., Freund, Y., Schapire, R.E.: The nonstochastic multiarmed bandit problem. SIAM J. Comput. 32(1) (2002) 48–77
+[6] Cesa-Bianchi, N., Lugosi, G.: Prediction, Learning, and Games. Cambridge University Press, New York, NY, USA (2006)
+[7] Garivier, A., Moulines, E.: On upper-conﬁdence bound policies for nonstationary bandit problems. In: Algorithmic Learning Theory. (2011) 174–188
+[8] Kocsis, L., Szepesva´ri, C.: Discounted ucb. In: 2nd PASCAL Challenges Workshop, Venice, Italy (April 2006)
+[9] Feraud, R., Urvoy, T.: Exploration and exploitation of scratch games. Machine Learning 92(2-3) (2013) 377–401
+[10] Hoens, T., Polikar, R., Chawla, N.: Learning from streaming data with concept drift and imbalance: an overview. Progress in Artiﬁcial Intelligence 1(1) (2012) 89–101
+[11] Gama, J., Medas, P., Castillo, G., Rodrigues, P.: Learning with drift detection. In Bazzan, A., Labidi, S., eds.: Advances in Artiﬁcial Intelligence SBIA 2004. Volume 3171 of Lecture Notes in Computer Science. Springer Berlin Heidelberg (2004) 286–295
+[12] Last, M.: Online classiﬁcation of nonstationary data streams. Intell. Data Anal. 6(2) (April 2002) 129–147
+[13] Hartland, C., Baskiotis, N., Gelly, S., Teytaud, O., Sebag, M.: Multiarmed bandit, dynamic environments and meta-bandits. In: Online Trading of Exploration and Exploitation Workshop, NIPS, Whistler, Canada (December 2006)
+[14] Yu, J.Y., Mannor, S.: Piecewise-stationary bandit problems with side observations. In: Proceedings of the 26th Annual International Conference on Machine Learning. ICML ’09, New York, NY, USA, ACM (2009) 1177–1184
+[15] Y. Yao, L.F., Chen, F.: Concept drift visualization. Journal of Information and Computational Science 10(10) (2013)
+[16] Borchani, H., Larraaga, P., Bielza, C.: Mining concept-drifting data streams containing labeled and unlabeled instances. In Garca-Pedrajas, N., Herrera, F., Fyfe, C., Bentez, J., Ali, M., eds.: Trends in Applied Intelligent Systems. Volume 6096 of Lecture Notes in Computer Science. Springer Berlin Heidelberg (2010) 531–540
+[17] Serﬂing, R.: Probability inequalities for the sum in sampling without replacement. In: The Annals of Statistics, Vol 2, No.1, pages = 39–48, year = 1974,
+[18] Allesiardo, R., Feraud, R., Bouneffouf, D.: A neural networks committee for the contextual bandit problem. In: Neural Information Processing - 21st International Conference, ICONIP 2014, Kuching, Malaysia, November 3-6, 2014. Proceedings, Part I. (2014) 374–381
+
+

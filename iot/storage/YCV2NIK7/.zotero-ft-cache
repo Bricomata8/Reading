@@ -1,0 +1,1479 @@
+Low-cost LoRa gateway: a step-by-step tutorial
+Prof. Congduc Pham
+http://www.univ-pau.fr/~cpham Université de Pau, France
+
+Contents
+q This tutorial targets user who want to better understand the architecture of the low-cost LoRa gateway. The device part will be shown in a separate tutorial
+q The hardware platform is a Raspberry PI. RPI 1B/B+, 2B and 3B have been successfully tested
+q For end-users, the tutorial on the web admin interface is more adapted
+q It is also necessary to read information from
+q https://github.com/CongducPham/LowCostLoRaGw q https://github.com/CongducPham/LowCostLoRaGw/tree/m
+aster/gw_full_latest
+q As there are many issues that are not described here q Let’s get started…
+2
+
+Assembling the hardware
+3
+
+Get the Raspberry
+You can use RaspberryPI 1 model B or B+, RaspberryPI 2 model B, RaspberryPI 3 model B and RaspberryPI Zero (W). The most important usefull feature is the Ethernet interface for easy Internet connection. You can add WiFi with a WiFi USB dongle to use access-point features. With the RPI3 & RPI0W, WiFi and Bluetooth are embedded on the board.
+4
+
+CS GND
+
+Now the radio module (1)
+If you go for the inAir (9,9B,4) from Modtronix, the header pins can come fully assembled. Take the 6mm header pins to have enough length to connect F/F breadboard cables (left). Connect the SPI pins with the F/F cables. Try to use different colors. I use the following colors: MOSI (blue), MISO (green), CS (white), CLK (orange). Then connect also the VCC (red) and the GND (black or any other dark color) of the radio board.
+5
+
+MOSI MISO CLK VCC
+
+Now the radio module (2)
+
+MISO MOSI CLK CS
+
+GND VCC
+
+If you take the HopeRF RFM 92W/95W you may need the adaptor breakout and to go though some delicate but simple soldering tasks! It is not difficult but you have to trained a bit before! Then, like for the inAir9, use F/F breadboard cable to connect the SPI pins, using different colors as explained previously.
+
+Another breakout from Tindie https://www.tindie.com/products/leon ahi/rfm95-lora-breakout-board/
+
+Another breakout from
+
+https://github.com/ccadic/RFM95LORA_Breadboard
+
+6
+
+CS GND
+
+Connecting the radio module (1)
+Depending on the model, you can have the « short » or the « long » GPIO interface. However, the SPI pins are at the same location therefore it does not change the way you connect the radio module if you take pin 1 as the reference. Connect the SPI pins (MOSI, MISO, CLK, CS) of the radio to the corresponding pins on the RPI. Note that CS goes to CE0_N on the RPI.
+7
+
+MOSI MISO CLK VCC
+
+Connecting the radio module (2)
+It is strongly advised to also connect the RESET pin (RT) to the RPI's #11 pin (GPIO17)
+8
+
+RT CS GND
+
+MOSI MISO CLK VCC
+
+Freely available RFM95W breakout
+q We also propose a very simple RFM95W breakout that can be used for gateway and end-device
+
+q The zipped Gerber archive can be
+
+freely downloaded from
+
+https://github.com/CongducPham/LowCostLoRaGw
+
+9
+
+The WaziHat PCB
+q WAZIUP has also a simple RFM95W breakout for the gateway
+q Contact A. Rahim (arahim"at"fbk.eu) for more information
+The short WAZIHAT version can be used for end-device as well
+10
+
+The LoRasPI hat
+q The LoRasPI hat from https://github.com/hallard/LoRasPI
+11
+
+Put it in a box (1)
+You can have a more integrated version, with a box for outdoor usage and PoE splitter to power the Raspberry with the Ethernet cable. See how we also use a DC-DC converter to get the 5V for the RPI.
+12
+
+Put it in a box (2)
+A simple, cheap and funny box is also very suitable for an indoor gateway. Actually, indoor deployment is probably the best option with an outdoor antenna as it will be shown in next slides.
+13
+
+Antennas for gateway
+q Antennas for gateways can be placed on a building, at a high location.
+q You can easily use ground plane or dipole antennas (e.g. sleeve dipole). More complex high gain antenna or a directional Yagi antenna can be purchased depending on your budget and whether the deployment allows it.
+14
+
+using a cable antenna
+q Using an extension coaxial cable between the antenna and the radio module greatly ease the deployment of the gateway but:
+q Take a good quality cable (e.g. RG58 minimum) to limit attenuation
+q The antenna cable should not be too long to avoid high attenuation: 2m-5m
+q A simple ¼ wave monopole antenna WILL NOT provide good performance, TAKE a sleeve dipole if you need something compact
+Look at the antenna cable tutorial for instructions on how to build your own cable (with adequate connectors) at the correct length.
+15
+
+Antenna with a coaxial cable
+q At the end of a coaxial cable, it is possible to connect a ground plane antenna (usually ¼ wave) or a ½ wave dipole antenna.
+
+Ground plane Sleeve dipole
+
+Simple dipole
+
+More complex: collinear, array,…
+
+q Some of them are easy to build (ground plane
+
+and simple dipole) and there are many tutorials.
+
+16
+
+Simple ½ wave dipole antenna
+q A very simple dipole can be made with 2 pieces of ¼ wave wires. ¼ wave in 868MHz is about 8.2cm.
+q There is no balun here but it is still better than the ¼ wave monople if a coaxial cable is used
+q You can buy a 3m RG58 cable (SMA-m to SMA-f for instance), keep the male side, cut the female side and solder the core conductor and the braid as shown. 17
+
+Simple ¼ wave ground plane antenna
+q The ground plane antenna can be made with 5 pieces of ¼ wave wires. ¼ wave in 868MHz is about 8.2cm.
+q You can buy a 3m-5m RG58 cable with an SMA-male at one end and a male N-connector at the other end. Or build your own cable. 18
+
+Even simpler ¼ wave ground plane antenna
+q With an existing SMA-m/SMA-f cable, you can also build a ground plane antenna by adding 4 radiant wires to the ¼ wave monopole.
+q This is a cheaper solution for sensing devices
+19
+
+Dipole and ground plane
+20
+
+Getting, compiling & installing the software
+21
+
+Flashing the OS
+http://cpham.perso.univ-pau.fr/LORA/WAZIUP/raspberrypi-jessie-WAZIUP-demo.dmg.zip
+q An SD card image with a Raspberry Raspbian Jessie version is provided.
+q You will need an 8GB SD card. Be careful, some SD cards will not work. This one has been successfully tested. It has to be class 10.
+q Look at https://www.raspberrypi.org/documentation/inst allation/installing-images/ to see the procedure depending on your OS. 7948206080 bytes should be written, otherwise you may have a problem.
+q Once flashed, insert the SD card and power-up the Raspberry-based gateway.
+22
+
+Gateway web admin interface (1)
+q A gateway web admin interface has been added to the latest version
+q Note that the SD card image includes the web admin interface installed, so you may skip the installation procedure (but it is strongly advised to update)
+q To install the web admin interface, check if you have the gw_web_admin folder in your lora_gateway folder
+q If you don't, then update to the latest version q Then, go into gw_web_admin and run install.sh
+q cd gw_web_admin q sudo ./install.sh
+q Web admin interface tutorial:
+https://github.com/CongducPham/tutorials/blob/master/ Low-cost-LoRa-GW-web-admin.pdf
+23
+
+Gateway web admin interface (2)
+q http://192.168.200.1/admin
+q Login: admin q Password: loragateway
+24
+
+Web admin features
+
+q Currently, you can use the web admin to:
+
+q Update your gateway with the latest github version while preserving your configuration files
+
+q Perform the basic configuration procedure
+
+q Configure the gateway as WiFi client to connect to a WiFi network
+
+q Test Internet connectivity
+
+q Easily reboot and shutdown your gateway
+
+• Be carefull, if you shut down the gateway, you need to physically access the gateway to power it it on again
+
+q Change LoRa mode and frequency
+
+q Set your gateway id and configure alerting system (mail, SMS)
+
+q Change the WiFi SSID and password
+
+q Enable/Disable local AES decryption
+
+q Enable/Disable some selected clouds such as WAZIUP and ThingSpeak
+
+q For ThingSpeak, you can specify a new write key
+
+q For WAZIUP, you can specify the project name, the organization
+
+name, the service tree, the user name,…
+
+25
+
+Gateway update
+q The gateway must be updated to the latest version
+q Internet access for the gateway is necessary q The update procedure can easily be done with
+the web admin interface, connect to the gateway WiFi first q The update steps are
+1. Full Update 2. Basic Config 3. Update Web Interface
+q We recommend using the web interface for updates
+26
+
+Gateway update page
+
+q Gateway update section
+Can download and install a file in the lora_gateway folder. A link to a file should be provided, e.g. a Dropbox link
+
+Update the web admin interface after an update of the distribution to install the last version of the web admin interface.
+It is recommended to run UUppddaatteewweebbaaddmminin right after FFuullluuppddaattee or NNeewwiinnssttaalllaattiioonn. Then reload the page.
+3
+
+Install a new gateway by removing the existing lora_gateway folder, all existing configuration files will be overwritten.
+If you install a new gateway with our SD card image, you can use this option.
+
+1
+Update with latest version on github, all your configuration files will be kept. This is the recommended option.
+
+2
+Compile and configure the gateway (to set the gateway id & the WiFi access point SSID). This is also required if you install a new gateway using the provided SD card image. It is recommended to run BBaassicicccoonnffigig right after Full update or NNeewwininsstatallalatitoionn.
+27
+
+Software version number
+q The software version number on github and the installed version number are displayed
+q Click on to obtain the latest software version number on github
+28
+
+Manual new install of gateway directly from github
+
+The software should be installed in a lora_gateway folder. Delete any previous folder.
+
+> rm -rf lora_gateway
+
+then
+
+> mkdir lora_gateway
+
+> git clone https://github.com/CongducPham/LowCostLoRaGw.git
+
+> cp -r LowCostLoRaGw/gw_full_latest/* lora_gateway/
+
+or
+
+> svn checkout https://github.com/CongducPham/LowCostLoRaGw/trunk/gw_full_latest lora_gateway
+
+29
+
+Manually compiling the GW software
+> cd lora_gateway > make lora_gateway g++ -DRASPBERRY -DIS_RCV_GATEWAY -c lora_gateway.cpp -o lora_gateway.o g++ -c arduPi.cpp -o arduPi.o g++ -c SX1272.cpp -o SX1272.o g++ -lrt -lpthread lora_gateway.o arduPi.o SX1272.o -o lora_gateway
+Edit radio.makefile for PABOOST setting. If inAir9B, RFM92W/FM95W, NiceRF1272, uncomment:
+CFLAGS=-DPABOOST If inAir9/inAir4, Libelium SX1272, leave commented:
+#CFLAGS=-DPABOOST
+If you have a RPI 2 or RPI3, then type:
+> make lora_gateway_pi2
+30
+
+Manual new install of gateway
+using update_gw.sh script (1)
+q Alternatively, the gateway can also be installed/updated to the latest version with the update_gw.sh script (this script is called by the web interface).
+q The first step is to get the latest version of the > cud pdate script
+> svn checkout https://github.com/CongducPham/LowCostLoRaGw/trunk/gw_full_latest/scripts > cd scripts > ll total 48 -rw-r--r-- 1 pi pi 3561 May 10 17:31 bashrc.sh -rwxr-xr-x 1 pi pi 10562 May 10 17:31 config_gw.sh -rw-r--r-- 1 pi pi 230 May 10 17:31 interfaces_ap -rwxr-xr-x 1 pi pi 99 May 10 17:31 mnt-dropbox -rwxr-xr-x 1 pi pi 610 May 10 17:31 mongodb_repair.sh -rwxr-xr-x 1 pi pi 816 May 10 17:31 start_access_point.sh -rwxr-xr-x 1 pi pi 57 May 10 17:31 start_gw.sh -rwxr-xr-x 1 pi pi 673 May 10 17:31 stop_access_point.sh -rwxr-xr-x 1 pi pi 37 May 10 17:31 unmnt-dropbox -rwxr-xr-x 1 pi pi 1537 May 10 17:31 update_gw.sh
+31
+
+Manual new install of gateway
+using update_gw.sh script (2)
+q It is also possible to get only this script
+q wget https://raw.githubusercontent.com/CongducPham/LowCostLoR aGw/master/gw_full_latest/scripts/update_gw.sh
+q Then type the following commands
+q rm –rf lora_gateway q ./update_gw.sh
+q Removing any previous lora_gateway folder triggers a new install
+q The gateway will obtain the latest distribution from our github repository and will create a new lora_gateway folder
+q A full update without deleting the existing lora_gateway folder preserves existing configuration files
+32
+
+Connecting to gateway & configuration options
+q There are 2 configuration interfaces
+q The web admin interface q The command line interface that needs ssh
+q The web interface is sufficient for most users
+q Easy basic configuration and easy update q Pre-defined cloud configuration q dedicated tutorial:
+https://github.com/CongducPham/tutorials/blob/mast er/Low-cost-LoRa-GW-web-admin.pdf
+q The command line interface has some more options and can easily be extended
+q We are going to describe the command line interface and some of the gateway's internal
+33
+
+SSH to the gateway
+q The provided SD image sets the Raspberry for DHCP on wired Ethernet and as a WiFi access point.
+q If you connected the gateway to your LAN or laptop using wired Ethernet then the gateway will be assigned an IP address. Use this address to connect with SSH to the gateway
+q You can use Angry IP Scanner (http://angryip.org/) to know the assigned address
+q Use ssh pi@rpi_addr, where rpi_addr is the IP address assigned to the gateway
+q Login password is loragateway if you installed from the SD card image
+q However, using the built-in WiFi access point is easier as shown in the next slide
+34
+
+SSH to the gateway with WiFi
+
+q The gateway is also configured as a WiFi access point with address 192.168.200.1
+
+q Select the WAZIUP_PI_GW_xxxxxxxxxx WiFi
+
+q WiFi password is loragateway q Then ssh pi@192.168.200.1 q Login password is loragateway
+
+You can use an iOS or Android smartphone or tablet to connect to the gateway with an SSH client app! See next slide.
+
+35
+
+Using iOS/Android smartphone or tablet
+q On iOS we tested Termius q On Android we tested JuiceSSH
+36
+
+Gateway's simple command interface
+
+q Once logged on the gateway, you may directly enter in a simple command interface
+q This command interface consists in a cmd.sh shell script
+q In image versions after May 2017, this script is launched when you log into the gateway with ssh
+q If this happens, select Q and hit RETURN to quit this interface
+q You should be in the lora_gateway folder
+
+pi@raspberrypi:~/lora_gateway $ ./cmd.sh
+
+=======================================* Gateway 00000027EB84C456 *===
+
+0- sudo python start_gw.py
+
++
+
+1- sudo ./lora_gateway --mode 1
+
++
+
+2- sudo ./lora_gateway --mode 1 | python post_processing_gw.py
+
++
+
+3- ps aux | grep -e start_gw -e lora_gateway -e post_proc -e log_gw +
+
+4- tail --line=25 ../Dropbox/LoRa-test/post-processing.log
+
++
+
+5- tail --line=25 -f ../Dropbox/LoRa-test/post-processing.log
+
++
+
+6- less ../Dropbox/LoRa-test/post-processing.log
+
++
+
+---------------------------------------------------* Connectivity *--+
+
+f- test: ping www.univ-pau.fr
+
++
+
+g- wifi: configure as WiFi client at next reboot
+
++
+
+h- wifi: indicate WiFi SSID and password at next reboot
+
++
+
+i- wifi: configure as WiFi access point at next reboot
+
++
+
+--------------------------------------------------* Filtering msg *--+
+
+l- List LoRa reception indications
+
++
+
+m- List radio module reset indications
+
++
+
+n- List boot indications
+
++
+
+o- List post-processing status
+
++
+
+p- List low-level gateway status
+
++
+
+--------------------------------------------------* Configuration *--+
+
+A- show gateway_conf.json
+
++
+
+B- edit gateway_conf.json
+
++
+
+C- show clouds.json
+
++
+
+D- edit clouds.json
+
++
+
+----------------------------------------------------------* ngrok *--+
+
+M- get and install ngrok
+
++
+
+N- ngrok authtoken
+
++
+
+O- ngrok tcp 22
+
++
+
+---------------------------------------------------------* Update *--+
+
+U- update to latest version on repository
+
++
+
+V- download and install a file
+
++
+
+W- run a command
+
++
+
+-----------------------------------------------------------* kill *--+
+
+K- kill all gateway related processes
+
++
+
+k- kill rfcomm-server process
+
++
+
+R- reboot gateway
+
++
+
+S- shutdown gateway
+
++
+
+---------------------------------------------------------------------+
+
+Q- quit
+
++
+
+======================================================================
+
+Enter your choice:
+
+37
+
+gateway startup procedure
+q The gateway software is launched when the Raspberry is powered on, i.e. booting
+q /home/pi/lora_gateway/scripts/start_gw.sh which starts the gateway has been added in /etc/rc.local
+q start_gw.sh performs some initial tasks and finally runs python /home/pi/lora_gateway/start_gw.py
+q start_gw.py parses the configuration files to launch the low-level gateway (lora_gateway), the post-processing stage (post_processing_gw.py) and the log service
+q The gateway works by default in LoRa mode 1 (BW=125kHz, SF=12) and listen on frequency 865.2MHz (see https://github.com/CongducPham/LowCostLoRaGw#ann exa-lora-mode-and-predefined-channels)
+q The gateway_conf.json file contains the gateway configuration
+38
+
+gateway_conf.json
+q The gateway_conf.json file contains the gateway configuration
+Set "mode" to -1 if you want to use bw, cr and sf parameters
+Set "ch" to a channel number if you don't want to use the default channel (which is channel 10 in the 868 band channel 05 in 900 band and channel 00 in the 433 band).
+Set "freq" to a frequency, e.g. 865.2, if you want to specify a given frequency, "freq" has priority over "ch"
+39
+
+Default configuration
+\!##TC/18.5
+#define DEFAULT_DEST_ADDR 1 #define LORAMODE 1 #define node_addr 6
+The default configuration in the Arduino_LoRa_Simple_temp example is: Send packets to the gateway (one or many if in range) LoRa mode 1 & Node short address is 6 The default gateway configuration is also LoRa mode 1
+40
+
+Check that the gateway is running
+q Use option 3 of the text interface
+q IMPORTANT NOTICE: Do not launch a new gateway instance with an existing one as there will be conflict on the SPI bus.
+41
+
+Configuring the gateway
+q Go into the scripts folder in the newly created lora_gateway folder
+q Run the basic_config_gw.sh script
+q ./basic_config_gw.sh
+q The script will get the hardware address of the gateway to define the gateway'id, using the last 5 bytes of the MAC address
+q ifconfig
+
+q It will also compile the low-level gateway software, remember to
+
+check compilation options of radio.makefile
+
+q If you need advanced configuration, use config_gw and follow
+
+the instructions as shown in the next slides otherwise you are all
+
+done
+
+42
+
+Advanced configuration only (1)
+
+******************************************** *** compile lora_gateway executable Y/N *** ********************************************
+******************************************************** *** create log symb link to ~/Dropbox/LoRa-test Y/N *** ********************************************************
+
+Enter Y Enter Y
+
+*********************************** *** configure hostapd.conf Y/N *** ***********************************
+**************************************************************** *** configure a newly installed hostapd/dnsmasq package Y/N *** ****************************************************************
+
+Enter Y Enter N
+
+********************************************* *** configure bluetooth network name Y/N *** *********************************************
+********************************** *** install DHT22 support Y/N *** **********************************
+
+Enter N
+Enter Y
+43
+
+Advanced configuration only (2)
+
+*************************************** *** edit gateway_conf.json now? Y/N *** ***************************************
+
+Enter N
+
+************************************* *** activate DHT22 MongoDB Y/N/Q *** *************************************
+
+Enter Q
+
+********************************************************* *** edit LoRa data MongoDB local storage option? Y/N *** *********************************************************
+
+Enter N
+
+******************************* *** run gateway at boot Y/N *** *******************************
+
+Enter Y
+
+********************************************** *** check configuration (recommended) Y/N *** **********************************************
+
+Enter N
+
+******************* *** reboot Y/N *** *******************
+
+Enter N
+44
+
+Gateway's ID
+q The gateway's ID is derived from the RPI MAC address, using the last 5 bytes
+q Here the gateway's ID is 00000027EB795C47 q This information is stored in gateway_id.txt and in
+gateway_conf.json
+q "gateway_conf": { "gateway_ID":"00000027EB795C47", …
+q basic_config_gw.sh also builds the MD5 hash version of the gateway's ID and stores it in gateway_id.md5
+q The ID is re-created at boot so that a newly installed gateway has the correct ID
+q It is recommended to use this default gateway ID 45
+
+Start the command line interface
+
+> ./cmd.sh
+As you can see, the gateway id shown by the command interface is now correct
+
+pi@raspberrypi:~/lora_gateway $ ./cmd.sh
+
+=======================================* Gateway 00000027EB795C47 *===
+
+0- sudo python start_gw.py
+
++
+
+1- sudo ./lora_gateway --mode 1
+
++
+
+2- sudo ./lora_gateway --mode 1 | python post_processing_gw.py
+
++
+
+3- ps aux | grep -e start_gw -e lora_gateway -e post_proc -e log_gw +
+
+4- tail --line=25 ../Dropbox/LoRa-test/post-processing.log
+
++
+
+5- tail --line=25 -f ../Dropbox/LoRa-test/post-processing.log
+
++
+
+6- less ../Dropbox/LoRa-test/post-processing.log
+
++
+
+---------------------------------------------------* Connectivity *--+
+
+f- test: ping www.univ-pau.fr
+
++
+
+g- wifi: configure as WiFi client at next reboot
+
++
+
+h- wifi: indicate WiFi SSID and password at next reboot
+
++
+
+i- wifi: configure as WiFi access point at next reboot
+
++
+
+--------------------------------------------------* Filtering msg *--+
+
+l- List LoRa reception indications
+
++
+
+m- List radio module reset indications
+
++
+
+n- List boot indications
+
++
+
+o- List post-processing status
+
++
+
+p- List low-level gateway status
+
++
+
+--------------------------------------------------* Configuration *--+
+
+A- show gateway_conf.json
+
++
+
+B- edit gateway_conf.json
+
++
+
+C- show clouds.json
+
++
+
+D- edit clouds.json
+
++
+
+----------------------------------------------------------* ngrok *--+
+
+M- get and install ngrok
+
++
+
+N- ngrok authtoken
+
++
+
+O- ngrok tcp 22
+
++
+
+---------------------------------------------------------* Update *--+
+
+U- update to latest version on repository
+
++
+
+V- download and install a file
+
++
+
+W- run a command
+
++
+
+-----------------------------------------------------------* kill *--+
+
+K- kill all gateway related processes
+
++
+
+k- kill rfcomm-server process
+
++
+
+R- reboot gateway
+
++
+
+S- shutdown gateway
+
++
+
+---------------------------------------------------------------------+
+
+Q- quit
+
++
+
+======================================================================
+
+Enter your choice:
+
+46
+
+Periodic update procedure
+
+q You can use option U to update from repository and still keep all your configuration files: gateway_conf.json, clouds.json and key*
+q This simply calls update_gw.sh
+q You can also install a single file with option V that will prompt for a URL
+q You can enter a URL that has been provided by some administrator
+q Example in the next slide
+
+pi@raspberrypi:~/lora_gateway $ ./cmd.sh
+
+=======================================* Gateway 00000027EB795C47 *===
+
+0- sudo python start_gw.py
+
++
+
+1- sudo ./lora_gateway --mode 1
+
++
+
+2- sudo ./lora_gateway --mode 1 | python post_processing_gw.py
+
++
+
+3- ps aux | grep -e start_gw -e lora_gateway -e post_proc -e log_gw +
+
+4- tail --line=25 ../Dropbox/LoRa-test/post-processing.log
+
++
+
+5- tail --line=25 -f ../Dropbox/LoRa-test/post-processing.log
+
++
+
+6- less ../Dropbox/LoRa-test/post-processing.log
+
++
+
+---------------------------------------------------* Connectivity *--+
+
+f- test: ping www.univ-pau.fr
+
++
+
+g- wifi: configure as WiFi client at next reboot
+
++
+
+h- wifi: indicate WiFi SSID and password at next reboot
+
++
+
+i- wifi: configure as WiFi access point at next reboot
+
++
+
+--------------------------------------------------* Filtering msg *--+
+
+l- List LoRa reception indications
+
++
+
+m- List radio module reset indications
+
++
+
+n- List boot indications
+
++
+
+o- List post-processing status
+
++
+
+p- List low-level gateway status
+
++
+
+--------------------------------------------------* Configuration *--+
+
+A- show gateway_conf.json
+
++
+
+B- edit gateway_conf.json
+
++
+
+C- show clouds.json
+
++
+
+D- edit clouds.json
+
++
+
+----------------------------------------------------------* ngrok *--+
+
+M- get and install ngrok
+
++
+
+N- ngrok authtoken
+
++
+
+O- ngrok tcp 22
+
++
+
+---------------------------------------------------------* Update *--+
+
+U- update to latest version on repository
+
++
+
+V- download and install a file
+
++
+
+W- run a command
+
++
+
+-----------------------------------------------------------* kill *--+
+
+K- kill all gateway related processes
+
++
+
+k- kill rfcomm-server process
+
++
+
+R- reboot gateway
+
++
+
+S- shutdown gateway
+
++
+
+---------------------------------------------------------------------+
+
+Q- quit
+
++
+
+======================================================================
+
+Enter your choice:
+
+47
+
+Download and install a file (1)
+q With option V, you can enter an URL that points to a file. The file will be downloaded and installed in the lora_gateway folder.
+Enter your choice: V ---------------------------------------------------------------------BEGIN OUTPUT Download and install a file Enter the URL of the file: https://www.dropbox.com/s/mcmg4yeksr340c2/example-install-file.txt
+48
+
+Download and install a file (2)
+q This feature is very usefull for end-users to simply update some files on the gateway.
+q gateway_conf.json and clouds.json q radio.makefile q…
+q An administrator can write appropriate configuration files for the end-user and generate an URL to this file (with Dropbox for instance)
+q The URL can be either be sent by mail or SMS to the enduser.
+q The end-user has to simply log into the gateway (using an Android smartphone or tablet connecting to the gateway's WiFi) and select option V to enter the URL.
+q The end-user will then just reboot the gateway with option R for the new configuration to run. 49
+
+Download and install a file (3)
+q System files can also be installed with option W that will prompt for a command
+Enter your choice: W ---------------------------------------------------------------------BEGIN OUTPUT Run a command Enter the command to run: sudo wget –O /etc/test.txt https://www.dropbox.com/s/mcmg4yeksr340c2/example-install-file.txt
+q Here, the previous example file will be installed in /etc under the name test.txt
+q Like previously, the exact command can be sent to the end-user
+50
+
+Our Low-Cost gateway architecture
+
+Kept as simple as possible
+
+high-level lang. e.g. python
+
+Most of user or application specific logics is done here! We provide some basic features, up to you to enhance them
+
+radio bridge program
+
+stdout
+
+post
+
+processing
+
+stdin
+
+stdout
+
+postprocessing
+
+user/appspecific
+
+lora_gateway program
+
+Long-range radio lib
+
+Raspbian
+
+51
+
+Data post-processing stage
+
+RPI 3 WiFi LoRa
+
+radio bridge program
+
+stdout
+
+post
+
+stdout
+
+processing
+
+stdin
+
+RPI ZeroW WiFi LoRa+2G/3G shield
+Cloud definition
+cloud_script_1
+
+Handle downlink
+data
+
+post-processing
+
+AES encryption decryption
+
+LoRaWAN interoperability
+
+Incoming data parsing block
+
+Periodic task
+
+RPI 3 LoRa WiFi PoE 2G/3G dongle DHT22 in-case sensor
+
+Handle data from other radio interfaces
+
+Monitor gateway temperature
+
+user/app-specific
+
+cloud_script_2
+
+cloud_script_n
+
+local database
+
+Starting the gateway
+q Remember that the gateway software is launched when the Raspberry is powered on
+q In the next 4 slides, we will show you some details that is useful to know but that you DO NOT need when launching a production gateway
+q If you use our SD card image and powered on your Raspberry, then you can use option 3 as explained in slide 37 to see if the gateway is running, then use option K to kill all gatewayrelated process to test the next 4 slides.
+53
+
+Starting the basic gateway
+
+q Simply run the low-level lora_gateway program
+q sudo ./lora_gateway
+
+> sudo ./lora_gateway
+
+T/23
+
+**********Power ON: state 0 Default sync word: 0x12
+
+Node 10
+
+LoRa mode: 1
+
+Setting mode: state 0
+
+Channel CH_10_868: state 0 Set LoRa Power to M: state 0
+
+Node 3
+
+Get Preamble Length: state 0
+
+Preamble Length: 8
+
+LoRa addr 1 : state 0
+
+SX1272/76 configured as LR-BS. Waiting RF input for transparent RF-serial bridge
+
+--- rxlora. dst=1 type=0x10 src=10 seq=0 len=4 SNR=9 RSSIpkt=-54
+
+^p1,16,10,0,4,9,-54
+
+^r125,5,12
+
+^t2016-02-25T01:51:11.058
+
+T/23
+
+--- rxlora. dst=1 type=0x10 src=3 seq=0 len=4 SNR=8 RSSIpkt=-54
+
+^p1,16,3,0,4,8,-54
+
+^r125,5,12
+
+^t2016-02-25T01:53:13.067
+
+H/85
+
+54
+
+Adding post-processing to received data
+
+> sudo ./lora_gateway | python ./post_processing_gw.py
+
+**********Power ON: state 0
+
+Default sync word: 0x12 LoRa mode: 1 Setting mode: state 0 Channel CH_10_868: state 0
+
+All lines that are not prefixed by specific character sequence are displayed unchanged
+
+Set LoRa Power to M: state 0 Get Preamble Length: state 0 Preamble Length: 8
+
+^p provides information on the last received packet: dst, type, src, seq, len, SNR & RSSI
+
+LoRa addr 1 : state 0
+
+SX1272/76 configured as LR-BS. Waiting RF input for transparent RF-serial bridge
+
+--- rxlora. dst=1 type=0x10(DATA) src=10 seq=0 len=4 SNR=9 RSSIpkt=-54
+
+Rcv ctrl packet info 1,16,10,0,4,9,-54
+
+(dst=1 type=0x10 src=10 seq=0 len=4 SNR=9 RSSI=-54) rcv ctrl radio info (^r): 125,5,12 splitted in: [125, 5, 12]
+
+^r provides radio information on the last received packet: bw, cr & sf
+
+(BW=500 CR=5 SF=12)
+
+rcv timestamp (^t): 2016-02-25T01:53:13.067 got first framing byte --> got data prefix
+
+^t provides timestamp information on the last received packet
+
+T/23
+
+Pre-defined sequences inserted by the gateway or the end-device allow for information exchanged between the gateway and the post-processing program
+55
+
+Upload received messages using cloud services
+\!T/23
+Node 10
+
+SX1272/76 configured as LR-BS. Waiting RF input for transparent RF-serial bridge
+
+--- rxlora. dst=1 type=0x10 src=10 seq=0 len=6 SNR=9 RSSIpkt=-54
+
+Rcv ctrl packet info 1,16,10,0,6,9,-54
+
+(dst=1 type=0x10(DATA) src=10 seq=0 len=6 SNR=9 RSSI=-54)
+
+rcv ctrl radio info (^r): 125,5,12
+
+splitted in: [125, 5, 12]
+
+(BW=500 CR=5 SF=12) rcv timestamp (^t): 2016-02-25T01:53:13.067 got first framing byte --> got data prefix
+
+\$ or \! before the data indicates that the data should be logged on a file or a cloud. It is up to the end-device to decide which option
+
+number of enabled clouds is 1
+
+--> cloud[0]
+
+uploading with python CloudThingSpeak.py
+
+ThingSpeak: uploading
+
+rcv msg to log (\!) on ThingSpeak ( default , 4 ): 23
+
+ThingSpeak: will issue curl cmd
+
+curl -s -k -X POST --data field4=23 https://api.thingspeak.com/[…]
+
+ThingSpeak: returned code from server is 156
+
+--> cloud end
+
+56
+
+Starting the full gateway
+
+q The full gateway adds logging service of all output to a post-processing.log file (with log_gw.py)
+
+q LoRa parameters from gateway_conf.json are passed to the low-level lora_gateway program
+
+q Simply run sudo python start_gw.py
+
+> cd lora_gateway
+
+> sudo python start_gw.py
+
+sudo ./lora_gateway --mode 1 | python post_processing_gw.py | python log_gw.py
+
+Starting thread to report gw status
+
+2017-09-01 12:08:11.751649
+
+post status: gw ON, lat my_lat long my_long
+
+Current working directory: /home/pi/lora_gateway
+
+SX1276 detected, starting.SX1276 LF/HF calibration...
+
+**********Power ON: state 0
+
+Default sync word: 0x12
+
+LoRa mode 1
+
+Setting mode: state 0
+
+Channel CH_10_868: state 0
+
+Set LoRa power dBm to 14
+
+Power: state 0
+
+Get Preamble Length: state 0
+
+Preamble Length: 8
+
+LoRa addr 1: state 0
+
+SX1272/76 configured as LR-BS. Waiting RF input for transparent RF-serial bridge
+
+57
+
+Gateway to cloud
+Data received at the gateway can be pushed to IoT clouds. We provide python script examples for many IoT cloud platforms. Most of clouds with REST API can be easily integrated.
+58
+
+Using
+q A message starting with ’\$’ is logged in a file ‘telemetry.log’ in the /home/pi/Dropbox/LoRatest folder that can shared through Dropbox (if enabled)
+(src=10 seq=0 len=6 SNR=9 RSSI=-54) 2015-11-04T10:14:30.328413> T/23 (src=10 seq=1 len=8 SNR=8 RSSI=-54) 2015-11-04T10:14:37.443350> T/23.2 (src=10 seq=2 len=6 SNR=8 RSSI=-53) 2015-11-04T10:16:23.343657> T/24 ...
+\$T/23
+Node 10
+59
+
+pushing to IoT data clouds
+q A message starting with ’\!’ is uploaded on a cloud q clouds.json file defines enabled clouds
+For each cloud, you have to provide a script and the launcher program (e.g. python) Enabled clouds will be called by the post-processing stage
+60
+
+Example with WAZIUP cloud
+q To use the WAZIUP cloud:
+q Edit and modify clouds.json according to your need
+q CloudWAZIUP.py script will use information from key_WAZIUP.py to configure data management for each organization
+q Therefore you need to configure this file for each organization/gateway
+61
+
+key_WAZIUP.py
+
+#################################################### #server: CAUTION must exist orion_server="http://api.waziup.io/api/v1"
+
+#project name project_name="waziup"
+
+#your organization: CHANGE HERE organization_name="ORG"
+#service tree: CHANGE HERE at your convenience, can be empty #should start with service_tree='-TESTS'
+
+You MUST change the organization_name.
+service_tree is optional
+
+#sensor name: CHANGE HERE but maybe better to leave it as Sensor #the final name will contain the sensor address sensor_name="Sensor"
+
+#service path: DO NOT CHANGE HERE service_path=organization_name+service_tree
+
+#SUMMARY #the entity name will then be service_path+"_"+sensor_name+scr_addr, e.g. "UPPA-TESTS_Sensor2"
+
+#use ONLY letters and numbers [A-Za-z0-9] for the username and the password username="guest" password="guest"
+
+#here "private" or "public" for the managed sensors visibility="public"
+
+source_list=[]
+62
+
+Editing key_WAZIUP.py
+
+#################################################### #server: CAUTION must exist orion_server="http://api.waziup.io/api/v1"
+#project name project_name="waziup"
+#your organization: CHANGE HERE organization_name="ORG"
+#service tree: CHANGE HERE at your convenience, can be empty #should start with service_tree='-TESTS'
+#sensor name: CHANGE HERE but maybe better to leave it as Sensor #the final name will contain the sensor address sensor_name="Sensor"
+#service path: DO NOT CHANGE HERE service_path=organization_name+service_tree
+#SUMMARY #the entity name will then be service_path+"_"+sensor_name+scr_addr, e.g. "UPPA-TESTS_Sensor2"
+#use ONLY letters and numbers [A-Za-z0-9] for the username and the password username="guest" password="guest"
+#here "private" or "public" for the managed sensors visibility="public"
+source_list=[]
+
+Use nano to edit the file:
+> nano key_WAZIUP.py
+Then CTRL-O + RETURN to save
+CTRL-X to quit
+
+63
+
+The WAZIUP cloud platform
+q dashboard.waziup.io
+64
+
+Example:
+\!##T/23
+Node 10
+\!write_key#field_index#T/23
+65
+
+Example:
+66
+
+Example:
+67
+
+Check log file to see received messages
+
+q Option 5 of command line interface is probably the most useful option to display the postprocessing.log file
+q It uses the Unix tail -f command to follow in real time the log file content
+
+2018-12-01T14:02:34.745104> --- rxlora. dst=1 type=0x10 src=7 seq=97 len=10 SNR=7 RSSIpkt=-26 BW=125 CR=4/5 SF=12
+
+2018-12-01T14:02:34.745430> 2018-12-01T14:02:34.742386
+
+2018-12-01T14:02:34.745594> rcv ctrl pkt info (^p): 1,16,7,97,10,7,-26
+
+2018-12-01T14:02:34.745742> splitted in: [1, 16, 7, 97, 10, 7, -26]
+
+2018-12-01T14:02:34.745887> (dst=1 type=0x10(DATA) src=7 seq=97 len=10 SNR=7 RSSI=-26)
+
+2018-12-01T14:02:34.746034> rcv ctrl radio info (^r): 125,5,12
+
+2018-12-01T14:02:34.746185> splitted in: [125, 5, 12]
+
+2018-12-01T14:02:34.746358> (BW=125 CR=5 SF=12)
+
+2018-12-01T14:02:34.746513> rcv timestamp (^t): 2018-12-01T14:02:34.741
+
+2018-12-01T14:02:34.746663>
+
+2018-12-01T14:02:34.746819> got first framing byte
+
+2018-12-01T14:02:34.746966> --> got LoRa data prefix
+
+2018-12-01T14:02:34.747128> valid app key: accept data
+
+2018-12-01T14:02:34.747313> number of enabled clouds is 1
+
+2018-12-01T14:02:34.747486> --> cloud[0]
+
+2018-12-01T14:02:34.747634> uploading with python CloudThingSpeak.py
+
+2018-12-01T14:02:34.747809> python CloudThingSpeak.py "TC/19.89" "1,16,7,97,19,7,-26" "125,5,12" "2018-12-01T14:02:34+01:00" "00000027EB3294C8"
+
+2018-12-01T14:02:38.010744> ThingSpeak: uploading (multiple)
+
+2018-12-01T14:02:38.011224> rcv msg to log (\!) on ThingSpeak ( default , default ):
+
+2018-12-01T14:02:38.011552> ThingSpeak: will issue curl cmd
+
+2018-12-01T14:02:38.011872> curl -s -k -X POST --data field1=19.89 https://api.thingspeak.com/update?key=****************
+
+2018-12-01T14:02:38.012200> ThingSpeak: returned code from server is 103
+
+2018-12-01T14:02:38.018844> --> cloud end
+
+68
+
+Rebooting the gateway
+q Your gateway is now updated and configured q You can now reboot the gateway
+q After reboot, check the WiFi SSID which now should meet your gateway's id
+q In general, try to avoid unplugging power cable to shutdown your gateway. Use the web admin interface instead
+q Your gateway is now ready to be deployed.
+69
+
+Customizing/Extending your gateway
+
+q The flexible gateway architecture offers high versatility by customization
+
+q There are 4 alternatives for customization
+
+q The geek way
+
+q Modify/extend post-processing script
+
+q The "smarter" way
+
+Cloud definition
+
+q Add "cloud" scripts
+
+cloud_script_1
+
+• On packet reception
+
+q Add low rate periodic tasks
+
+cloud_script_2
+
+• Independant from packet reception
+q Add fast rate statistic-oriented tasks
+
+radio bridge program
+
+stdout
+
+post
+
+stdout
+
+processing
+
+stdin
+
+Handle downlink
+data
+
+post-processing
+
+AES
+encryption decryption
+
+LoRaWAN interoperability
+
+Incoming data parsing block
+
+Periodic task
+
+Handle data
+from other radio interfaces
+
+Monitor gateway temperature
+
+user/app-specific
+
+cloud_script_n
+
+local database
+
+70
+
+Add your own cloud script
+q Use our templates to write your own cloud script
+q CloudWAZIUP.py, CloudMongoDB.py, CloudThingSpeak.py, CloudGroveStreams.py, CloudNoInternet.py, CloudNodeRed.py, …
+q A cloud script is called with 5 arguments
+These parameters are passed to the script. It is up to the cloud script to use these parameters or not. 71
+
+Example with Node-Red
+q CloudNodeRed.py shows how interface with Node-Red can be simply implemented to benefit from the facility offered by Node-Red
+q We use key_NodeRed.py to define 3 variables that will be used by CloudNodeRed.py
+q project_name="waziup" q organization_name="UPPA" q sensor_name="Sensor"
+q when a device which address is 2 sends "TC/22.5/HU/85" to the gateway, CloudNodeRed.py will generate the following json entries in nodered/nodered.txt file
+q {"source":"waziup_UPPA_Sensor2","measure":"TC","value":22.5} q {"source":"waziup_UPPA_Sensor2","measure":"HU","value":85}
+72
+
+Node-Red flow (1)
+q The Node-Red flow is composed of a tail node that follows the nodered/nodered.txt file for new entries. Each entry will be converted into a json object with a json node. A function node will use the json entry to build a message as follows
+q msg.topic=msg.payload.source+'/'+msg.payload.measure q msg.payload=msg.payload.value q return msg;
+73
+
+Node-Red flow (2)
+q An MQTT node using the test.mosquitto.org broker will receive the messages with the topic defined as waziup_UPPA_Sensor2/TC and waziup_UPPA_Sensor2/HU
+q It will then respectively publish 22.5 and 85 under these topics
+q More information on:
+q https://github.com/CongducPham/LowCostLoRaGw/blob/master /gw_full_latest/README-NodeRed.md
+74
+
+Add your own low-rate periodic task
+q post_processing_gw.py periodically calls post_status_processing_gw.py based on the value defined by "status" (in seconds)
+q A value of 0 disables periodic status tasks q You can add your own periodic tasks in
+post_status_processing_gw.py q Currently, the only periodic task is to get the GPS position
+of the gateway (from a USB GPS module) in a dynamic manner for mobilty scenarios q You can use the status_conf section of gateway_conf.json to add whatever you need to control your periodic tasks q post_status_processing_gw.py provides examples on how you can add new tasks
+75
+
+Add your own fast-rate periodic task
+q post_processing_gw.py calls stats.py every 5s (hardcoded)
+q stats.py is mainly based on Adafruit example to display on a small OLED screen some RPI statistics
+https://learn.adafruit.com/adafruit-pioled-128x32-minioled-for-raspberry-pi/usage
+q We added the display of the last received packet's statistics
+q You can add other stats but beware that it is a fast rate stats service so avoid time consuming tasks or printing to Linux stdout
+76
+
+Connect a small OLED screen to your gateway
+q A small I2C OLED screen can be connected to the RPI and it will be driven by the fast rate stats service
+q Just connect 3.3v/5V, GND, SDA, SCL q You can hot-(un)plug the OLED at any time, convenient for
+fast debugging/tests
+77
+
+Standalone gateway
+78
+
+Connect to the embedded web data server
+q Received data are also stored on the gateway if CloudMongoDB.py is enabled
+q On the WiFi interface
+q Gateway address is 192.168.200.1
+q On the Ethernet interface
+q Gateway address is the IP address assigned by the DHCP server (of your LAN or laptop)
+q Choose any of these solutions and open a web browser to enter the gateway IP address in the URL bar
+q http://192.168.200.1
+79
+
+Data from the local web server
+80
+
+Visualize it on your smartphone!
+q Don’t forget to join the WAZIUP_PI_GW_xxxxxxxxxx WiFi
+81
+
+Running the gateway without internet access
+82
+
+Improving casing and adding PoE to gateway
+83
+
+Overview of the parts
+84
+
+Fixing the Raspberry to the case
+85
+
+Prepare the DC StepDown (LM2596)
+It is advised to connect the DC plugs before soldering
+
+Cut a USB cable, keeping the micro-USB side
+
+Solder to the IN part of the step-down module
+Solder to the OUT part of the step-down module
+86
+
+Setting the step-down module
+
+Use for instance a 9v, 12v or 18V AC-DC adaptor, connect to the IN plug, then check the output voltage with a voltmeter and turn the regulation screw until output is about 5.1v.
+
+Then fix the module to the case
+87
+
+Installing the PoE injector and water-resistant ethernet plug
+88
+
+Connect the radio module
+Like previously shown
+It is strongly advised to also connect the RESET pin (RT) to the RPI's #11 pin (GPIO17)
+89
+
+RT CS GND
+
+MOS I MIS O CLK
+VCC
+
+Install fixing parts of the case
+These parts of course depends on the case that you have. Here we use the GentleBOX JE-200 case from MHzShop.
+90
+
+Fixing the antenna cable
+Look at the Antenna tutorial to see how an antenna cable can be made to adapt both the cable length and the antenna connectors
+91
+
+Connecting and powering your gateway
+92
+

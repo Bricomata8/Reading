@@ -1,0 +1,927 @@
+LoRa Parameter Choice for Minimal Energy Usage
+
+Benjamin Dix-Matthews
+University of Western Australia Crawley, Western Australia
+benjamin.dix-matthews@research. uwa.edu.au
+
+Rachel Cardell-Oliver
+University of Western Australia Crawley, Western Australia
+rachel.cardell-oliver@uwa.edu.au
+
+Christof Hübner
+University of Applied Sciences Mannheim, Germany
+c.huebner@hs-mannheim.de
+
+ABSTRACT
+LoRa (Long Range) is a radio technology that facilitates low power communications over a large distance. The long range of communication means that a simple single hop transmission to a centralised gateway is su￿cient for most applications. To supply this performance the LoRa physical layer o￿ers a range of transmission parameters to tailor the capabilities for di￿erent applications. With over 6000 parameter combinations it is di￿cult to select the most e￿cient combination. Using experimental measurements and simulations we show how to ￿nd a parameter set with minimal energy usage for a given situation. Using data from real world deployments we also show that using payload replication with data-aware compression can improve data delivery ratios by 16 to 25% at no or minimal extra energy cost. For energy-sensitive applications low energy LoRa settings and forward error correction give better results than settings that maximise the packet reception ratio.
+CCS CONCEPTS
+• General and reference → Reliability; Experimentation; Performance; • Computer systems organization → Sensor networks; • Hardware → Sensor applications and deployments; Wireless devices;
+KEYWORDS
+Low Power, Sensor Networks, Adaptive Protocol
+ACM Reference Format: Benjamin Dix-Matthews, Rachel Cardell-Oliver, and Christof Hübner. 2018. LoRa Parameter Choice for Minimal Energy Usage. In RealWSN ’18: Workshop on Real-World Embedded Wireless Systems and Networks, November 4, 2018, Shenzhen, China. ACM, Shenzhen, China, 7 pages. https://doi.org/10. 1145/3277883.3277888
+1 INTRODUCTION
+Low power wide area networks support wireless sensor network applications with long battery life, low cost nodes and long distance links. LoRa is a popular new technology in this area. LoRa has a proprietary physical layer from Semtech that o￿ers packet reception at long distances and even below the noise ￿oor. In order to optimise energy use, range and reliability, LoRa has over 6,000 settable parameters for spreading factors, bandwidth, coding rates
+Permission to make digital or hard copies of all or part of this work for personal or classroom use is granted without fee provided that copies are not made or distributed for pro￿t or commercial advantage and that copies bear this notice and the full citation on the ￿rst page. Copyrights for components of this work owned by others than ACM must be honored. Abstracting with credit is permitted. To copy otherwise, or republish, to post on servers or to redistribute to lists, requires prior speci￿c permission and/or a fee. Request permissions from permissions@acm.org. RealWSN ’18, November 4, 2018, Shenzhen, China © 2018 Association for Computing Machinery. ACM ISBN 978-1-4503-6048-7/18/11. . . $15.00 https://doi.org/10.1145/3277883.3277888
+
+and transmission power. Selecting the best parameter settings to achieve the multiple objectives of very low energy use, reliability and adaptability is a challenging problem [2]. Furthermore, the temporal behaviour of LoRa channels needs to be considered since, interestingly, the settings for the best data delivery rate may not be those for the best packet reception rate [4, 6, 9]. However, there is little real-world data available to help sensor network researchers explore this new design space. Practical experiments and data sets from real-world experiments are needed in order to explore general purpose, self con￿guring approaches that are appropriate for the challenge of very low energy LoRa sensor network applications.
+In this paper we consider the multi-objective problem of minimising LoRa energy use while maximising the data delivery rate. The open source LoRaWAN protocol provides an Adaptive Data Rate protocol for this purpose, but that is a general purpose protocol focusing on reliable packet delivery rather than low energy [8]. Instead in this paper we consider designs based on raw LoRa (physical layer) packets. We model the trade-o￿ between energy use and packet reception for given path losses and identify the Pareto front of LoRa parameter settings that are energy optimal. We then use measurements from several deployments to explore the spatial and temporal properties of LoRa channels and the e￿cacy of forward error correction using payload replication. The experiments cover mobile nodes in a suburban and a campus environment and networks with static nodes in agricultural environments with several months of data.
+The main contributions of this paper are 1) the identi￿cation of a Pareto front of energy optimal LoRa parameter settings that can be used at run time for setting transmission parameters, 2) we demonstrate why low power settings with imperfect packet delivery ratios are preferred, and 3) we use experimental data to determine the best method for recovering lost packets and ￿nd that a simple strategy of payload replication with data-aware compression can improve data delivery ratios by 16% to 25% at no or minimal extra energy cost.
+Our approach supports self-con￿guring nodes in a mostly unknown environment with the lowest possible energy consumption. Our parameter optimisation model, data sets and analysis software are available from github.com/websense/loraDatasets for future research in this challenging design space.
+2 RELATED WORK
+Since LoRa has so many transmission parameters to con￿gure, the crucial task of ￿nding a parameter combination to balance packet delivery performance and energy consumption can be di￿cult. The pTunes framework is a general modelling framework for selecting optimal MAC parameters based on measurements [14]. We propose a similar approach for selecting LoRa parameters. Several
+
+RealWSN ’18, November 4, 2018, Shenzhen, China
+
+Benjamin Dix-Ma￿hews, Rachel Cardell-Oliver, and Christof Hübner
+
+studies have studied the capability of LoRa technology measuring performance for di￿erent parameter settings in indoor [2, 11] or outdoor [1, 7, 9] settings. Bor and Roedig propose an algorithm for ￿nding the best transmission setting for a speci￿c transmission channel [2]. It performs a type of binary search of the parameter space, testing each setting for its packet reception rate until a good setting is found. The aim is to balance the cost of ￿nding good parameters against the packet delivery rate achieved. The ground truth for optimal settings are determined from a large look up table of receive probabilities based on in situ experiments with all combinations of the transmission parameters. Cattani considered optimal parameter settings by measuring the packet reception rate and energy e￿ciency for three types of channel (indoor, outdoor and underground) under di￿erent LoRa parameter settings [6]. An interesting ￿nding was that it was not worth tuning LoRa parameters to reduce the data rate in order to maximise the probability of successful reception. Instead lower energy settings which have a high data rate are preferred. They also considered the e￿ect of environmental parameters on channel performance and found that high temperature at the node reduced packet delivery rate signi￿cantly.
+LoRaWAN is a mesh protocol for LoRa nodes. It speci￿es message scheduling and supports an Adaptive Data Rate (ADR) protocol for adjusting LoRa transmission parameters [8]. Our paper uses LoRa physical layer without the LoRaWAN protocols, but some results from LoRaWAN papers also apply in our case. LoRaWAN nodes start with a default parameter setting and then after reception of some messages the receiver can instruct a transmitter node to step up or down its spreading factor or transmission power. ADR uses 8 data rate settings and 6 transmission energy settings selected for a balance between packet delivery success and energy saving. Marcelis et al. measured the spatial and temporal properties of LoRaWAN channels using both static and mobile transmitters [9]. They found that channels at the limits of the transmission range (7.5km) had very low packet reception rates. An e￿cient coding scheme based on convolutional codes and fountain codes was proposed for data recovery. Their experiments show that with this protocol 99% of the data can be recovered and that, for 10 byte packets, it has 21% more data recovery and 42% lower energy consumption than a naive repetition coding protocol.
+Research Gaps. Developing a generalised methodology for determining the best parameter values to use for very low power LoRa applications remains an open research question. Another open question is what is the best strategy for achieving high data delivery rate with low energy use. It has been shown that high data delivery rates can be achieved without over-engineering a setting to achieve the highest packet reception rate [6, 9]. This paper develops this line of thinking and demonstrates that the LoRa physical layer with data-aware repetition coding is an e￿ective solution for achieving reliable and very low energy LoRa-based sensor networks.
+3 LORA OVERVIEW
+LoRa (Long Range) is a low power, long range telecommunication technology that is ideal for wireless sensor networks with stringent energy constraints. The physical layer of LoRa is a proprietary spread spectrum technique owned by Semtech. The transmission
+
+distance, energy usage and data rate are all dependent on transmission power, carrier frequency, bandwidth, spreading factor and coding rate. These parameters are used to tailor the performance of LoRa for di￿erent applications.
+Transmission Power. The available values depend on the transmitter hardware. The SX1272 can be set to integer values between -2 dBm and 20 dBm [13]. Increasing Transmission Power will increase the energy usage and transmission distance.
+Carrier Frequency (CF). The transmitted information in LoRa is encoded in chirps. The carrier frequency is the centre frequency of the chirps [1]. The CF can be set between 137 MHz and 1020 MHz in 61 Hz steps. Available ranges for CF are controlled by government regulation.
+Bandwidth (BW). Bandwidth is the frequency range swept over during a chirp. For standard LoRa network hardware, the BW can take the values of 125 kHz, 250 kHz or 500 kHz. The chirp rate is equal to the bandwidth (one chirp per second per Hz of bandwidth). Increasing the bandwidth tends to decrease the receiver sensitivity, but increases the data rate [1]. Having a higher data rate means that the time on air and energy usage for a given message length are both decreased.
+Spreading Factor (SF). There are 2S F chirps in a symbol. Equation 1 shows the Bit Rate’s (Rb ) dependence on SF, BW and Coding Rate (discussed below) [1].
+
+Rb
+
+= SF
+
+⇥
+
+BW 2S F
+
+⇥ CR
+
+(1)
+
+Coding Rate (CR). LoRa includes an inbuilt Forward Error Correction in the physical layer. The Coding Rate is the amount of Forward Error Correction applied to the message. Increasing the CR provides protection against burst interference, but increases the message length, time on air and energy usage.
+
+Received Signal Strength. When a message is transmitted, it starts with a signal strength equal to the transmission power (PT X ) on the transceiver. Gains or losses in the antennas will increase or decrease the signal strength by a ￿xed amount (Gantenna ). These antenna gains were assumed to be zero in this paper. The decrease in signal strength as the message is transmitted through the channel is referred to as Path Loss. The strength of the received signal is given by the received signal strength indicator (RSSI). If the RSSI of a packet is greater than the receiver sensitivity then the transmission will be successfully received.
+
+RSSI = PT X + Gantenna PathLoss
+
+(2)
+
+LoRa chips manufactured by Semtech come with in-built mechanisms for calculating RSSI and signal to noise ratio (SNR). When the received packet RSSI is above the noise ￿oor the RSSI reading may be measured directly in the manner described in the data sheet [13]. However, if the received signal is below the noise ￿oor this measurement will simply return the value corresponding to a signal strength at the noise ￿oor. The negative SNR reading then speci￿es how far below the noise ￿oor the received message actually is. Thus
+
+LoRa Parameter Choice for Minimal Energy Usage
+
+to calculate the true RSSI we use Equation 3
+
+RSS It r u e
+
+=
+
+8><>RSSImeasur ed :RSSImeasur ed
+
++ SNR
+
+if SN R 0 if SN R < 0
+
+(3)
+
+Sensitivity. The sensitivity of a LoRa receiver is dependent on the BW and the SF. The receiver sensitivity can be thought of as the critical RSSI of the received message required to successfully interpret the message. Estimates of the receiver sensitivity for each parameter combination are provided in the data-sheet [13]. We tested the estimated value for a spreading factor of 12 and a bandwidth of 125 kHz in a residential area. The data-sheet value for these parameters is -137 dBm [13]. For the experiment the minimum RSSI observed was approximately -134 dBm. The data-sheet receiver sensitivity is 3 dB better than the trial’s minimum received strength. This suggests that the data-sheet value is slightly optimistic, but a reasonable approximation for the typical receiver sensitivity. These measurements are consistent with the sensitivities observed by Bor et al. [3].
+
+Energy Usage. The total energy usage is dependent on the transmit power and the time on air as shown in Equation 4. In traditional radio networks the transmit power is used to vary the transmission range. Since LoRa has more parameters to vary the transmission characteristics, the situation becomes more complicated.
+
+=
+
+⇥
+
+Total Ener Power Time on Air
+
+(4)
+
+The power used by the transceiver is given by P = Vsuppl ⇥ Itr ansmission . The supply voltage for LoRa is 3.3V [13]. The current
+used by the transceiver varies as the transmission power param-
+
+eter is changed. The time on air depends on the other available
+
+transmission parameters (BW, SF and CR) and the length of the
+
+message [1]. The method for calculating the time on air is de￿ned
+
+in the data-sheet [13]. A lower time on air means that the node does
+
+not need to be powered on for as long to send a given amount of
+
+information, thus reducing the total amount of energy used for the
+
+transmission. Changing the transmission parameters to decrease
+
+the time on air typically reduces the sensitivity of the receiver mod-
+
+ule. An assumption of the networks that are being considered is
+
+that the data rate is not important, beyond the e￿ect it has on total
+
+energy usage.
+
+4 PARAMETER SPACE MODEL
+This section shows how to model LoRa energy use and path loss for di￿erent parameter settings. From this model the user can choose suitable parameters for particular applications and optimisation goals.
+The input to the model is a tuple of parameter settings comprising: {Spreading Factor, Coding Rate, Transmit Power, Bandwidth}. For these points the total energy usage of the transmission and the maximum allowable path-loss were calculated. The energy usage was determined using the power draw and the length of time taken to perform the transmission, as de￿ned by Equation 4. The time on air was calculated assuming the transmission of a 32 byte message. The maximum allowable path-loss was calculated using Equation 2 and by setting the RSSI to the receiver sensitivity (the critical RSSI required to successfully interpret the message). The
+
+RealWSN ’18, November 4, 2018, Shenzhen, China
+
+150
+
+140
+
+Path Loss (dB)
+
+130
+
+Parameter Combinations
+
+●
+
+●
+
+● All settings
+
+●●
+
+●
+
+●● ●
+
+●
+
+●●
+
+●
+
+● LoRaWAN ADR
+
+●● ● ●
+
+●
+
+●● ●●●
+
+Energy optimal
+
+●● ● ● ● ● ● ● ● ●●●● ●●
+
+●
+
+● ●● ● ●● ● ●
+
+● ● ● ●● ● ●● ● ● ● ●
+
+● ● ●●● ●● ● ● ●
+
+● ● ●●●● ●● ● ● ● ●
+
+● ●●●● ●● ●● ●● ● ● ●
+
+● ●●● ● ●● ●● ●●● ●
+
+●
+
+● ● ● ●●● ●● ●● ●● ● ●
+
+●
+
+●● ●●● ●● ● ● ●● ●
+
+●●
+
+●
+
+●● ●● ● ●●●● ● ● ●
+
+●●
+
+●
+
+● ● ●●●●● ●●●● ●
+
+●●
+
+●●
+
+●
+
+● ● ●● ●● ● ●● ● ●
+
+●●
+
+●●
+
+●
+
+●●● ●● ●●● ● ● ●●●
+
+●●●
+
+●●
+
+●
+
+● ●●●●● ●● ●●
+
+●●
+
+●●
+
+●●
+
+●
+
+●●●●● ●●●●
+
+●●
+
+●●
+
+●●
+
+● ● ●●●●● ●●●●
+
+●●●
+
+●●●
+
+● ●● ●●●●● ● ●●
+
+●●●
+
+●●●
+
+● ●● ● ●●●●
+
+●● ●
+
+●●
+
+●●
+
+● ● ● ● ●●●●
+
+●●●
+
+●●●
+
+●
+
+● ● ● ●● ● ●●●
+
+●●●
+
+●●●
+
+●
+
+●● ● ●●● ●● ●
+
+●● ●
+
+●
+
+●
+
+●● ●●● ●
+
+●●●
+
+●● ●
+
+●
+
+●●
+
+●●● ●
+
+●●●
+
+●●
+
+●●
+
+●●● ● ●● ●
+
+●
+
+●● ●
+
+●● ●
+
+●●
+
+●
+
+● ●●
+
+●● ●
+
+●●
+
+● ●●
+
+●● ● ●
+
+● ●●
+
+●● ●
+
+● ●●
+
+●●
+
+●
+
+●●
+
+●
+
+●
+
+●●
+
+●
+
+●
+
+●●
+
+●
+
+●
+
+●
+
+●
+
+●
+
+●
+
+●
+
+●
+
+●
+
+12
+
+5 10 20 50 100 200 500
+
+Transmit Energy per 32 byte message (uJ log scale)
+
+120
+
+110
+
+Figure 1: Tolerated path loss vs per-packet energy for LoRa parameter combinations
+
+receiver sensitivities (RS) were assumed to be those provided in the data-sheet [13].
+Coding Rate was assumed to be constant. The coding rate theoretically reduced the number of errors in messages that were received incorrectly, but does not aid in any way if the messages are not received at all. In initial trials, using the lowest coding rate available, there were very few situations where this occurred and so the energy spent on increasing the coding rate would have little e￿ect. This reduced the number of available parameters by a factor of three.
+The total energy usage and the maximum allowable path-loss for each parameter combination are shown in Figure 1. The Pareto front, shown using red points, are the only parameter combinations that should be considered for applications that need to minimise energy.
+Any points that are not on this front will have alternatives with greater available link budget at no extra energy cost. As the aim is to get the maximum performance for the lowest energy, it would not make sense to choose these points. They theoretically provide no advantage but at a higher cost. This reduced the total number of available combinations to a much more manageable set of 47 parameter combinations. For the details of the LoRa settings for the energy optimal settings see github.com/websense/loraDatasets .
+The blue points on the graph show settings used in the LoRaWAN adaptive data rate protocol. Note that these settings are not energyoptimal, but rather are selected to balance energy use and with a safe margin for successful packet delivery.
+We next consider the values for each of the parameters BW, TP and SF, that occur in the energy-optimal Pareto front.
+Bandwidth (BW). The dependence on bandwidth shown in Figure 2 steps down as the maximum path loss increases. Each step does not appear to be smooth, with the bandwidth varying between two values close to each step. Also the lowest bandwidth of 125 kHz is only used for 5 optimum parameter combinations. This suggests that the slight increase in sensitivity achieved by decreasing the bandwidth to 125 kHz is usually not worth the extra energy
+
+RealWSN ’18, November 4, 2018, Shenzhen, China
+
+Benjamin Dix-Ma￿hews, Rachel Cardell-Oliver, and Christof Hübner
+
+Figure 2: Bandwidth, Transmission Power and Spreading Factor on the low energy Pareto front
+
+expenditure. On the other hand, the LoRaWAN adaptive data rate protocol uses BW=125 kHz by default with options for BW=500 kHz but not BW=250 kHz.
+Transmission Power. is used in traditional wireless communications to vary the range of the transmission. It can be seen in Figure 2 that initially the transmission power is simply stepped up, as would be expected in traditional networks, however from 126 dB onwards the relationship gets more complicated. Instead of increasing the transmission power to increase reliability, it is dropped signi￿cantly. Also the frontier points suggest that transmission power values of 15, 16 and 17 dBm should never be used. This means that for these values the current draw steps up dramatically. This increase in current draw appears to be because for transmission powers above 14 dBm, the LoRa module requires an optional high-power ampli￿er (PA Boost) to be turned on [13]. The fact that these three values are not used suggests the initial performance improvement caused by the PA Boost does not justify the increase in power usage it imposes.
+Spreading Factor (SF). on the low energy Pareto front is at the minimum of SF=6 until the last few combinations at the highest maximum path losses as can be seen in Figure 2 Increasing the spreading factor has a huge e￿ect of time on air, and so the total energy required to transmit a packet. Thus the spreading factor is kept to a minimum until it needs to be increased.
+5 EXPERIMENTAL DATA SETS
+There are 4 data sets used in this paper. The ￿rst two were collected in Perth, Western Australia and used are used in Section 6 in order to understand the spatial variability. The second two are from two farms near Heidelberg in south-western Germany: a strawberry farm and a tomato farm. These are used in Section 7.
+Residential and campus. A mobile transmitter was continuously moved around two test environments while recording RSSI, SNR and a packet identi￿er for each successful reception. The two test environments were a residential area with single story buildings, trees and some hills, and a university campus with buildings of up to 5 stories and trees but no hills. For both these trials the transmitters were LoRa module RFM95 with 13 dBm output power (www.hoperf.com) and another RFM95 was used as the gateway.
+Strawberry farm and tomato farm. The 1 km radio path for the strawberry farm setting passes agricultural areas, a few houses
+
+and some trees. The tomato farm is a complex radio environment with lots of greenhouses built of glass and steel. Distances are only between 100 and 200 m, but the receiver was placed in an o￿ce on the ground ￿oor not facing to the direction of the ￿eld nodes. Three of the ￿eld nodes were placed outdoors and one inside a greenhouse. The sensors measure temperature, humidity and soil moisture, at periods of 1 minute for the strawberry farm and 10 minutes for the tomato farm. The strawberry farm uses LoRa module RFM95 with 14 dBm output power and the tomato farm RFM95PW with 25 dBm output power. Both use Atmege328 with a RFM95 as the receiver gateway.
+
+6 SPATIAL VARIABILITY
+Section 4 identi￿ed the Pareto front of energy-optimal parameters and their corresponding maximum allowable path loss values. In order to use this information to set transmission parameters, transmitters need to know the path loss of their channel. This section presents experimental measurements of path loss calculated from received RSSI. Individual transmitters can use this approach in situ to determine the path loss of a speci￿c channel based on reported RSSI, transmission power and assumed Tx and Rx antenna gains using Equation 2. A simple message exchange to request and report recent RSSI values from the receiver provides the necessary information for the transmitter to calculate the path loss of its channel and so select the optimal LoRa transmission settings.
+In order to understand the spatial variability of LoRa channels we need to measure path loss for a large number of LoRa channels. Using the two data sets from Perth, the total path loss was calculated for each successful transmission.
+A common way to explain average path loss is with a distancebased model. We tested a plane earth model [12] and a simple logdistance attenuation model [10] and found the latter provided the best ￿t for experimental data. The simple log-distance attenuation model is determined using a linear polynomial ￿t and logarithmic distance [10] with the reference distance pathloss ( ), the pathloss
+B exponent (n) and a reference distance d0 = 1m.
+
+Llo
+
+d
+
+i
+
+st
+
+anc
+
+e
+
+( dB
+
+)
+
+= + 10 B n lo
+
+10 (
+
+d
+
+)
+
+(5)
+
+d0
+
+Least squares regression on the two mobile trial data sets was used
+
+to ￿nd approximate models for the path loss. The campus data was
+
+￿tted by the log-distance model with = 44.23 and = 4.48 and
+
+B
+
+n
+
+the residential data with B = 75.61 and n = 1.98.
+
+LoRa Parameter Choice for Minimal Energy Usage
+7 BALANCING ENERGY AND RELIABILITY
+In this section we use experimental measurements from the farm networks to investigate how to achieve good data delivery performance without excessive energy use. It is important to consider long term data for this purpose since path loss varies over time and settings that are optimal for one short term experiment may not be suitable at other times. Figure 3 shows the daily variation for the strawberry farm data set. It can be seen that path loss on the same 1km channel varies signi￿cantly over time. For our analysis the RSSI data is partitioned into epochs of one week for each of the data sets, giving 35 epochs for analysis.
+
+RSSI (dBm) −140 −130 −120 −110
+
+● ●●
+
+●●
+
+●●
+
+●
+
+●●
+
+●
+
+●●●
+
+●●●●●
+
+●●●●●
+
+●●●●●
+
+●●
+
+●●
+
+●●●●●
+
+●●●●●
+
+●●●●●
+
+●●●●●
+
+●●
+
+●●
+
+●●
+
+●●
+
+●
+
+●
+
+●●
+
+●
+
+●●
+
+●
+
+●
+
+●
+
+●●
+
+●●
+
+●●
+
+●●
+
+●●
+
+●
+
+●●●
+
+●
+
+●●●
+
+●
+
+●
+
+●●●●●
+
+●
+
+●●●●
+
+●●●
+
+●●
+
+● ●● ●● ●● ●● ●●
+● ● ● ●● ●
+● ● ● ● ●
+
+●
+
+● ● ●
+● ● ●
+●
+
+●
+
+●
+
+●
+
+●
+
+●●
+
+●
+
+●
+
+●●
+
+●
+
+● ● ●
+● ●
+
+●
+
+●
+
+●
+
+●
+
+●●
+
+●
+
+●●●
+
+●
+
+●●●●
+
+●
+
+●●●●
+
+●
+
+●
+
+●●
+
+●
+
+●●
+
+●
+
+●●
+
+●●
+
+●
+
+●
+
+●●
+
+●●
+
+●
+
+●●
+
+●
+
+●
+
+●
+
+●
+
+●●●●
+
+●●
+
+●
+
+●
+
+●
+
+●
+
+●
+
+●
+
+● ● ●
+
+● ● ● ● ● ● ●
+
+●
+
+●
+
+●
+
+●
+
+●
+
+●
+
+●
+
+●
+
+●
+
+●
+
+●
+
+●
+
+●●●
+
+●●●●
+
+●●●●
+
+●●●●
+
+●
+
+●●
+
+●●
+
+●
+
+128 133 138 143 148 153 158 163 168 173 178
+
+Day of Year
+
+Figure 3: Daily range of RSSIs for the strawberry farm
+
+Our energy metric is the energy per transmitted packet in microjoules. The metrics for reliability are packet reception ratio (PRR) and data delivery ratio (DDR). PRR is the baseline ratio of the number of packets received to the number transmitted. DDR is the proportion of all data measurements that are delivered to the server. DDR takes account of protocols in which each packet contains copies of previous payloads.
+Packet Delivery. For each received packet we recorded reported RSSI, SNR and a packet identi￿er. The real RSSI is calculated as explained in Section 3. The received packet RSSI can be used to calculate the path loss experienced for each received packet and also the fate of each transmitted packet: received or not. The choice of LoRa parameter settings changes the maximum path loss at which the receiver can still receive packets and this information can be used to estimate the fate of each received packet. For example, for settings where receiver maximum path loss is 135 dB, then at all times where the path loss was less than 135 dB a packet would be received correctly but at times where path loss was greater than 135 dB the packets would be lost.
+LoRa parameters can be set to overcome high path loss but these settings have the disadvantage of requiring signi￿cantly more energy than those for low path loss. The red line in Figure 4 shows the energy used per transmitted packet for each of the energyoptimal settings from the model in Section 4 (for the LoRa parameter values see github.com/websense/loraDatasets ). For a certain path loss there is a minimum energy and an appropriate setting of LoRa parameters required. The blue lines show the observed packet reception rates at each path loss setting for each epoch from the farm data sets. Given a LoRa setting which is appropriate for a certain path loss, then a corresponding packet reception rate for
+
+RealWSN ’18, November 4, 2018, Shenzhen, China
+
+25
+
+100
+
+Energy per Packet (microJoules)
+
+80
+
+60
+
+Packet Reception Rate (%)
+
+40
+
+Energy / Packet ● PRR
+
+●●●●●●
+
+●●●●
+
+●●●●●
+
+●●●●●●●●●
+
+●●● ●
+
+●●
+
+●●
+
+20
+
+●
+
+●
+
+●
+
+●
+
+●
+
+●
+
+●
+
+15
+
+●
+
+●●
+
+●● ● ●
+
+10
+
+●●
+
+5
+
+0
+
+●
+
+●●●●●●●●●●
+
+●
+
+●
+
+●
+
+●●●
+
+115 120 125 130 135 140 145 Path Loss (dB)
+
+20
+
+0
+
+Figure 4: Trade o￿ between energy per transmitted packet and packet reception rate for all epochs
+
+each of the epochs of our experimental data would be achieved. If the LoRa setting is for a too low path loss then nothing will be received since the actual path loss of the site is higher. If the LoRa settings are for a too high path loss then most packets will be received but that requires lots of energy. Choosing a medium setting and accepting packet loss but using some forward error correction scheme seems a good compromise.
+A clear pattern for the trade-o￿ between energy and reliability can be seen in Figure 4. For these channels, settings for path loss  130 dB were not useful because their packet reception rate would be less than 10%. Between 135 and 140 dB the packet reception rate of most channels improves signi￿cantly but at the cost of energy per packet more than doubling. At 145 dB energy doubles again, but for most channels there is a minimal bene￿t of increased PRR.
+Data Delivery Rates. Figure 4 also shows that for many channels at the 135 dB path loss the packet reception ratio is less than 75%. So we next consider whether we can increase the data delivery ratio using the same number of packet transmissions and the same LoRa parameter settings.
+The two main approaches for increasing the data delivery rate are packet acknowledge and retransmit (ARQ) or forward error correction (FEC). LoRaWAN uses ARQ with a reserved time slot at the end of each packet transmission for the transmitter to receive an ack. However, FEC is the preferred option for the very low energy applications considered in this paper because it can deal with bursty channels and it avoids the overhead of ARQ on every packet.
+Repetition coding is a simple forward error correction strategy that compensates for packet losses and increases the data delivery rate of a channel by including a copy of R previous payloads in each packet. A naive replication protocol simply includes copies of 1 or more previous payloads in the following packets. But replication is more energy e￿cient when the payloads are compressed particularly when data-aware compression is used [4].
+DARA can achieve a compression ratio of 0.15 for heterogeneous sensor data [4]. This allows 12 replications of 16 bytes of raw sensor readings to be encoded in a single 32 byte packet. An alternative
+
+RealWSN ’18, November 4, 2018, Shenzhen, China
+
+Benjamin Dix-Ma￿hews, Rachel Cardell-Oliver, and Christof Hübner
+
+100
+
+80
+
+Data Delivery Ratio (%)
+
+FEC strategy
+None (R=1) ● Naive (R=2)
+DARA (R=12)
+
+●
+
+● ●
+
+●
+● ●
+
+●
+
+●
+
+●
+
+60
+
+40
+
+18
+
+20
+
+22
+
+24
+
+Week of Year
+
+Figure 5: Using data replication to increase in DDR
+
+approach using fountain codes and convolutional coding is pre-
+
+sented in [9]. They report a compression ratio of 0.58 improvement
+
+over the naive replication strategy. But this approach has higher
+
+complexity than DARA and a worse compression ratio.
+
+Data delivery ratio (DDR) for a sequence of packet fates is cal-
+
+culated as follows. First assign a packet fate of ft = 1 for packets received at times t and ft = 0 for lost packets. The DDR for repetition rate = 1 (one payload only) is simply the packet reception
+R
+rate which is number of fates > 0 divided by the length of the
+
+fate sequence. For R = 2 any fate subsequence 01 is replaced by 21 indicating that the lost packet can be recovered from the repli-
+
+cated data in its following packet. More generally for R = k if
+ft k 1 = 0 and ft = 1 then set ft k 1 = k to show recovery of this packet. For each repetition value, the DDR is again sum of
+
+ft
+
+>
+
+0 divided by the
+
+length of
+
+. Figure 5 shows the data delivery f
+
+ratios that would be achieved for these three FEC strategies given
+
+the observed farm RSSIs, a measurement period of 10 minutes and
+
+using the Pareto-optimal energy-e￿cient settings for 135 dB path
+
+loss: SF=7, BW=250, CR=4/5 and transmission power TxP=13 dBm.
+
+It can be seen that, for the same energy cost, DARA compression
+
+o￿ers an average 16% DDR improvement over naive replication.
+
+Compared to no replication, the average DDR gain is 25%, at a cost
+
+of 10 microjoules per packet (22 for a 16 byte packet vs 32 for 32
+
+bytes). Further improvements could be achieved by adaptively test-
+
+ing current path loss conditions and changing the LoRa parameter
+
+settings.
+
+8 CONCLUSION
+The goal of this paper is to select LoRa parameter combinations for a mostly unknown environment to achieve very low energy consumption. A simple model for energy and path loss for LoRa is presented. We use this model to select a set of parameters for adapting to di￿erent channel conditions, noting that the parameter settings for low energy transmission are not the same as those selected in the standard LoRaWAN ADR protocol. Nodes are able to self con￿gure to the best LoRa parameters for their channel setting.
+Using real measurements from mobile nodes in two contrasting environments we show that the spatial variability of LoRa can be modelled by a simple log-distance model. Since LoRa applications
+
+should use small packets and low data rates, we consider forward
+error correction using data-aware compression and payload repli-
+cation. We demonstrate that for energy sensitive applications it is
+better to use low energy LoRa settings and data recovery strategies
+than to use higher energy LoRa settings aiming to achieve a very
+high packet reception rate. The software and datasets are available
+from github.com/websense/loraDatasets .
+Our results suggest a number of interesting areas for future work.
+One task is to implement and test the proposed low energy protocol
+in di￿erent environments and weather conditions. Another problem
+is to experiment with additional LoRa settings including frequency
+and coding rate. Receiver diversity [5] is another promising low cost
+approach for overcoming poor channels which should be revisited
+in the LoRa context.
+Acknowledgments
+The authors acknowledge funding for this work from the Australia-
+Germany Joint Research Cooperation Scheme and the Water Cor-
+poration of Western Australia (CEED project).
+REFERENCES
+[1] Aloÿs Augustin, Jiazi Yi, Thomas Clausen, and William Townsley. 2016. A Study of LoRa: Long Range and Low Power Networks for the Internet of Things. Sensors 16, 12 (sep 2016), 1466. https://doi.org/10.3390/s16091466
+[2] Martin Bor and Utz Roedig. 2017. LoRa Transmission Parameter Selection. In Proceedings of the 13th IEEE International Conference on Distributed Computing in Sensor Systems (DCOSS), Ottawa, ON, Canada. 5–7.
+[3] Martin Bor, Utz Roedig, Thiemo Voigt, and Juan Alonso. 2016. Do LoRa lowpower wide-area networks scale?. In The 19th ACM International Conference on Modeling, Analysis and Simulation of Wireless and Mobile Systems.
+[4] R. Cardell-Oliver, S. Boettcher, and C. Huebner. 2013. Data-aware, resourceaware, lossless compression for sensor networks. In EWSN, Vol. 7772 LNCS. https://doi.org/10.1007/978- 3- 642- 36672- 7_6
+[5] R. Cardell-Oliver, A. Willig, C. Huebner, T. Buehring, and A. Monsalve. 2012. Error control strategies for transmit-only sensor networks: A case study. In IEEE International Conference on Networks, ICON. https://doi.org/10.1109/ICON.2012. 6506600
+[6] Marco Cattani, Carlo Boano, and Kay Römer. 2017. An Experimental Evaluation of the Reliability of LoRa Long-Range Low-Power Wireless Communication. Journal of Sensor and Actuator Networks 6, 2 (jun 2017), 7. https://doi.org/10. 3390/jsan6020007
+[7] Oana Iova, Amy L Murphy, L Ghiro, D Molteni, F Ossi, and F Cagnacci. 2017. LoRa from the city to the mountains: Exploration of hardware and environmental factors. In Proceedings of the 2nd International Workshop on New Wireless Communication Paradigms for the Internet of Things (MadCom), Uppsala, Sweden. 20–22.
+[8] LoRa Alliance 2017. LoRaWANTM Speci￿cation. LoRa Alliance. https://www. lora- alliance.org/resource- hub/lorawantm- speci￿cation- v11
+[9] P. J. Marcelis, V. Rao, and R. V. Prasad. 2017. DaRe: Data Recovery through Application Layer Coding for LoRaWAN. In Proceedings of the Second International Conference on Internet-of-Things Design and Implementation - IoTDI ’17. 97–108. https://doi.org/10.1145/3054977.3054978
+[10] Juha Petäjäjärvi, Konstantin Mikhaylov, Antti Roivainen, Tuomo Hanninen, and Marko Pettissalo. 2015. On the coverage of LPWANs: range evaluation and channel attenuation model for LoRa technology. In ITS Telecommunications (ITST), 2015 14th International Conference on. IEEE, 55–59.
+[11] Juha Petäjäjärvi, Konstantin Mikhaylov, Rumana Yasmin, Matti Hämäläinen, and Jari Iinatti. 2017. Evaluation of LoRa LPWAN technology for indoor remote health and wellbeing monitoring. International Journal of Wireless Information Networks 24, 2 (2017), 153–165.
+[12] Simon R. Saunders and Alejandro Aragon Zavala. 2008. Antennas and propagation for wireless communication systems. John Wiley & Sons.
+[13] Semtech 2017. LoRa 860 MHz to 1020 MHz Low Power Long Range Transceiver. Semtech. Rev.3.1.
+[14] Marco Zimmerling, Federico Ferrari, Luca Mottola, Thiemo Voigt, and Lothar Thiele. 2012. pTunes : Runtime Parameter Adaptation for Low-power MAC Protocols. In IPSN’12, April 16ÃćÂĂÂŞ20, 2012, Beijing, China. 36–38.
+
