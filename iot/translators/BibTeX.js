@@ -8,7 +8,6 @@
 	"maxVersion": null,
 	"priority": 200,
 	"inRepository": true,
-	"browserSupport": "gcsv",
 	"configOptions": {
 		"async": true,
 		"getCollections": true
@@ -19,8 +18,26 @@
 		"exportFileData": false,
 		"useJournalAbbreviation": false
 	},
-	"lastUpdated": "2019-02-04 20:10:00"
+	"lastUpdated": "2019-10-07 20:55:00"
 }
+
+/*
+   BibTeX Translator
+   Copyright (C) 2019 CHNM, Simon Kornblith, Richard Karnesky and Emiliano heyns
+
+   This program is free software: you can redistribute it and/or modify
+   it under the terms of the GNU Affero General Public License as published by
+   the Free Software Foundation, either version 3 of the License, or
+   (at your option) any later version.
+
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU Affero General Public License for more details.
+
+   You should have received a copy of the GNU Affero General Public License
+   along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
 
 function detectImport() {
 	var maxChars = 1048576; // 1MB
@@ -57,7 +74,7 @@ function detectImport() {
 				}
 				
 				block = "";
-			} else if (" \n\r\t".indexOf(chr) == -1) {
+			} else if (!" \n\r\t".includes(chr)) {
 				block += chr;
 			}
 		}
@@ -325,7 +342,7 @@ function processField(item, field, value, rawValue) {
 			if (!name) continue;
 			
 			// Names in BibTeX can have three commas
-			pieces = splitUnprotected(name, /\s*,\s*/g);
+			var pieces = splitUnprotected(name, /\s*,\s*/g);
 			var creator = {};
 			if (pieces.length > 1) {
 				creator.firstName = pieces.pop();
@@ -343,7 +360,7 @@ function processField(item, field, value, rawValue) {
 					lastName: unescapeBibTeX(name),
 					creatorType: field,
 					fieldMode: 1
-				}
+				};
 			}
 			item.creators.push(creator);
 		}
@@ -370,7 +387,7 @@ function processField(item, field, value, rawValue) {
 		}
 		
 		if (item.date) {
-			if (value.indexOf(item.date) != -1) {
+			if (value.includes(item.date)) {
 				// value contains year and more
 				item.date = value;
 			} else {
@@ -381,7 +398,7 @@ function processField(item, field, value, rawValue) {
 		}
 	} else if (field == "year") {
 		if (item.date) {
-			if (item.date.indexOf(value) == -1) {
+			if (!item.date.includes(value)) {
 				// date does not already contain year
 				item.date += value;
 			}
@@ -636,18 +653,18 @@ function unescapeBibTeX(value) {
 	
 	// replace accented characters (yucky slow)
 	value = value.replace(/{?(\\[`"'^~=]){?\\?([A-Za-z])}/g, "{$1$2}");
-	//for special characters rendered by \[a-z] we need a space
-	value = value.replace(/{?(\\[a-z]){?\\?([A-Za-z])}/g, "{$1 $2}");
+	// normalize some special characters, e.g. caron \v{c} -> {\v c}
+	value = value.replace(/(\\[a-z]){(\\?[A-Za-z])}/g, "{$1 $2}");
 	//convert tex markup into permitted HTML
 	value = mapTeXmarkup(value);
 	for (var mapped in reversemappingTable) { // really really slow!
 		var unicode = reversemappingTable[mapped];
-		while (value.indexOf(mapped) !== -1) {
+		while (value.includes(mapped)) {
 			Zotero.debug("Replace " + mapped + " in " + value + " with " + unicode);
 			value = value.replace(mapped, unicode);
 		}
 		mapped = mapped.replace(/[{}]/g, "");
-		while (value.indexOf(mapped) !== -1) {
+		while (value.includes(mapped)) {
 			//Z.debug(value)
 			Zotero.debug("Replace(2) " + mapped + " in " + value + " with " + unicode);
 			value = value.replace(mapped, unicode);
@@ -663,17 +680,17 @@ function unescapeBibTeX(value) {
 	// chop off backslashes
 	value = value.replace(/([^\\])\\([#$%&~_^\\{}])/g, "$1$2");
 	value = value.replace(/([^\\])\\([#$%&~_^\\{}])/g, "$1$2");
-	if (value[0] == "\\" && "#$%&~_^\\{}".indexOf(value[1]) != -1) {
+	if (value[0] == "\\" && "#$%&~_^\\{}".includes(value[1])) {
 		value = value.substr(1);
 	}
-	if (value[value.length-1] == "\\" && "#$%&~_^\\{}".indexOf(value[value.length-2]) != -1) {
+	if (value[value.length-1] == "\\" && "#$%&~_^\\{}".includes(value[value.length-2])) {
 		value = value.substr(0, value.length-1);
 	}
 	value = value.replace(/\\\\/g, "\\");
 	value = value.replace(/\s+/g, " ");
 	
 	// Unescape HTML entities coming from web translators
-	if (Zotero.parentTranslator && value.indexOf('&') != -1) {
+	if (Zotero.parentTranslator && value.includes('&')) {
 		value = value.replace(/&#?\w+;/g, function(entity) {
 			var char = ZU.unescapeHTML(entity);
 			if (char == entity) char = ZU.unescapeHTML(entity.toLowerCase()); // Sometimes case can be incorrect and entities are case-sensitive
@@ -733,12 +750,12 @@ function processComment() {
 		return;
 	}
 
-	if (comment.indexOf('jabref-meta: groupstree:') == 0) {
+	if (comment.startsWith('jabref-meta: groupstree:')) {
 		if (jabref.format != 3) {
 			Zotero.debug("jabref: fatal: unsupported group format: " + jabref.format);
 			return;
 		}
-		comment = comment.replace(/^jabref-meta: groupstree:/, '').replace(/[\r\n]/gm, '')
+		comment = comment.replace(/^jabref-meta: groupstree:/, '').replace(/[\r\n]/gm, '');
 
 		var records = jabrefSplit(comment, ';');
 		while (records.length > 0) {
@@ -753,8 +770,8 @@ function processComment() {
 				return;
 			}
 			record.level = parseInt(record.data[1]);
-			record.type = record.data[2]
-			record.name = record.data[3]
+			record.type = record.data[2];
+			record.name = record.data[3];
 			record.intersection = keys.shift(); // 0 = independent, 1 = intersection, 2 = union
 
 			if (isNaN(record.level)) {
@@ -788,9 +805,9 @@ function processComment() {
 				var path = collectionPath[i];
 				Zotero.debug("jabref: looking for child " + path + " under " + collection.name);
 
-				var child = jabrefCollect(collection.children, function(n) { return (n.name == path)})
+				var child = jabrefCollect(collection.children, function(n) { return (n.name == path); });
 				if (child.length != 0) {
-					child = child[0]
+					child = child[0];
 					Zotero.debug("jabref: child " + child.name + " found under " + collection.name);
 				} else {
 					child = new Zotero.Collection();
@@ -807,7 +824,7 @@ function processComment() {
 			}
 
 			if (parentCollection) {
-				parentCollection = jabrefCollect(parentCollection.children, function(n) { return (n.type == 'item') });
+				parentCollection = jabrefCollect(parentCollection.children, function(n) { return (n.type == 'item'); });
 			}
 
 			if (record.intersection == '2' && parentCollection) { // union with parent
@@ -815,7 +832,7 @@ function processComment() {
 			}
 
 			while (keys.length > 0) {
-				key = keys.shift();
+				var key = keys.shift();
 				if (key != '') {
 					Zotero.debug('jabref: adding ' + key + ' to ' + collection.name);
 					collection.children.push({type: 'item', id: key});
@@ -823,7 +840,7 @@ function processComment() {
 			}
 
 			if (parentCollection && record.intersection == '1') { // intersection with parent
-				collection.children = jabrefMap(collection.children, function(n) { parentCollection.indexOf(n) !== -1; });
+				collection.children = jabrefMap(collection.children, function(n) { parentCollection.includes(n); });
 			}
 		}
 	}
@@ -858,7 +875,7 @@ function beginRecord(type, closeChar) {
 		if (read == "=") {								// equals begin a field
 		// read whitespace
 			var read = Zotero.read(1);
-			while (" \n\r\t".indexOf(read) != -1) {
+			while (" \n\r\t".includes(read)) {
 				read = Zotero.read(1);
 			}
 			
@@ -917,7 +934,7 @@ function beginRecord(type, closeChar) {
 				return item.complete();
 			}
 			return;
-		} else if (" \n\r\t".indexOf(read) == -1) {		// skip whitespace
+		} else if (!" \n\r\t".includes(read)) {		// skip whitespace
 			field += read;
 		}
 	}
@@ -1000,7 +1017,7 @@ function writeField(field, value, isMacro) {
 		// I hope these are all the escape characters!
 		value = escapeSpecialCharacters(value);
 		
-		if (caseProtectedFields.indexOf(field) != -1) {
+		if (caseProtectedFields.includes(field)) {
 			value = ZU.XRegExp.replace(value, protectCapsRE, "$1{$2$3}"); // only $2 or $3 will have a value, not both
 		}
 	}
@@ -1061,7 +1078,7 @@ function isTitleCase(string) {
 	while (word = wordRE.exec(string)) {
 		word = word[1];
 		if (word.search(/\d/) != -1	//ignore words with numbers (including just numbers)
-			|| skipWords.indexOf(word.toLowerCase()) != -1) {
+			|| skipWords.includes(word.toLowerCase())) {
 			continue;
 		}
 
@@ -1074,13 +1091,13 @@ function isTitleCase(string) {
 // See http://tex.stackexchange.com/questions/230750/open-brace-in-bibtex-fields/230754
 var vphantomRe = /\\vphantom{\\}}((?:.(?!\\vphantom{\\}}))*)\\vphantom{\\{}/g;
 function escapeSpecialCharacters(str) {
-	var newStr = str.replace(/[|\<\>\~\^\\\{\}]/g, function(c) { return alwaysMap[c] })
+	var newStr = str.replace(/[|\<\>\~\^\\\{\}]/g, function(c) { return alwaysMap[c]; })
 		.replace(/([\#\$\%\&\_])/g, "\\$1");
 	
 	// We escape each brace in the text by making sure that it has a counterpart,
 	// but sometimes this is overkill if the brace already has a counterpart in
 	// the text.
-	if (newStr.indexOf('\\vphantom') != -1) {
+	if (newStr.includes('\\vphantom')) {
 		var m;
 		while (m = vphantomRe.exec(newStr)) {
 			// Can't use a simple replace, because we want to match up inner with inner
@@ -1178,7 +1195,7 @@ var citeKeyConversions = {
 		}
 		return "nodate";
 	}
-}
+};
 
 
 function buildCiteKey (item, extraFields, citekeys) {
@@ -1191,7 +1208,7 @@ function buildCiteKey (item, extraFields, citekeys) {
 	
 	var basekey = "";
 	var counter = 0;
-	citeKeyFormatRemaining = citeKeyFormat;
+	var citeKeyFormatRemaining = citeKeyFormat;
 	while (citeKeyConversionsRe.test(citeKeyFormatRemaining)) {
 		if (counter > 100) {
 			Zotero.debug("Pathological BibTeX format: " + citeKeyFormat);
@@ -1478,7 +1495,7 @@ var exports = {
 	"doImport": doImport,
 	"setKeywordDelimRe": setKeywordDelimRe,
 	"setKeywordSplitOnSpace": setKeywordSplitOnSpace
-}
+};
 
 /*
  * new mapping table based on that from Matthias Steffens,
@@ -2156,12 +2173,12 @@ var mappingTable = {
 	"\uFB04":"ffl", // LATIN SMALL LIGATURE FFL
 	"\uFB05":"st", // LATIN SMALL LIGATURE LONG S T
 	"\uFB06":"st", // LATIN SMALL LIGATURE ST
-/* Derived accented characters */
+	/* Derived accented characters */
 
-/* These two require the "semtrans" package to work; uncomment to enable */
-/*	"\u02BF":"\{\\Ayn}", // MGR Ayn
-	"\u02BE":"\{\\Alif}", // MGR Alif/Hamza
-*/
+	/* These two require the "semtrans" package to work; uncomment to enable */
+	/*	"\u02BF":"\{\\Ayn}", // MGR Ayn
+		"\u02BE":"\{\\Alif}", // MGR Alif/Hamza
+	*/
 	"\u00C0":"{\\`A}", // LATIN CAPITAL LETTER A WITH GRAVE
 	"\u00C1":"{\\'A}", // LATIN CAPITAL LETTER A WITH ACUTE
 	"\u00C2":"{\\^A}", // LATIN CAPITAL LETTER A WITH CIRCUMFLEX
@@ -2511,7 +2528,7 @@ var reversemappingTable = {
 	"{\\OE}"                          : "\u0152", // LATIN CAPITAL LIGATURE OE
 	"{\\oe}"                          : "\u0153", // LATIN SMALL LIGATURE OE
 	"{\\textasciicircum}"             : "\u02C6", // MODIFIER LETTER CIRCUMFLEX ACCENT
-//    "\\~{}"                           : "\u02DC", // SMALL TILDE
+	//    "\\~{}"                           : "\u02DC", // SMALL TILDE
 	"{\\textacutedbl}"                : "\u02DD", // DOUBLE ACUTE ACCENT
 	
 	//Greek Letters Courtesy of Spartanroc
@@ -2568,7 +2585,7 @@ var reversemappingTable = {
 	"{\\textquotedblleft}"            : "\u201C", // LEFT DOUBLE QUOTATION MARK
 	"{\\textquotedblright}"           : "\u201D", // RIGHT DOUBLE QUOTATION MARK
 	"{\\quotedblbase}"                : "\u201E", // DOUBLE LOW-9 QUOTATION MARK
-//    "{\\quotedblbase}"                : "\u201F", // DOUBLE HIGH-REVERSED-9 QUOTATION MARK
+	//    "{\\quotedblbase}"                : "\u201F", // DOUBLE HIGH-REVERSED-9 QUOTATION MARK
 	"{\\textdagger}"                  : "\u2020", // DAGGER
 	"{\\textdaggerdbl}"               : "\u2021", // DOUBLE DAGGER
 	"{\\textbullet}"                  : "\u2022", // BULLET
@@ -3702,6 +3719,103 @@ var testCases = [
 						"tag": "trajectory patterns"
 					}
 				],
+				"notes": [],
+				"seeAlso": []
+			}
+		]
+	},
+	{
+		"type": "import",
+		"input": "@article{madoc40756,\n          author = {Elias Naumann and Moritz He{\\ss} and Leander Steinkopf},\n          number = {6},\n        language = {Deutsch},\n          volume = {44},\n       publisher = {Lucius \\& Lucius},\n         address = {Stuttgart},\n           pages = {426--446},\n         journal = {Zeitschrift f{\\\"u}r Soziologie : ZfS},\n            year = {2015},\n             doi = {10.1515/zfsoz-2015-0604},\n           title = {Die Alterung der Gesellschaft und der Generationenkonflikt in Europa},\n             url = {https://madoc.bib.uni-mannheim.de/40756/}\n}\n\n@article {MR3077863,\nAUTHOR = {Eli{\\'a}{\\v{s}}, Marek and Matou{\\v{s}}ek, Ji{\\v{r}}{\\'{\\i}}},\nTITLE = {Higher-order {E}rd{\\H o}s-{S}zekeres theorems},\nJOURNAL = {Adv. Math.},\nFJOURNAL = {Advances in Mathematics},\nVOLUME = {244},\nYEAR = {2013},\nPAGES = {1--15},\nISSN = {0001-8708},\nMRCLASS = {05C65 (05C55 52C10)},\nMRNUMBER = {3077863},\nMRREVIEWER = {David Conlon},\nDOI = {10.1016/j.aim.2013.04.020},\nURL = {http://dx.doi.org/10.1016/j.aim.2013.04.020},\n}",
+		"items": [
+			{
+				"itemType": "journalArticle",
+				"title": "Die Alterung der Gesellschaft und der Generationenkonflikt in Europa",
+				"creators": [
+					{
+						"firstName": "Elias",
+						"lastName": "Naumann",
+						"creatorType": "author"
+					},
+					{
+						"firstName": "Moritz",
+						"lastName": "Heß",
+						"creatorType": "author"
+					},
+					{
+						"firstName": "Leander",
+						"lastName": "Steinkopf",
+						"creatorType": "author"
+					}
+				],
+				"date": "2015",
+				"DOI": "10.1515/zfsoz-2015-0604",
+				"issue": "6",
+				"itemID": "madoc40756",
+				"language": "Deutsch",
+				"pages": "426–446",
+				"publicationTitle": "Zeitschrift für Soziologie : ZfS",
+				"url": "https://madoc.bib.uni-mannheim.de/40756/",
+				"volume": "44",
+				"attachments": [],
+				"tags": [],
+				"notes": [],
+				"seeAlso": []
+			},
+			{
+				"itemType": "journalArticle",
+				"title": "Higher-order Erdős-Szekeres theorems",
+				"creators": [
+					{
+						"firstName": "Marek",
+						"lastName": "Eliáš",
+						"creatorType": "author"
+					},
+					{
+						"firstName": "Jiří",
+						"lastName": "Matoušek",
+						"creatorType": "author"
+					}
+				],
+				"date": "2013",
+				"DOI": "10.1016/j.aim.2013.04.020",
+				"ISSN": "0001-8708",
+				"extra": "MR: 3077863",
+				"itemID": "MR3077863",
+				"journalAbbreviation": "Adv. Math.",
+				"pages": "1–15",
+				"publicationTitle": "Advances in Mathematics",
+				"url": "http://dx.doi.org/10.1016/j.aim.2013.04.020",
+				"volume": "244",
+				"attachments": [],
+				"tags": [],
+				"notes": [],
+				"seeAlso": []
+			}
+		]
+	},
+	{
+		"type": "import",
+		"input": "@incollection{madoc44942,\n        language = {isl},\n          author = {Eva H. {\\\"O}nnud{\\'o}ttir},\n           title = {B{\\'u}s{\\'a}haldabyltingin : P{\\'o}lit{\\'i}skt jafnr{\\ae}{\\dh}i og {\\th}{\\'a}tttaka almennings {\\'i} m{\\'o}tm{\\ae}lum},\n            year = {2011},\n       publisher = {F{\\'e}lagsv{\\'i}sindastofnun H{\\'a}sk{\\'o}la {\\'I}slands},\n         address = {Reykjavik},\n           pages = {36--44}\n}\n",
+		"items": [
+			{
+				"itemType": "bookSection",
+				"title": "Búsáhaldabyltingin : Pólitískt jafnræði og þátttaka almennings í mótmælum",
+				"creators": [
+					{
+						"firstName": "Eva H.",
+						"lastName": "Önnudóttir",
+						"creatorType": "author"
+					}
+				],
+				"date": "2011",
+				"itemID": "madoc44942",
+				"language": "isl",
+				"pages": "36–44",
+				"place": "Reykjavik",
+				"publisher": "Félagsvísindastofnun Háskóla Íslands",
+				"attachments": [],
+				"tags": [],
 				"notes": [],
 				"seeAlso": []
 			}
