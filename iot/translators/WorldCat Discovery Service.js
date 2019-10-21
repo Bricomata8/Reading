@@ -9,7 +9,7 @@
 	"priority": 100,
 	"inRepository": true,
 	"browserSupport": "gcsbv",
-	"lastUpdated": "2019-09-16 06:30:00"
+	"lastUpdated": "2019-10-20 22:15:00"
 }
 
 /*
@@ -100,6 +100,11 @@ function composeURL(oclcID, databaseID) {
 function scrape(risURL) {
 	ZU.doGet(risURL, function (text) {
 		// Z.debug(text);
+
+		if (!/^TY {1,2}- /m.test(text)) {
+			throw new Error("RIS not found in response");
+		}
+
 		// conference proceedings exported as CONF, but fields match BOOK better
 		text = text.replace(/TY\s+-\s+CONF\s+[\s\S]+?\n\s*ER\s+-/g, function (m) {
 			return m.replace(/^TY\s+-\s+CONF\s*$/mg, 'TY  - BOOK')
