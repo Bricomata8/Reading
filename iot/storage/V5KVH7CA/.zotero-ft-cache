@@ -1,0 +1,1945 @@
+This article has been accepted for publication in a future issue of this journal, but has not been fully edited. Content may change prior to final publication. Citation information: DOI 10.1109/ACCESS.2018.2847610, IEEE Access
+1
+
+RAN Runtime Slicing System for Flexible and Dynamic Service Execution Environment
+Chia-Yu Chang and Navid Nikaein Communication Systems Department, EURECOM, France
+Email: ﬁrstname.lastname@eurecom.fr
+
+Abstract—Network slicing is one key enabler to provide the required ﬂexibility and to realize the service-oriented 5G vision. Unlike the core network slicing, radio access network (RAN) slicing is still at its infancy and several works just start to investigate the challenges and potentials to enable the multi-service RAN, toward a serviced-oriented RAN (SO-RAN) architecture. One of the major concerns in RAN slicing is to provide different levels of isolation and sharing as per slice requirement. Moreover, both control and user plane processing may be customized allowing a slice owner to ﬂexibly control its service. Enabling dynamic RAN composition with ﬂexible functional split for disaggregated RAN deployments is another challenge. In this paper, we propose a RAN runtime slicing system through which the operation and behavior of the underlying RAN could be customized and controlled to meet slice requirements. We present a proof-ofconcept prototype of the proposed RAN runtime slicing system for LTE, assess its feasibility and potentials, and demonstrate the isolation, sharing, and customization capabilities with three representative use cases.
+Index Terms—Network slicing, RAN slicing, 5G, service orientation
+I. INTRODUCTION
+Fifth generation (5G) mobile network is a paradigm shift beyond the new radio and wider spectrum with the objective of improving the overall efﬁciency and ﬂexibility of mobile networks. It is about the evolution of computing for wireless networks (e.g., central ofﬁces become data centers) and enabling the service-oriented architecture to deliver networks on an as-a-service basis. Support of vertical markets is one of the main driving factors behind this evolution to empower the business and value creation for 5G. The underlying idea being to support multiple services and/or virtual networks on a single physical network with different service requirements is in terms of the deﬁnition and agreement, the control and management, and also the performance.
+Through this service-oriented 5G vision, naturally the network infrastructure providers (e.g., operators and data center owners), service providers (e.g., over-the-top and verticals), and network function/application providers (e.g., vendors) are decoupled to allow a cost-effective network composition and sharing model to reduce both capital expenditure (CAPEX) and operating expense (OPEX). Fig. 1 illustrates the relationship between different providers and the transformation of the value-chain in telecommunication industry being aligned with the high-level role models presented by the third generation partnership project (3GPP) in [1]. For example, network infrastructure may be provided by the operator as an intermediary between the vendors and data center owners or by a combination of network equipments from vendors, data centers from
+
+Digital Service Provider
+(e.g., OTT, media, social, apps)
+
+Content-aware
+
+Network
+
+Service selection & composition
+
+Function/Application
+
+service optimization
+Communication
+
+Provider
+
+Service Provider
+
+(e.g., vendor, vertical, 3rd party)
+
+(e.g., operator, vertical)
+
+Infrastructure Selection &
+
+Performance optimization
+
+Network Provider
+(e.g., operator, vendor)
+
+Hardware supportability
+Hardware Provider
+(e.g., IC designer, IDM)
+
+Facility Availability & Compatibility
+Data Center Service Provider
+(e.g., operator, cloud, IT)
+
+Fig. 1: Service-orientation impact on the evolution of telecommunication industry.
+
+information technologies (ITs), and transport network from operators. A service is built through the composition of multivendor network functions, physical or virtual (PNF/VNF), that not only shall meet the requirements of service providers such as performance and cost but also thats of network infrastructure providers in terms of PNF/VNF interoperability and compatibility when the service is running on different underlying infrastructures.
+
+Network slicing is one of the key enablers to provide the required ﬂexibility for the envisioned service-oriented 5G. It enables the composition and deployment of multiple logical networks over a shared physical infrastructure, and their delivery as a service or slice. A slice can either be completely isolated from other slices down to the different sets of spectrum and cell site (as in most of current 3G and 4G deployment), or be shared across all types of resources including radio spectrum and network functions (e.g., all network layers of protocol stack), or be customized for a subset of user-plane (UP) and control-plane (CP) processing with an access to a portion of radio resources in a virtualized form. To enable these options, a ﬂexible execution environment is needed to host slice service instance over the resources provided by the underlying infrastructures. Hence, different levels of isolation and sharing across the domain-speciﬁc
+
+2169-3536 (c) 2018 IEEE. Translations and content mining are permitted for academic research only. Personal use is also permitted, but republication/redistribution requires IEEE permission. See http://www.ieee.org/publications_standards/publications/rights/index.html for more information.
+
+This article has been accepted for publication in a future issue of this journal, but has not been fully edited. Content may change prior to final publication. Citation information: DOI 10.1109/ACCESS.2018.2847610, IEEE Access
+2
+
+resources spanned by a slice shall be naturally supported. Note that the concept of different isolation levels not only provides the dedication over resources but also brings the independency among network functions and applications. Further, domain boundaries could be administrative (e.g., between operators), network segment (e.g., radio access network, core network, transport network), radio access technology (e.g., 4G, 5G) among the others, and resources could be of different types including computing, storage, network, hardware, radio, spectrum, network functions and applications. For instance, a slice can be composed with dedicated core network and isolated control functions, while also leverages the virtualized radio resource in a shared radio spectrum. However, another slice can be composed of fully isolated resources (except computing resources) and network functions like the FLARE solution provided in [2].
+Hence, softwarization, virtualization, and disaggregation are the key slicing enablers to ﬂexibly customize a slice, automate its life-cycle management, and ease the development of network functions and applications with the objective to accommodate the requirements of an end-to-end (E2E) service. They constitute the foundation for a multi-service and multi-tenant architecture, and are realized by applying the principles of software-deﬁne networking (SDN), network function virtualization (NFV), and cloud computing to the mobile networks [3].
+Several standardization bodies and industry forums outline the crucial role of an E2E network slicing to fulﬁll the serviceoriented visions of 5G, e.g., International Telecommunication Union (ITU) [4], 3GPP [5] and next generation mobile networks (NGMN) alliance [6]. Also, prominent network architectures are proposed by 5G initiatives and projects, e.g., 5G infrastructure public private partnership (5GPPP) European program [7]. Many architectures and prototypes have been proposed for core network (CN) slicing [8]–[10] and radio access network (RAN) slicing [11], [12]. The challenge of CN slicing has been also addressed by 3GPP, and realized through a dedicated core network (DECOR) [13] and evolved DECOR (eDECOR) [14]. Nevertheless, RAN slicing remains a challenge in providing different levels of isolation and sharing to allow a slice owner to customize its service across UP, CP, and control logic (CL) while increasing the resource utilization of RAN infrastructure. The CL refers to the logic that makes the decisions for a particular CP/UP function, e.g., CL decides on user handover and CP performs the corresponding handover action following the standardized protocol stack. Note that the RAN slicing is different from legacy RAN sharing notion in which the focus is only on the efﬁcient sharing on cell sites, passive (e.g., antenna mast) and active (e.g., transport network infrastructure) network elements, radio spectrum, network function and application, and baseband processing. Section II will delve in more details on the evolution from RAN sharing toward RAN slicing.
+To this end, the novel RAN runtime slicing system is proposed and we summarize our contributions as follows:
+• We review the state-of-the-art on network slicing architecture with the particular focus on the RAN slicing (Section II);
+
+• We present a RAN slicing architecture design in form of the RAN runtime slicing system to enable different levels of isolation and sharing for each slice in terms of the underlying RAN modules and resources, while allowing ﬂexible service composition and customization across UP, CP, and CL (Section III and IV);
+• We introduce a practical set of radio resource abstractions and evaluate the multiplexing gain provided by our designed algorithms for inter-slice resource partitioning and accommodation (Section V);
+• We implement a concrete RAN runtime slicing system prototype on top of OpenAirInterface (OAI) [15] and FlexRAN [16] platforms and then characterize its performance through three case studies (Section VI).
+II. RELATED WORK
+The network slicing architecture has been surveyed widely and such concept can be traced back to the idea of network sharing like the gateway core network (GWCN) deﬁned by 3GPP via sharing RAN and parts of CN in [17]. Additional network sharing models are surveyed and summarized in [18], [19]. In [20], a slice-based network architecture is proposed with the “Network store” concept as a platform to facilitate the dynamic network slicing based on the VNFs on top of commodity infrastructures. The same idea is extended in [21] featuring the “Network and application store” that simpliﬁes the procedure to deﬁne each slice. In [22], the proposed modularized architecture is composed of several building blocks, each with various sub-functions to customize the functionalities on per service of slice. The 5G network slice broker notion is investigated in [23] that resides inside the infrastructure provider and enables the on-demand multi-tenant slice resource allocation. The generic slice as a service model is presented in [24], [25] and it aims to orchestrate customized network slice as a service with the mapped network functions based on the service level agreement (SLA). A cloud-native network slicing approach presented in [26] allows to devise network architectures and deployments tailored to the needs of service. The authors of [27] present the E2E network slicing architecture and elaborate on the mobility management and resource allocation mechanisms for three major 5G service types, i.e., enhanced mobile broadband (eMBB), ultra-reliable and low-latency communication (uRLLC) and massive machine type communication (mMTC). Also, a joint RAN and transport network slicing approach facilitating the programmable control and orchestration plane is provided in [28].
+In terms of the RAN slicing, it is stemmed from the RAN sharing concept such as Multi-Operator RAN (MORAN) and Multi-Operator CN (MOCN). The MORAN approach shares the same RAN infrastructure but with dedicated frequency bands for different operators, while MOCN allows to also share the spectrum among operators as standardized by 3GPP in [17]. These approaches can efﬁciently utilize available radio resources which are surveyed widely as network virtualization substrate (NVS) in [29], [30] that can virtualize radio resources for different resource provisioning approaches in order to
+
+2169-3536 (c) 2018 IEEE. Translations and content mining are permitted for academic research only. Personal use is also permitted, but republication/redistribution requires IEEE permission. See http://www.ieee.org/publications_standards/publications/rights/index.html for more information.
+
+This article has been accepted for publication in a future issue of this journal, but has not been fully edited. Content may change prior to final publication. Citation information: DOI 10.1109/ACCESS.2018.2847610, IEEE Access
+3
+
+Abbreviation 3GPP 5G 5GPPP API BS CI CL CN CP CU DU E2E IDT ITU MAC MCS MVNO NAS NFV NGMN NSSAI PDCP PNF PRB PRBG QoS QoE RAN RBG RLC RRC RTT RU SCS SD-RAN SDAP SDK SDN SLA TTI VNF vRB vRBG vTBS UP
+
+TABLE I: Acronym Table
+Full name 3rd Generation Partnership Project Fifth Generation 5G Infrastructure Public Private Partnership Application Programming Interface Base Station Control Information Control Logic Core Network Control-Plane Centralized Unit Distributed Unit End-to-End Inter-Departure Time International Telecommunication Union Medium Access Control Modulation and Coding Scheme Mobile Virtual Network Operator Non-Access Stratum Network Function Virtualization Next Generation Mobile Networks Network Slice Selection Assistance Information Packet Data Convergence Protocol Physical Network Function Physical Resource Block Physical Resource Block Group Quality of Service Quality of Experience Radio Access Network Resource Block Group Radio Link Control Radio Resource Control Round Trip Time Radio Unit Sub-Carrier Spacing Software-Deﬁned Radio Access Network Service Data Adaptation Protocol Software Development Kit Software-Deﬁned Networking Service Level Agreement Transmission Time Interval Virtual Network Function virtualized Resource Block virtualized Resource Block Group virtualized Transport Block Size User-Plane
+
+coexist several mobile virtual network operators (MVNOs) in a single physical RAN. The NetShare approach in [31] extends the NVS approach and applies a central gateway-level component to ensure resource isolation and to optimize resource distribution for each entity. In [32], the authors propose the CellSlice architecture as a gateway-level solution that can indirectly impact individual BS scheduling decision for slicespeciﬁc resource virtualization. Authors of [33] provide the AppRAN as the application-oriented framework that deﬁnes a serial of abstract applications with distinct quality of service (QoS) guarantees. The Hap-SliceR radio resource slicing framework proposed in [34] is based on the reinforcement learning approach considering resource utilization and slice
+
+utility requirements; however, its main focus is on the resource customization for haptic communication. On a more general basis, RAN virtualization [35], [36] provides functional isolation in terms of customized and dedicated control plane functionalities for each MVNO. These aforementioned works consider either radio resource sharing or functional isolation, while few attentions are given to simultaneously satisfy both concerns.
+To enable the RAN slicing concept, several 5G RAN design requirements and paradigms shall be fulﬁlled as elaborated in [40]. Future RAN design patterns are explained in [41] along the aspects of cloud computing, SDN/NFV and software engineering. Moreover, 3GPP mentions the RAN slicing realization principles in [42], [43] including RAN awareness slicing, QoS support, resource isolation, SLA enforcement among the others. These principles can be enabled through the software-deﬁned RAN (SD-RAN) concept that decouples CP processing from the UP processing. Several works argue the level of centralization of CP functionalities. The fully centralized architecture is proposed such as OpenRAN in [44] and as SoftAir in [45] that may face the challenge of realtime control given the inherent delay between the controller and underlying RAN. The SoftRAN [46] architecture statically refactors the control functions into the centralized and distributed ones based on the time criticality and the central view requirement. The SoftMobile approach [47] further abstracts the CP processing in several layers based on the functionalities in order to perform the control functionalities through the application programming interfaces (APIs). As for the UP programmability and modularity, the OpenRadio [48] and PRAN [49] are pioneered to decompose the overall processing into several functionalities that can be chained. FlexRAN [16] realizes a SD-RAN platform and implements a custom RAN south-bound API through which programmable CL can be enforced with different levels of centralization, either by the controller or RAN agent.
+With aforementioned enablers, several RAN slicing works are initiated. The blueprint proposed as RadioVisor in [37] can isolate the control channel messages, elementary resources such as CPU and radio resource to provide the customized service for each slice. A fully isolation solution as FLARE is provided in [2] with different virtual base stations (BSs) representing different slices; however, there is no multiplexing beneﬁts in the radio resource allocation since the spectrum is disjointly partitioned. In addition, network function sharing and multiplexing are not considered in this work. In [38], the radio resource scheduling of a BS is separated into the intraslice scheduler and inter-slice scheduler; however, the resource abstraction/virtualization is not included and only a portion of functions are isolated. In [11], a RAN slicing architecture is proposed that allows radio resource management (RRM) policies to be enforced at the level of physical resource blocks (PRBs) through providing the virtualized resource blocks (vRBs) by a novel resource visor toward each slice. Nevertheless, this work neither considers function isolation nor resource customization/abstraction per slice request. In [50], different approaches to split radio resources are compared in terms of the resource granularity and the degrees of isolation and
+
+2169-3536 (c) 2018 IEEE. Translations and content mining are permitted for academic research only. Personal use is also permitted, but republication/redistribution requires IEEE permission. See http://www.ieee.org/publications_standards/publications/rights/index.html for more information.
+
+This article has been accepted for publication in a future issue of this journal, but has not been fully edited. Content may change prior to final publication. Citation information: DOI 10.1109/ACCESS.2018.2847610, IEEE Access
+4
+
+TABLE II: RAN slicing state-of-the-arts comparison
+
+Authors
+
+Solution level
+
+Radio resource
+
+CP function
+
+UP function
+
+Nikaein et al. [20] Network-wide level
+
+-
+
+Dedicated
+
+Dedicated
+
+Kokku et al. [29]
+
+BS level
+
+Physical or virtualized resource sharing
+
+-
+
+-
+
+Mahindra et al. [31] Gateway and BS level Physical or virtualized resource sharing
+
+-
+
+-
+
+Kokku et al. [32]
+
+Gateway level
+
+Virtualized resource sharing
+
+-
+
+-
+
+He et al. [33]
+
+Gateway level App-oriented virtualized resource sharing
+
+-
+
+-
+
+Aijaz [34]
+
+Gateway level Learning-based virtual resource sharing
+
+-
+
+-
+
+Zaki et al. [35]
+
+BS level
+
+Physical resource sharing
+
+Dedicated
+
+Dedicated
+
+Foukas et al. [16]
+
+BS level
+
+Physical or virtualized resource sharing
+
+Shared
+
+Shared
+
+Gudipati et al. [37]
+
+BS level
+
+Physical 3D resource sharing
+
+Dedicated
+
+Dedicated till programmable radio
+
+Nakao et al. [2]
+
+BS level
+
+Dedicated spectrum allocation
+
+Dedicated
+
+Dedicated
+
+Rost et al. [38]
+
+BS level
+
+Physical resource sharing
+
+Split into cell and user-speciﬁc Dedicated till real-time RLC
+
+Ksentini and Nikaein [11]
+
+BS level
+
+Flexible between dedication and sharing
+
+Dedicated
+
+Shared
+
+Foukas et al. [12]
+
+BS level
+
+Virtualized resource sharing
+
+Split into cell and user-speciﬁc Dedicated till PHY layer
+
+Ferru´s et al. [39]
+
+BS level
+
+Physical resource sharing
+
+Dedicated
+
+Dedicated or Shared till PHY
+
+customization; however, the resource multiplexing capability among slices is not considered. Authors of [12] introduce the BS hypervisor concept to simultaneously isolate slice-speciﬁc control logics and share the radio resources. Moreover, it can group the underlying PRBs into vRBs through a set of abstractions and provides only relevant user information to the corresponding slice. Such work exploits the prerequisites of function isolation and resource virtualization, while it does not consider customization and multiplexing of CP/UP functions in both monolithic and disaggregated RAN deployments. In [39], the proposed RAN slicing framework can base on the service descriptions to ﬂexibly share RAN functions over different network layers; however, it only considers physical resource partitioning without any resource virtualization and multiplexing.
+TABLE II summaries the solution level and compares several related works in three dimensions: radio resource allocation model, control plane function, and user plane function. To serve various ﬂavors of slice, the ﬂexibility and effectiveness of these three dimensions shall be achieved simultaneously through a uniﬁed RAN slicing solution. To this end, our proposed RAN runtime slicing system can ﬂexibly support various slice requirements (e.g., isolation) and elastically improve multiplexing beneﬁts (e.g., sharing) in terms of (1) the new set of radio resource abstractions, (2) network service composition and customization for modularized RAN, and (3) ﬂexibility and adaptability to different RAN deployment scenarios ranging from monolithic to disaggregated.
+III. RAN RUNTIME SLICING SYSTEM
+We propose a RAN runtime slicing system that provides a ﬂexible execution environment to run multiple virtualized RAN instances with the requested levels of isolation and sharing of the underlying RAN modules and resources. It allows the slice owners to (a) create and manage their slices, (b) perform their customized CLs (e.g., handover decision) and/or customized UP/CP processing (e.g., packet data convergence protocol [PDCP] and radio resource control [RRC] functions), and (c) operate on a set of virtual resources (e.g., resource block or frequency spectrum) or capacity (e.g., rate) and access to their CP/UP state (e.g., user identity) that are revealed by the RAN runtime. The isolation and customization properties provided by the RAN runtime is in favor of the slice owners allowing
+
+Shared
+
+Customized
+
+Hard real-time slice
+
+Soft real-time slice
+
+Slice 1
+Control Logics CP UP
+Virtual resources State
+Resources
+
+Slice 2
+Control Logics
+CP State
+
+Slice 3
+Control Logics
+Virtual capacity State
+
+RAN Runtime RAN Module
+CP/UP Processing
+
+State
+
+Physical RAN Infrastructure
+
+Fig. 2: High-level architecture of RAN runtime slicing system.
+them to control the slice compositions and the behavior of the underlying RAN module as per service requirements, while the sharing is in favor of the infrastructure provider that enables the efﬁcient and dynamic multiplexing among multiple tenants over resources, processing, and states in terms of common RAN modules to reduce the expenditures. The RAN module refers to a unit that comprises a subset of RAN functions and performs a portion of RAN processing. 3GPP decomposes the monolithic BS architecture into a three-level disaggregated manner, namely the radio unit (RU), the distributed unit (DU) and the centralized unit (CU) as introduced in [42].
+The proposed RAN runtime slicing system is shown in Fig. 2, with the RAN runtime being the core component by which each running slice interacts with the RAN modules to access resources and state, and control the underlying RAN behavior. From the slice owner perspective, the RAN runtime provides an execution environment through which a slice can perform the customized processing, request the resources, and access the states. At the same time, it enables infrastructure provider to manage the underlying RAN module, enforce the slice-speciﬁc policies, and perform the access and admission control. The RAN runtime by itself is in charge of managing the life-cycle of instantiated slices, abstracting the radio resources and states, and applying changes into the underlying RAN module to customize each slice. It also implements a set of RAN runtime APIs to enable the bidirectional interactions between each slice and underlay RAN module in order to
+
+2169-3536 (c) 2018 IEEE. Translations and content mining are permitted for academic research only. Personal use is also permitted, but republication/redistribution requires IEEE permission. See http://www.ieee.org/publications_standards/publications/rights/index.html for more information.
+
+This article has been accepted for publication in a future issue of this journal, but has not been fully edited. Content may change prior to final publication. Citation information: DOI 10.1109/ACCESS.2018.2847610, IEEE Access
+5
+
+monitor or control the CP/UP processing, resources, and states while retaining the isolation among slices.
+A slice is formally represented to the RAN runtime by a slice descriptor that deﬁnes the slice service requirements in terms of the resources, custom processing, and performance. It is generally provided by the service orchestrator during the creation or update of a slice, and indicates for each slice how radio resources are allocated, reserved, preempted, or shared, how the CP/UP processing is pipelined, and what are the average expected throughput and latency. The customization feature provided by the RAN runtime allows a slice owner to only contain a portion of resources and processing within the slice boundary and to multiplex the remaining ones into the underlying RAN module. To realize a ﬂexible tradeoff between the isolation and the sharing, the states of CP and UP processing are maintained in a database1 allowing to update the processing pipeline (e.g., from the customized one to the multiplexed one or vice versa) on-the-ﬂy, while retaining the service continuity and isolation on the input/output data streams. Note that by maintaining the state, the network functions are virtually turned into the stateless processing which allows to update the service and to recover the state through the RAN runtime.
+In addition, the overall CP processing of a BS is logically separated into the slice-speciﬁc functions and the BS-common ones to exploit the function multiplexing beneﬁts. Note that the CP processing is separated in terms of the functionalities. For instance, the master information block (MIB) and system information blocks (SIBs) are broadcasted commonly to all users with in a cell and are categorized into the BS-common one, while the random access process may be customized by each slice to reduce the latency generated by the BS-common random access procedure. Moreover, the control logics of each slice can be developed/deployed independently tailored to the service requirement. For example, the handover control decisions can be programmed to improve slice-speciﬁc quality of experience (QoE) and the RAN runtime will provide a feasible policy toward underlying RAN module.
+In summary, in the proposed RAN runtime slicing model, RAN functions are pipelined to compose the desired RAN module, i.e., monolithic or disaggregated RAN instances, either via multiplexed or customized CP/UP functions and CLs as per slice requirement. The RAN runtime acts as the intermediate between the customized slices and the underlying shared RAN module and infrastructure providing a uniﬁed execution environment with substantial ﬂexibility to achieve the required level of isolation and sharing. Finally, we provide an example with three slices as shown in Fig. 3. For slice 1, both CP and UP processing are separated into customized (RRC, service data adaptation protocol [SDAP] radio link control [RLC], medium access control [MAC] layers) and shared ones (Physical [PHY] layers), while slice 2 only customizes its SDAP function for UP processing. In contrast, slice 3 relies on the shared CP/UP processing without any customization. Moreover, the control logics of each slice can
+1This is regardless of whether the network function is stateful or stateless [51], [52].
+
+Customized CL
+
+Customized processing
+
+Slice 1
+Handover RRM
+Monitoring
+RRC SDAP PDCP PDCP RLC RLC
+MAC
+
+Slice 2
+RRM Monitoring
+SDAP
+
+Slice 3
+Monitoring
+
+CP UP
+
+CP UP
+
+CP UP
+
+RAN node
+
+Inter-slice conflict CL accommodation
+
+resolution
+
+(Handover, RRM,...)
+
+Cell-common controller
+
+RRC
+
+SDAP
+
+PDCP
+
+PDCP
+
+RLC
+
+RLC
+
+MAC
+
+PHY
+
+CP
+
+UP
+
+Shared CL
+
+Shared processing
+
+Fig. 3: Examples for three instantiated slices.
+be programmed in a customized manner, e.g., handover (slice 1), RRM (slice 1 and slice 2) and monitoring (all three slices). These customized control logics will be accommodated by the shared control logics of the RAN runtime that will be elaborated in Section IV.
+
+IV. DESIGN ELEMENTS OF RUNTIME
+This section provides more details on the main components of the RAN runtime slicing system, namely the slice data, RAN runtime services, and RAN runtime APIs.
+
+A. Design Challenge
+Based on the proposed RAN runtime architecture, we identify a number of challenges that the RAN runtime should resolve:
+• Allow each slice to interact with the underlying RAN and change the CP and UP behaviors that are dynamically determined during its execution (section IV-B and IV-C).
+• Provide different levels of isolation and sharing to allow a slice owner to ﬂexibly compose the slice-speciﬁc RAN resources and processing from the multiplexed or customized resources and CP/UP functions, respectively. Note that the multiplexing gain is also considered for the underlying radio resources and RAN modules (section IV-C).
+• Provide the APIs to enable the slice-speciﬁc CP, UP and control decisions to be realized for both soft and hard realtime requirements (section IV-D).
+
+2169-3536 (c) 2018 IEEE. Translations and content mining are permitted for academic research only. Personal use is also permitted, but republication/redistribution requires IEEE permission. See http://www.ieee.org/publications_standards/publications/rights/index.html for more information.
+
+This article has been accepted for publication in a future issue of this journal, but has not been fully edited. Content may change prior to final publication. Citation information: DOI 10.1109/ACCESS.2018.2847610, IEEE Access
+6
+
+Fig. 4 illustrates the three main building blocks of the RAN runtime: (a) slice data, (b) CP and UP functions to provide the RAN runtime services, and (c) RAN runtime API, that are described in following paragraphs.
+B. Slice data
+Slice data is the entity that stores both slice context and module context under the control of the context manager within the RAN runtime. They are used to customize and manage a slice in terms of the required RAN runtime services, resources, processing, state, and users.
+The slice context describes the basic information and prerequisites to instantiate a slice service and manage corresponding users. It is provided by the service orchestrator and can be updated by the corresponding slice (cf. Fig. 2) following the agreement between the slice owner and the infrastructure provider. TABLE III describes the slice context information maintained by the RAN runtime in the slice data.
+The module context includes the CP and UP state information (belongs to the slice owners), module life-cycle management primitives such as start, conﬁgure, and stop service (belongs to the network function/application provider), and resources (belongs to the infrastructure provider). Unlike input or output data streams of the RAN module that can be pipelined, the control and data state are maintained separately by the RAN runtime and revealed to each slice in a realtime manner to allow the efﬁcient and isolated slice-speciﬁc processing. In addition, such state may be shared among multiple slices subject to the access control, for instance, when coordinated processing and/or decision making are required in the case of the handover decision of a user belonging to two or more slices. Note that in general case, states only include the user-speciﬁc functions in RRC CONNECTED (and new RRC INACTICE-CONNECTED [53]) state, and not necessarily the BS-common functions that are executed independently from the number of instantiated slice, i.e., even with no instantiated slices or when operating in RRC IDLE mode (cf. TABLE IV).
+C. RAN runtime services
+In the following, we elaborate on ﬁve RAN runtime service that can be provisioned for each slice shown in Fig. 4, i.e., context manager, slice manager, virtualization manager, common control applications and forwarding engine. To utilize these RAN runtime services, each slice is registered and identiﬁed with its identity over the RAN runtime among disaggregated RAN entities
+1) Context Manager: This service manages both slice context and module context by performing the CRUD3 operation on the slice data. To create a slice context, the context manager ﬁrstly performs the slice admission control based on the provided network slice descriptor (NSD) that deﬁnes the required processing, resources, and states (as agreed between
+2The 1:n:m relation of user-to-slice-to-BS mapping will make use of RAN runtime CP APIs for network slice selection operation.
+3CRUD includes four basic operations: create, read, update, and delete.
+
+the slice owner and the infrastructure provider). Upon the slice admission control, module context is used by the context manager to register slice-speciﬁc life-cycle primitives to the slice manager and the requested resources and/or performance to the virtualization manager. The former allows custom CP/UP processing to be applied on the input/output data streams, while the latter enables the resource partitioning and abstraction to be performed among multiple slices. At this stage, a slice can start to consume the RAN runtime services not only to manage its service but also to interact with the underlying RAN module through the RAN runtime CP/UP APIs. Then, the context manager can handle the real-time CP/UP state information within the slices and the underlying RAN module so as to keep the slice data in-sync with the instantaneous state.
+Note that many slices can be deployed at a single RAN runtime following the multi-tenancy approach to enable scalable service deployment. However, the maximum number of slices that can be deployed depends on (1) the overhead of the RAN runtime, (2) the available resource in terms of compute, memory and link, (3) the requested SLA and resource by each slice, (4) the assurance percentage to over-provision resources, and (5) the workload of each slice.
+2) Slice Manager: The slice manager entity is responsible for managing the life-cycle of a slice when instructed by the slice owner or the service orchestrator. Through the slice manager, slice life-cycle operations can be triggered, which in turn enables both slice owner and infrastructure provider to control and update slice service deﬁnition as per need and agreement. Based on the service deﬁnition and slice context, the slice manager determines the CP/UP processing chain for each slice and each trafﬁc ﬂow, and programs the forwarding engine through a set of rules allowing to direct the input and output streams across the multiplexed processing operated by underlying RAN module and the customized processing performed by the slice. Unlike the context manager that handles the local slice context, the slice manager operates on an E2E RAN service in support of service continuity when the slice service deﬁnition is updated. For example, a slice owner that performs the customized UP processing can opt in for the multiplexed pipelined processing to reduce its OPEX, which causes changes in its slice service deﬁnition. In addition, when the slice requirements are violated (e.g., performance degradation), the slice manager may change the number of requested resources, resource allocation type, resource partitioning period, or even update the service deﬁnition to comply with the service requirements.
+Slice manager is also in charge of taking a set of actions when detecting any conﬂicts among multiple slices based on a set of policy rules. Such conﬂict can happen at the level of slice when service deﬁnition is changed or at the level of user when it belongs to multiple slices (e.g., 1:n or m:n user-slice relationships). For instance, reserving the resources and/or changing the resource allocation type of a slice may violate the performance of another slice that requires a high bandwidth. Another example is when different user measurement events are requested by different slices which will require a coordination to reconﬁgure the measurement
+
+2169-3536 (c) 2018 IEEE. Translations and content mining are permitted for academic research only. Personal use is also permitted, but republication/redistribution requires IEEE permission. See http://www.ieee.org/publications_standards/publications/rights/index.html for more information.
+
+This article has been accepted for publication in a future issue of this journal, but has not been fully edited. Content may change prior to final publication. Citation information: DOI 10.1109/ACCESS.2018.2847610, IEEE Access
+7
+
+Runtime Environment
+Runtime Slice APIs
+
+Forwarding Engine (Input and output chain)
+
+Slice Data
+
+Common control apps Virtualization Manager
+Slice Manager Context Manager
+
+Runtime UP APIs RAN Runtime Runtime CP APIs RAN Module
+
+Fig. 4: Architecture of the RAN runtime slicing system.
+
+TABLE III: Slice context maintained by the RAN runtime.
+
+Slice Context
+
+Description
+
+Slice identity
+
+Represents a unique slice identiﬁer
+
+Service registry identity
+
+Identiﬁes to which RAN runtime services a slice is registered, e.g., slice manager context manager, virtualization manager, common control applications, forwarding engine
+
+Slice SLA and policy
+
+Describes a business agreement between slice owner and infrastructure provider in terms of performance, resource, access control, and priority level of a corresponding slice
+
+Customized processing
+
+Speciﬁes the customized CP/UP processing functions of such slice. If not speciﬁed explicitly, the default pipelined processing are applied to this slice.
+
+User context
+
+Identiﬁes which pair of BSs and slices a user belongs to and also the mapping between trafﬁc ﬂow and dedicated radio bearers (DRBs)2
+
+TABLE IV: BS-common and user-speciﬁc functions
+
+Process
+
+BS-common functions
+
+user-speciﬁc functions
+
+Location tracking and paging
+
+Tracking area update, CN paging
+
+RAN Paging
+
+Handover and cell re-selection
+
+Cell (re-)selection criterion
+
+User measurement conﬁguration, handover
+
+Random access
+
+Common random access
+
+Dedicated random access
+
+User attach procedures
+
+-
+
+Slice-based user association control
+
+QoS maintenance and admission control
+
+-
+
+QoS ﬂow maintenance and slice-based admission control
+
+Security function
+
+Common BS key management
+
+Slice-speciﬁc CP/UP key management
+
+Bearer management
+
+Signaling radio bearer maintenance
+
+Dedicated radio bearer management
+
+Radio resource allocation
+
+Common BS signal, e.g., cell-speciﬁc reference signal (CRS), primary/secondary synchronization signal (PSS/SSS)
+
+Per-slice dedicated resource partitioning and accommodation
+
+System information
+
+Broadcast non-access stratum (NAS), MIB, and SIB information
+
+-
+
+with the largest common parameters and the least denominator. To this end, such manager relies on a set of policy rules deﬁned by the infrastructure provider to decide whether to preempt one slice, reject another slice, or multiplex the requests.
+3) Virtualization Manager: This RAN runtime service is in charge of providing the required level of isolation and sharing to each slice. It partitions on resources and states based on the slice and module contexts, abstracts the physical resources and states to/from the virtualized ones, and reveals the virtual views to a slice that is customized and decoupled from the exact physical resources and states. In the following paragraphs, we focus on the resource aspect and omit state partitioning and abstraction as they can be realized through some well-known approaches such as database partitioning and control access.
+
+a) Inter-slice resource partitioning: Resource partitioning is a periodic process that happens in every allocation window of T [12], [29]. It allows to distribute resources among multiple slices based on the resource requirements expressed in the slice context that is stored in the slice data. Radio resource descriptor has three elements: (1) resources type deﬁnes whether the requested resources are of type physical/virtual radio resources in time and frequency domain4, or capacity in terms of the data rate, (2) abstraction type that maps physical radio resource allocation types, namely ﬁxed position, contiguous, non-contiguous, or minimum resource block groups (RBG), to the virtual RBGs (vRBG) or virtual transport block size (vTBS), and (3) resource structure that contains the applicable frame structure numerologies in time
+4It can be extended to the dimensions of component carrier and antenna.
+
+2169-3536 (c) 2018 IEEE. Translations and content mining are permitted for academic research only. Personal use is also permitted, but republication/redistribution requires IEEE permission. See http://www.ieee.org/publications_standards/publications/rights/index.html for more information.
+
+This article has been accepted for publication in a future issue of this journal, but has not been fully edited. Content may change prior to final publication. Citation information: DOI 10.1109/ACCESS.2018.2847610, IEEE Access
+8
+
+Slice 3 before reshuffle: vRBG Type 0 (DL Resource allocation type 0/1/2)
+
+Slice 3 after reshuffle: vRBG Type 1 (DL Resource allocation type 0/2)
+
+Slice load Slice load Slice load Slice load Slice load Slice load
+
+Freq. domain: Available bandwidth (F)
+
+Unallocated resource 2
+15kHz SCS (Slice 4)
+
+15kHz SCS (Slice 3) Unallocated resource 3
+
+BS broadcast 15kHz SCS (Slice 3)
+
+15kHz SCS (Slice 3) 15kHz SCS (Slice 4)
+
+Slice 4: vTBS Type 0 (DL allocation type 0/1/2 reshuffled to 0/2)
+
+30kHz SCS (Slice 1)
+
+60kHz SCS (Slice 4)
+Unallocated resource 1
+
+60kHz SCS (Slice 2)
+
+Slice 1: vRBG Type 2 (DL allocation type 2)
+Slice 2: vRBG Type 1 (DL allocation type 0/2)
+
+Time domain: Allocation window (T)
+Fig. 5: Resource partition with different abstraction types.
+
+Resource Aggregate d
+load
+
+Slice 3 Slice 2 Slice 1
+Slice 3 Slice 2 Slice 1
+
+Slice 1
+Slice 2 Slice 3 Time
+
+Full isolated resource w/o multiplexing
+
+(a) Without resource multiplexing
+
+Unused for multiplex
+RAN Runtime
+Multiplexed slice resource for
+further utilization Time
+(b) With resource multiplexing
+
+Fig. 6: Multiplexing of slice resources.
+
+and frequency domains. Speciﬁcally, different numerologies in terms of the transmission time interval (TTI) and the sub-carrier spacing (SCS) can be applied depending on the deployed frequency band and/or maximum user mobility in order to mitigate the impacts of wireless channel non-idealities (e.g., Doppler shift due to the user mobility) for each slice service [54]. For instance, only one type of SCS, i.e., 15 kHZ, is applied in LTE system, while there are ﬁve applicable SCSs, i.e., 15, 30, 60, 120, and 240 kHz, deﬁned by 3GPP in [55] with their corresponding frame structures.
+Besides aforementioned radio resource requirements provided by the slice owner, the resource allocation shall also respect the policy deﬁned by the infrastructure provider, for instance, the allowable resource allocation types of underlying radio access technologies (RATs). Take the downlink (DL) resource allocation of LTE system for instance, there are three types of resource allocation: (i) Type 0 allocation is based on the minimum granularity as resource block group (RBG) that comprises multiple RBs, (ii) Type 1 categorizes RBGs into different subsets and only allocates RBs within the same subsets, and (iii) Type 2 allocates contiguous virtual RBs (vRBs) that can be physically contiguous (localized vRB) or non-contiguous (distributed vRB). For uplink (UL), there are two resource allocation types: (a) UL type 0 allocates PRBG in a contiguous manner, and (b) UL type 1 allocates non-contiguous RBGs within two distinct clusters. Then, four abstraction types are introduced with RBG as the minimum resource granularity, and their respective mapping to the DL/UL resource allocation types are shown in TABLE V. Note that these DL/UL resource allocation types of the LTE system are the basis of the ones in 5G; hence, TABLE V will be further expanded to new allocation types. Moreover, like the virtual capacity in TABLE V, other types of resource can also be abstracted, e.g., virtual latency, to match further service requirements in terms of maximum allowed latency. Note that such virtual latency abstraction can be mapped to any resource allocation types (i.e., DL type 0/1/2 and UL type 0/1 of LTE system) but with a higher priority and a shorter allocation window than vTBS Type 0. In summary, the proposed vRBG and vTBS form a superset of legacy resource allocation types and they provide the required ﬂexibility for both inter-slice resource partitioning and accommodation as detailed in Section V.
+
+Fig. 5 illustrates an example of resource partitioning among four slices over an allocation window T with different types of abstraction. The proposed resource abstraction scheme allows the RAN runtime to dynamically change the mapping between different resource allocation types, for instance, changing allocation type 0/1/2 to allocation type 0/2 for slice 3 and 4 in Fig. 5. Such change can increase the ﬂexibility for the infrastructure provider in resource allocation and do not impact the requested abstraction type by the slice owner.
+b) Radio resource abstraction: Based on aforementioned inter-slice resource partitioning, all available radio resources can be fragmented following different abstraction types. Such resource abstraction serves for two purposes: (1) isolate resources by presenting a virtual view of the resources that is decoupled from the exact physical locations, and (2) increase multiplexing gain by adjusting allocation types to share the unused resources. The former simpliﬁes the inter-slice resource partitioning operation and prevents other slices to access or even infer the resources allocated to others (in favor of slice owner), and the latter allows to increase the resource utilization efﬁciency (in favor of infrastructure provider). More speciﬁcally, we can observe in Fig. 6a that no other slices can utilize the unallocated resources even the trafﬁc load variates from time to time when slice resources are not multiplexed. However, in Fig. 6b, the unallocated resources due to the timevarying load can be multiplexed to deploy more services at a single RAN infrastructure. Such multiplexing gain across tenants is anticipated by the infrastructure provider when deploying scalable numbers of slices.
+Take the 3 MHz case of LTE system as an example in Fig. 7a, where the total PRB is 15 and the physical RBG (PRBG) granularity is 2 PRBs, giving a total of 8 PRBGs and the last PRBG only contains 1 PRB. These PRBGs are ﬁrstly partitioned for each slice based on the number of required resources and then they are abstracted according to the abstraction types, i.e., ﬁxed, contiguous, non-contiguous, minimum granularity. Afterwards, the resulted PRBGs, vRBGs and vTBSs are provided to each slice for the intra-slice resource scheduling. For instance, ﬁxed position resources is requested by slice 1 and hence no virtualization is performed (i.e., PRBG). While slice 4 requests a number of capacity, and thus its PRBGs are abstracted into vTBS with the capacity value computed from the measured channel state information.
+
+2169-3536 (c) 2018 IEEE. Translations and content mining are permitted for academic research only. Personal use is also permitted, but republication/redistribution requires IEEE permission. See http://www.ieee.org/publications_standards/publications/rights/index.html for more information.
+
+This article has been accepted for publication in a future issue of this journal, but has not been fully edited. Content may change prior to final publication. Citation information: DOI 10.1109/ACCESS.2018.2847610, IEEE Access
+9
+
+TABLE V: Mapping between resource abstraction type and allocation type.
+
+Requested resources Abstraction types (Resource granularity)
+
+DL Resource allocation type UL Resource allocation type
+
+vRBG Type 0 (Non-contiguous)
+
+Type 0, Type 1, Type 2 distributed Type 1
+
+Resource block vRBG Type 1 (Contiguous)
+
+Type 0, Type 2 localized
+
+Type 0
+
+vRBG Type 2 (Fixed position allocation)
+
+Type 2 localized
+
+Type 0
+
+Capacity
+
+vTBS Type 0 (RBGs with minimum granularity) All Types
+
+All Types
+
+a) PRBG b) PRBG c) PRBG d) vRBG formation partition virtualization pooling
+
+Two disjoint subsets of PRBG: Subset 0: PRBG0, PRBG2, PRBG4, PRBG6 Subset 1: PRBG1, PRBG3, PRBG5, PRBG7
+
+PRB0 PRB1 PRB2 PRB3
+
+PRBG0
+
+PRBG0 (Slice 3)
+
+vRBG0
+
+PRBG1
+
+PRBG1 (Slice 1)
+
+PRBG0
+
+Slice1 vRBG Type 2 (Fixed position)
+
+PRBG 0
+
+PRBG 1
+
+PRB4 PRB5
+
+PRBG2
+
+PRBG2 (Slice 1)
+
+PRBG1
+
+PRB6 PRB7
+
+PRBG3
+
+PRBG3 (Slice 2)
+
+vRBG0
+
+Slice2: vRBG Type 1 (Contiguous)
+
+vRBG0 vRBG1
+
+PRB8 PRB9
+
+PRBG4
+
+PRBG4 (Slice 2)
+
+vRBG1
+
+Slice3: vRBG Type 0
+
+PRB10 PRB11
+
+PRBG5
+
+PRBG5 (Slice 3)
+
+vRBG1
+
+(Non-contiguous)
+
+vRBG0 vRBG2 vRBG1 vRBG pool1 vRBG pool2
+
+PRB12 PRB13
+
+PRBG6
+
+PRBG6 (Slice 3)
+
+vRBG2
+
+Slice4: vTBS Type 0
+
+PRB14 PRBG7
+
+PRBG7 (Slice 4)
+
+vTBS1 (Min granularity)
+
+vTBS1 w/ capacity
+
+(a) Stages form vRBG and vRBG pool
+
+e) inter-slice
+
+f) vRBG g) vRBG h) PRBG
+
+virtual resource accommodate multiplex mapping
+
+scheduling
+
+& preempt
+
+Slice1 vRBG Type 2 (Fixed position)
+
+PRBG0 PRBG1
+
+Slice2: vRBG Type 1 (Contiguous)
+
+vRBG1
+
+Slice3: vRBG Type 0 (Non-contiguous)
+
+vRBG1 vRBG pool2
+
+Slice4: vTBS Type 0 (Min granularity)
+
+vTBS1 w/ capacity
+vTBS2 w/ capacity
+
+vRBG1 vRBG1 PRBG0 (Slice 3) (Slice 3) (Slice 3)
+
+PRBG1 PRBG1 PRBG1 (Slice 1) (Slice 1) (Slice 1)
+
+PRBG2 PRBG2 PRBG2 (Slice 1) (Slice 1) (Slice 1)
+
+vRBG1 vRBG1 PRBG3 (Slice 2) (Slice 2) (Slice 2)
+
+Unallocated
+
+Unallocated
+
+PRBG4 (Unused)
+
+Unallocated
+
+Unallocated
+
+PRBG5 (Unused)
+
+Unallocated
+
+vTBS2 (Slice 4)
+
+PRBG6 (Slice 4)
+
+vTBS1 vTBS1 PRBG7 (Slice 4) (Slice 4) (Slice 4)
+
+(b) Stages accommodate vRBG to PRBG
+Fig. 7: Different stages for virtualized resources slicing.
+
+The PRBGs of slice 2 and 3 are virtualized into vRBGs via abstracting the exact frequency/time locations as well as other dimensions (e.g., carrier frequency) and are pooled together to maintain the relative frequency dependencies among the virtualized resources without revealing any absolute physical relations. Take the slice 3 that uses resource allocation type
+
+0 as an example, only PRBGs within the same subset can be scheduled at the same time. In that sense, vRBGs are pooled in order to indicate such exclusive condition between vRBG pool 1 (i.e., PRBG0, PRBG6) and vRBG pool 2 (i.e., PRBG 5), and thus the intra-slice resource scheduler of slice 3 will allocate resources to each user from either vRBG pool 1 or vRBG pool 2.
+c) Radio resource accommodation and multiplexing: After the radio resource partitioning and abstraction, each slice can perform the intra-slice resource scheduling to its associated users and the scheduling decisions will be accommodated into PRBs as shown in Fig. 7b. Such accommodation does not necessary follow the partitioned resources of the inter-slice resource partitioning (cf. Fig. 7a) to better utilize available resources. For instance, the vRBG1 for both slice 2 and slice 3 are accommodated to their vRBG0 in the partitioning stage respectively so as to have a larger contiguous unallocated region (i.e., PRBG4 to PRBG6) that can be mapped to a larger SCS (e.g., 30 Hz) and be shared to other slices. For instance, the unallocated resource can be shared to other slices (e.g., vTBS2 of slice 4) that request more resources5 or to some new services. Moreover, the preemption mechanism can also be applied by removing the inter-slice scheduling decisions of other low-priority slices to boost the perceived performance of highpriority slices6. Finally, the RAN runtime will allocate the corresponding control channel elements (CCEs) to transport the DL/UL control information (CI) based on aforementioned DL/UL resource allocation types. These CIs are used to indicate the user about the positions of allocated PRB as well as the necessary physical layer information (e.g., modulation and coding scheme [MCS], new data indication) for successful user data reception or transmission. With a limited control region to accommodate CCEs, the RAN runtime can also leverage the unallocated resources to carry these CIs.
+4) Common control application: The common control applications provide a shared control logics for multiple slices. It can accommodate the customized control logics from different slice-speciﬁc control applications, resolve their conﬂicts, and enforce a feasible policy to underlying RAN module. For instance, the control logics of two customized RRM applications of slice 1 and slice 2 in Fig. 3 will leverage the interslice conﬂict resolution and control logics accommodation to provide their slice-specie control logics through the cellcommon controller. Note that the policy for inter-slice conﬂict resolution is provided by the slice manager. Finally, the customized control logics of each slice will be applied in a uniﬁed manner toward the underlying RAN.
+5Such multiplexing may not be allowed by slices with ﬁxed position. 6The preemption characteristic shall be described in the slice context beforehand.
+
+2169-3536 (c) 2018 IEEE. Translations and content mining are permitted for academic research only. Personal use is also permitted, but republication/redistribution requires IEEE permission. See http://www.ieee.org/publications_standards/publications/rights/index.html for more information.
+
+This article has been accepted for publication in a future issue of this journal, but has not been fully edited. Content may change prior to final publication. Citation information: DOI 10.1109/ACCESS.2018.2847610, IEEE Access
+10
+
+5) Forwarding engine: The forwarding engine manages the input and output streams of CP and UP, or simply data streams, between RAN and users across multiplexed and/or customized processing. Fig. 8 shows an example of how the forwarding engine manages the UP processing chain in the DL direction (i.e., from RAN to user) across several network layers: service data adaptation protocol (SDAP), PDCP, radio link control (RLC), medium access control (MAC), and physical (PHY)7. Input ﬂows of the RAN module for each slice are forwarded either to the customized (i.e., slice 1 and 2) or the multiplexed (i.e., slice 3) processing chain based on the rules applied by the slice manager. After the ﬁrst stage of processing, the output ﬂows are further forwarded to the corresponding entry points in the multiplexed chain (i.e., slice 2) or the output endpoint (i.e., slice 1). Note that more complex forwarding rules can be applied if the per-function customization is required, for instance, the customized MAC function to manage the intraslice scheduling while multiplexing other functions. Further, the per-ﬂow customization within a slice can be applied in order to differentiate the customized processing for ﬂows with different QoS requirements. Such forwarding engine can leverage the match-action abstraction following SDN principles to establish the input/output forwarding path between the RAN runtime and slices in both directions [56], [57].
+Furthermore, the forwarding engine is able to direct data not only in a monolithic RAN but also in a disaggregated RAN, where a single RAN module is decomposed into CU, DU, and RU with several possible functional splits in between [42]. Note that in the proposed RAN slicing model, RAN disaggregation and functional splits are controlled and maintained by the infrastructure provider, whereas the RAN service customization is managed by the slice owner. Fig. 9 shows the input/output forwarding path between CU, DU, and RU to compose a distributed UP processing chain using 3GPP function split [42] option 2 between CU and DU and option 6 between DU and RU. The input and output endpoints of RAN module will perform the infrastructure-dependent packet processing like encapsulation and switching/routing for fronthaul/midhaul transportation which is transparent for the slice owner8. Moreover, when adopting the ﬂexible function split and placement [58], [59], the CP/UP state information has to be efﬁciently shared among disaggregated RANs to ﬂexibly deploy and chain functions in between. TABLE VI summarizes the main UP state information that shall be maintained and shared in the slice data. Also note that these aforementioned chains are applied for the downlink direction, while the same forwarding engine can be utilized for uplink direction with different chain compositions.
+D. RAN runtime APIs
+The RAN runtime APIs are exposed both in the northbound toward each slice and in the south-bound toward the underlying RAN module, allowing to manage a slice and
+7Further function decompositions within the layer are possible like splitting the PHY into high-PHY and low-PHY.
+8It can be customized for each service but needs the agreement between the slice owner and the infrastructure provider.
+
+control the underlying RAN module (cf. Fig. 4). In the north-bound, the RAN runtime slice APIs provides interfaces and communication channels to connect a slice to the RAN runtime as a separate process, whether it is local or remote. Hence, each slice can be executed in isolation from each other either at the host or guest level leveraging the well-know operating system (OS) and virtualization technologies, such as container or virtual machine. Such north-bound APIs allow the slice owner to register and consume the aforementioned RAN runtime services, manage its service in coordination with the RAN runtime and service orchestrator, and customize the CP/UP processing. In the south-bound, the RAN runtime CP/UP APIs enable a slice to take the control of its service by requesting virtualized/physical resources, applying its control decisions, and accessing the virtualized state information. When a slice is deployed locally, the RAN runtime APIs may exploit the inter-process communication mechanism to allow a slice to perform the real-time operation (e.g., MAC scheduling function) with hard guarantees (cf. slice 1 in Fig. 2). Remote slices, on the other hands, communicate with the RAN runtime through the asynchronous communication interface and can perform the non-time-critical operation (e.g., PDCP function) like slice 2 and 3 in Fig. 2.
+E. Summary
+In summary, the ﬁve proposed RAN runtime services can provide different levels of isolation and sharing and the correlated message ﬂows between them are depicted in Fig. 10 Note that the message ﬂows between these services and the slice data are omitted for simplicity. These message ﬂows can be combined with other known mobile network messages (e.g., RAN or CN domain) to provide a complete set of slice-speciﬁc processing, e.g., the customized handover process between BSs tailored to slice service requirements. Further, they can be utilized for the service orchestration and management purpose to orchestrate virtualized infrastructures and VNFs for newlyinstantiated services. More speciﬁcally, they can be utilized by ETSI Management and Orchestration (MANO) architectural framework to collect functional blocks, data repositories and related interfaces.
+V. RESOURCE PARTITIONING AND ACCOMMODATION
+In this section, we focus on the inter-slice radio resource partitioning and accommodation, as the intra-slice resource scheduling can utilize several known scheduling algorithms, such as proportional fair or round robin, conﬁgured by the slice orchestrator [11] to provide slice-speciﬁc customization. Speciﬁcally, in this section, we provide the algorithm of the inter-slice partitioning and accommodation, evaluate its performance, and formulate the overall multiplexing gain.
+A. Inter-slice resource partitioning
+The radio resources partitioned by the RAN runtime is periodically within an allocation window T (in millisecond [ms]) in the time domain and F (in Hz) in the frequency domain. These resources can be speciﬁcally quantized into
+
+2169-3536 (c) 2018 IEEE. Translations and content mining are permitted for academic research only. Personal use is also permitted, but republication/redistribution requires IEEE permission. See http://www.ieee.org/publications_standards/publications/rights/index.html for more information.
+
+This article has been accepted for publication in a future issue of this journal, but has not been fully edited. Content may change prior to final publication. Citation information: DOI 10.1109/ACCESS.2018.2847610, IEEE Access
+11
+
+Customized
+
+Slice
+
+Slice 1 SDAP PDCP RLC MAC
+Slice 2 SDAP PDCP
+
+Multiplexed
+
+Runtime system
+
+Forwarding (Input)
+
+Forwarding (output)
+
+RAN module
+Flow input (slice 1)
+Flow input (slice 2)
+Flow input (slice 3)
+
+Input
+
+SDAP PDCP
+
+RLC
+
+MAC
+
+function function function function
+
+Fig. 8: Forwarding engine and UP processing chain.
+
+PHY function
+
+Output
+
+Slice-specific processing
+
+Slice 1 SDAP PDCP
+Slice 2 SDAP PDCP
+
+Slice 1 SRDLACP MPDACPC
+
+Runtime system
+
+Forwarding (Input)
+
+Forwarding (output)
+
+Forwarding (Input)
+
+Forwarding (Output)
+
+Forwarding (Input)
+
+Forwarding (Output)
+
+RAN module
+Flow input (slice 1) Flow input (slice 2) Flow input (slice 3)
+
+Input
+
+SDAP function
+
+PDCP function
+
+Output
+
+Input
+
+RLC function
+
+MAC function
+
+Output
+
+Input
+
+CU
+
+DU
+
+Midhaul
+
+Fronthaul
+
+(Split option 6)
+
+(Split option 2)
+
+Fig. 9: UP forwarding path in three-tier disaggregated RAN (CU, DU, RU).
+
+PHY function
+
+Output
+
+RU
+
+TABLE VI: UP network functions and the decoupled states
+
+Layer
+
+Network function
+
+Network state
+
+Radio frequency (RF) processing
+
+Carrier frequency, Spectrum bandwidth
+
+(Inverse) Discrete Fourier Transform (DFT/IDFT)
+
+Point of DFT, Output indexes
+
+PHY
+
+Multi-antenna processing (De-)Modulation
+
+Transmission mode, Beamforming matrix Modulation order, Reference symbol information
+
+Bit-rate processing
+
+Information of coding, scrambling, rate matching, and cycle redundancy check (CRC)
+
+Hybrid automated repeated request (HARQ) process HARQ index, User identity, Redundancy version
+
+MAC
+
+(De-)Multiplexing
+
+(De-)Mutltiplexed logic channel identities
+
+Dynamic scheduling and priority handling
+
+Priorities between logic channels and users
+
+ARQ error correction
+
+Status report parameters, Polling information
+
+RLC
+
+Segmentation and reassemble
+
+Size of corresponding protocol data unit (PDU) and service data units (SDUs)
+
+SDU discard
+
+Discard criterion, e.g., window information
+
+Header (de-)compression
+
+Header compression proﬁle, state and parameters
+
+PDCP
+
+Integrity protection/veriﬁcation (De-)Ciphering
+
+Integrity protection algorithm and parameters Ciphering algorithm and parameters
+
+Reordering and duplicate detection
+
+Sequence number of queued PDUs
+
+SDAP
+
+Mapping between QoS ﬂows and DRBs Marking QoS ﬂow identity
+
+QoS ﬂow identity, QoS proﬁle, mapping policy QoS ﬂow identity
+
+2169-3536 (c) 2018 IEEE. Translations and content mining are permitted for academic research only. Personal use is also permitted, but republication/redistribution requires IEEE permission. See http://www.ieee.org/publications_standards/publications/rights/index.html for more information.
+
+This article has been accepted for publication in a future issue of this journal, but has not been fully edited. Content may change prior to final publication. Citation information: DOI 10.1109/ACCESS.2018.2847610, IEEE Access
+12
+
+Input/Output interface
+
+Runtime Environment
+
+Protocol data unit
+(PDU)
+Protocol data unit
+(PDU) Forwarding Engine
+Protocol data unit
+(PDU)
+
+Runtime Slice APIs
+
+Customized control logic
+
+Monitoring information
+
+Common
+
+control app(s)
+
+Virtualized state & resource
+Virtualization Manager
+
+Program processing chain for slice/flow
+
+Inter-slice Conflict resolve
+
+Req. resource or performance
+Slice Manager
+Slice life-cycle primitive
+
+Unified & feasible control decision
+
+Context Manager
+
+Register/Manage RAN runtime services
+Allocated resource & state
+Monitoring & feedback Management policy Life-cycle event
+RAN runtime service & capability Network slice descriptor
+
+Runtime UP APIs
+
+RAN Runtime
+Runtime CP APIs
+RAN Module
+
+Fig. 10: Message ﬂows between RAN runtime services.
+
+a resource grid map M ap with Tb TTIs in time domain and Nb PRBs in the frequency domain with respect to the base SCS (SCSb) used by the infrastructure provider, e.g., a 20 MHz LTE radio bandwidth in a 10 ms allocation window is separated into 100 PRBs in frequency domain and 10 TTIs in time domain. There are |S| slices that request the radio resources within the set S = s1, · · · , s|S| . For the kth slice (i.e., sk), its radio resource requirements include: (a) SCSk set comprises the applicable SCSs, (b) Tk and Nk are the number of requested resource in time (ms) and frequency (Hz) domain respectively, and (c) gk is the granularity which can be contiguous, non-contiguous, ﬁxed position (with its ﬁxed starting position denoted as F Fk and F Tk in frequency and time domain) or minimum granularity (with its request data rate as Rk) as mentioned in TABLE V. The ﬁxed position granularity inherently isolates resources as its partitioned resources are physical ones without any virtualization. The contiguous one is more suitable for quasiconstant trafﬁc patterns (e.g., streaming) since it can reduce the latency and minimize the CI signaling overhead. The noncontiguous one, on the other hand, accommodates better for variable trafﬁc patterns as it can allocate fragmented resources. The minimum granularity can be utilized by those slices that request only capacity (i.e., vTBS), which allowing for all feasible partitioning.
+An example of the resource partitioning is depicted in Fig. 11 with 7 slices (i.e., |S| = 7). Each slice has different resource granularities: g1 = Fix, g2 = g3 = Con, g4 = g5 = NonCon, and g6 = g7 = Min. The largest rectangular of the unallocated resource is highlighted, which is an important criterion for further resource multiplexing. Since such largest unallocated rectangular region may potentially ﬁt in any data transportation numerology in time (i.e., TTI) and frequency domain (i.e., SCS), and can be either shared by different slices
+
+or utilized for CI transportation and BS broadcast information. Additionally, such radio resource defragmentation can provide a better slice performance in terms of delay and throughput. It is observed from Fig. 11a and Fig. 11b that although both resource partitions can satisfy the requested resources among all seven slices, while only the latter one can achieve a larger unallocated rectangular region. Such compact resource packing in Fig. 11b utilizes different resource granularities, i.e., s4 and s5 can be discontinuous in frequency and time separately, and s6 and s7 can leverage the minimum granularity.
+Through such observation, the inter-slice resource partitioning has two complementary goals: (a) satisfy as many slice resource requests as possible, and (b) maximize the size of largest unallocated rectangular region. Practically, we can form such combinatorial objective function as
+
+max
+
+Sat [k] + w · MaxUn (M ap) ,
+
+(1)
+
+sk ∈S
+
+where Sat [k] ∈ {0, 1} is the satisfactory binary indicator for the k-th slice (e.g., Sat [k] = 1, ∀sk ∈ S in Fig. 11a and 11b as all slices are satisﬁed), MaxUn (·) function outputs the largest unallocated rectangular in the resource grid allocation map M ap (e.g., MaxUn (M ap) of Fig. 11b is twice as the value of Fig. 11a), and a weight w can balance these two objectives. Such problem can be mapped to the NP-hard twodimensional knapsack problem, which makes the complexity to ﬁnd the optimal solution be non-polynomial [60], [61]. Hence, ﬁnding the optimal inter-slice resource partition is cost and time prohibitive when the number of slice increases. Prior works provide the heuristic algorithms [62], [63], but they only focus on one special case that considers a single SCS with contiguous granularity. We hereby propose the granularity-based heuristic algorithm that can sequentially partition resources as explained in the following paragraphs.
+
+2169-3536 (c) 2018 IEEE. Translations and content mining are permitted for academic research only. Personal use is also permitted, but republication/redistribution requires IEEE permission. See http://www.ieee.org/publications_standards/publications/rights/index.html for more information.
+
+This article has been accepted for publication in a future issue of this journal, but has not been fully edited. Content may change prior to final publication. Citation information: DOI 10.1109/ACCESS.2018.2847610, IEEE Access
+13
+
+Freq domain (Nb=100)
+
+Slice 1 (Fixed)
+Slice 2
+
+Slice 7
+
+Slice 5
+
+Largest unallocated rectangular (40PRB, 3ms)
+
+Slice 4
+
+Slice 3
+
+Slice 6
+
+Time domain (Tb=10)
+(a) Contiguous granularity
+
+Freq domain (Nb=100)
+
+Slice 1 (Fixed)
+
+Slice 6 Slice 5 S6
+
+Slice 2
+
+Largest
+
+S7
+
+Slice 4
+
+S4
+
+unallocated rectangular
+
+Slice 3
+
+Slice 5 S7 (80PRB, 3ms)
+
+Time domain (Tb=10)
+(b) Slice-speciﬁc granularity
+Fig. 11: Examples of radio resource partitioning.
+
+1) Proposed algorithm: The overall proposed algorithm is presented in Alg. 1 that sequentially prioritizes the k-th slices, i.e., sk, based on the prioritization policy (i.e., priority) and then partitions resources according to its granularity, i.e., gk. As each slice can support more than one SCSs, the remapping operation from the base SCS (SCSb) to another SCS (scs) is necessary for the number of requested resources (Fscs, Tscs) and ﬁxed position (F Fscs, F Tscs) through the scsMap (·) function shown in Alg. 1. Note that the requested data rate Rk can be mapped to the number of requested radio resources using the per-slice channel state information (CSI), i.e., CSIk9 as well as the corresponding MCS index. Moreover, the granularity-based partitioning algorithms include the ones for the ﬁxed position (Alg. 2), contiguous (Alg. 3), non-contiguous (Alg. 4) and minimum granularity (Alg. 5). Afterwards, a resource grid remapping through the RGM ap (·) function in Alg. 1 aims to map the resource grid from the selected SCS for the k-th slice (i.e., SCS [k]) to other SCSs. Finally, all satisﬁed slices after partitioning are included in the set Sp.
+When applying the ﬁxed position algorithm (cf. Alg. 2), the FindFRe (·) function checks the feasibility of the ﬁxed position allocation (i.e., starts from F Fscs [k] and F Tscs [k] in frequency and time domain respectively) and outputs 1 when feasible (0 otherwise). While the FindRe (·) function is used in the contiguous algorithm (cf. Alg. 3) and it outputs a set of 2-tuples comprising all possible contiguous positions in frequency and time domain, respectively. Speciﬁcally, P F set comprises ﬁrst entry of the 2-tuple set, while P T set
+
+includes the second entry. Then, we pick the position with
+
+the largest unallocated rectangular using the aforementioned
+
+MaxUn (·) function over the resource grid allocation map.
+
+In non-contiguous algorithm (cf. Alg. 4), the FindUnRe (·)
+
+function outputs all available positions in a set of 2-tuples
+
+(i.e., P F set includes the ﬁrst entries and P T set contains
+
+the second entries) without requiring a contiguous portion.
+
+Then, we allocate sequentially in time domain following the
+
+decreasing order of available resources over the frequency
+
+domain using the sorting function sort (·) shown in Alg. 4.
+
+Speciﬁcally,
+
+all
+
+possible
+
+time
+
+indexes
+
+(i.e.,
+
+from
+
+1
+
+to
+
+Tb ·
+
+scs S C Sb
+
+)
+
+are ranked based on the number of available frequency domain
+
+resource (i.e., aF ). The minimum granularity algorithm of
+
+Alg. 5 also applies the same FindUnRe (·) function to ﬁnd all
+
+available positions and uses InMaxRec (·) to check that these
+
+available positions are within the largest rectangular region
+
+(output 1 in In) or not (0 otherwise). Finally, all possible
+
+positions (i.e., indexed from 1 to Size) are sorted in the
+
+ascending order based on whether they are in the maximum
+
+rectangular or not (i.e., In) for later resource partitioning.
+
+2) Complexity analysis: The overall inter-slice resource
+
+partition algorithm of Alg. 1 is composed of four granular-
+
+speciﬁc ones as shown from Alg. 2 to Alg. 5. In following
+
+paragraphs, we ﬁrstly analyze the complexity of each granular-
+
+speciﬁc algorithm and then summarize the overall complexity.
+
+In Alg. 2, the most complex operation is to ﬁnd the largest rectangular in the resource grid, i.e., MaxUn (·),
+for all available SCSs, and thus its complexity equals to O (|SCS| · (Nb × Tb)). In Alg. 3, the complexity is proportional to the number of available SCSs, the size of possible locations (i.e., |P F |), and the operation to ﬁnd the largest rectangular. In the worst case, |P F | equals to the size of
+resource grid; therefore, the complexity of Alg. 3 is written as O |SCS| · (Nb × Tb)2 . The complexity of Alg. 4
+depends on the operation of ﬁnding the largest rectangular
+as well as the sorting operation. The former complexity is proportional to (Nb × Tb) as mentioned beforehand, while the latter is proportional to Tb2 in the worst case as there are Tb elements to be sorted. Thus, its complexity will be max O (|SCS| · (Nb × Tb)) , O |SCS| · Tb2 . Furthermore, the most complex operation of Alg. 5 is to sort all available positions, i.e., |P F | elements, and thus the complexity of such algorithm can be written as O |SCS| · (Nb × Tb)2 .
+
+In summary, the complexity of the overall algorithm in Alg. 1 is proportional to (1) the number of slices, i.e., |S|, (2) the slice prioritization policy, and (3) the highest complexity among the aforementioned four algorithms. Note that only constant time will be spent when a predeﬁned priortization policy is applied (e.g., according to the SLAs)10. Thus, the overall complexity is written as O |S| × |SCS| × (Nb × Tb)2 . Further, as the number of
+eligible SCS numerologies is limited, e.g., up to 5 allowed SCSs deﬁned by 3GPP in [55], we can further write the overall complexity as O |S| × (Nb × Tb)2 .
+
+9It can base on the average CSI among its served users.
+
+10Extra complexity is required when adopting dynamic search in the policy.
+
+2169-3536 (c) 2018 IEEE. Translations and content mining are permitted for academic research only. Personal use is also permitted, but republication/redistribution requires IEEE permission. See http://www.ieee.org/publications_standards/publications/rights/index.html for more information.
+
+This article has been accepted for publication in a future issue of this journal, but has not been fully edited. Content may change prior to final publication. Citation information: DOI 10.1109/ACCESS.2018.2847610, IEEE Access
+14
+
+Algorithm 1: Inter-slice Resource Partition Algorithm
+Input : Tb and Nb are resource grid size in time and frequency S is the set of slices
+Output: M ap is the resource grid allocation map SCS is the set of applied SCS of each slice Sp is the satisﬁed slice set
+begin Sp = ∅ ; /* Initialize the satisﬁed slice set */ foreach sk ∈ S do Sat [i] = 0 ; /* Initialize satisfaction index of each slice */ SCS [i] = 0 ; /* Initialize select SCS of each slice */ foreach scs ∈ SCSk do /* Map request resource and ﬁxed position to all SCSs.*/ [Fscs [i] ,Tscs [i]]=scsMap (Nk, Tk, Rk, CSIk, scs, SCSb); [F Fscs [i] , F Tscs [i]]=scsMap (F Fi, F Ti, 0, 0, scs, SCSb);
+foreach scs ∈ SCS do for i = 1 to Nb · scs/SCSb do for j = 1 to Tb · SCSb/scs do M apscs [i] [j]=0 ; /* Reset resource grid allocation */
+while isempty (S) == false do sk = prioritize (S, priority) ; /* Get most prioritized slice */ switch gk do case Fix do [Sat [k] , SCS [k] , M ap] = FPos (sk, M ap) ; (cf. Alg. 2) case Con do [Sat [k] , SCS [k] , M ap] = Con (sk, M ap) ; (cf. Alg. 3) case NonCon do [Sat [k] , SCS [k] , M ap] = NCon (sk, M ap) ;(cf. Alg. 4) case Min do [Sat [k] , SCS [k] , M ap] = Min (sk, M ap) ; (cf. Alg. 5)
+if Sat [k] == 1 then M ap=RGMap(M ap, SCS [k]);/* Remap grid to all SCSs */ Sp = SetUnion (Sp, sk) ; /* Add slice into satisﬁed set */
+S = SetDiff (S, sk) ; /* Remove prioritized slice */
+Algorithm 2: Fixed Position Resource Partition (FPos)
+Input : sk is target slice IM ap is the input resource grid allocation map
+Output: Sat is the slice satisfaction index SCS is the selected SCS for the target slice OM ap is the output resource allocation map
+begin M axRec = 0 ; /* Initialize the maximum unused rectangular */ Sat = OptSCS = 0 ; /* Initialize satisfaction index and select SCS */ foreach scs ∈ SCSk do if FindFRe(Fscs [k] ,Tscs [k] ,scs,IM apscs,F Fscs [k] ,F Tscs [k]) then Sat = 1 ; /* Current slice is satisﬁed*/ tM ap = IM apscs; for i = 0 to Fscs [k] − 1 do for j = 0 to Tscs [k] − 1 do tM ap [i + F Fscs [k]] [j + F Tscs [k]] = k ;
+tRec = MaxUn (tM ap) ; /* Find max unused rectangular */ if tRec > M axRec then
+SCS = scs ; M axRec = tRec ; OM apscs = tM ap ;
+3) Performance evaluation: As mentioned before, the sequential resource partitioning is based on the prioritization policy (i.e., priority in Alg. 1); hence, high priority slices will impact the available positions for low priority ones. In the following, the performance of ﬁve different priortization policies are evaluated:
+1) Optimal: Search all possible permutations to get the best ordering in terms of the objective function in Eq. (1).
+
+Algorithm 3: Contiguous Resource Partition (Con)
+Input : sk is target slice IM ap is the input resource grid allocation map
+Output: Sat is the slice satisfaction index SCS is the selected SCS for the target slice OM ap is the output resource allocation map
+begin M axRec = 0 ; /* Initialize the maximum unused rectangular */ Sat = SCS = 0 ; /* Initialize satisfaction index and select SCS */ foreach scs ∈ SCSk do /* Find possible positions P F /P T in time/freq domain */ [P F, P T ] = FindRe (Fscs [k] , Tscs [k] , scs, IM apscs); for p = 1 to |P F | do Sat = 1 ; /* Current slice is satisﬁed*/ tM ap = IM apscs; for i = 0 to Fscs [k] − 1 do for j = 0 to Tscs [k] − 1 do tM ap [i + P F [p]] [j + P T [p]] = k ;
+tRec = MaxUn (tM ap) ; /* Find max unused rectangular */ if tRec > M axRec then
+SCS = scs ; M axRec = tRec ; OM apscs = tM ap ;
+
+Algorithm 4: Non-contiguous Resource Partition (NCon)
+Input : sk is target slice IM ap is the input resource grid allocation map
+Output: Sat is the slice satisfaction index SCS is the selected SCS for the target slice OM ap is the output resource allocation map
+begin M axRec = 0 ; /* Initialize the maximum unused rectangular */ tIdxCount = 0 ; /* Initialize time index counter */ Sat = SCS = 0 ; /* Initialize satisfaction index and select SCS */ foreach scs ∈ SCSk do /* Find unused resources position (P F /P T ) in IM apscs */ [P F, P T ] = FindUnRe (IM apscs) ; for j = 1 to Tb · scs/SCSb do aF [j]=ﬁnd (P T ==j) ; /* Count avail resources at time j */ if |aF [j]| ≥ Fscs [k] then tCount = tCount + 1 ; /* Increase time index counter */
+
+if tCount ≥ Tscs [k] then Sat = 1 ; /* Current slice is satisﬁed*/
+
+tM ap = IM apscs;
+
+/* Sort time indexes base on descending order of aF */
+
+T order = sort
+
+1
+
+:
+
+Tb
+
+·
+
+scs S C Sb
+
+,
+
+aF,
+
+‘descend’
+
+;
+
+for j = 1 to Tscs [k] do
+
+F Idx = P F [aF [T order [j]]] ;
+
+for i = 1 to Fscs [k] do
+
+tM ap [i + F Idx [i]] [T order [j]] = k ;
+
+tRec = MaxUn (tM ap) ; /* Find max unused rectangular */ if tRec > M axRec then
+SCS = scs ; M axRec = tRec ; OM apscs = tM ap ;
+
+2) Random: Randomize the slice ordering in each allocation window T .
+3) Greedy: Use the greedy method to prioritize the slice that can generate the largest unallocated rectangular.
+4) Granularity: Sort slices based on the their granularities in the following order: ﬁxed position, contiguous, noncontiguous, and minimum granularity.
+5) Granular & Greedy: Use the two-sequential sorting, in which the ﬁrst sort is based on granularity and the second is based on the greedy method.
+
+2169-3536 (c) 2018 IEEE. Translations and content mining are permitted for academic research only. Personal use is also permitted, but republication/redistribution requires IEEE permission. See http://www.ieee.org/publications_standards/publications/rights/index.html for more information.
+
+This article has been accepted for publication in a future issue of this journal, but has not been fully edited. Content may change prior to final publication. Citation information: DOI 10.1109/ACCESS.2018.2847610, IEEE Access
+15
+
+Algorithm 5: Min granularity Resource Partition (Min)
+Input : sk is target slice IM ap is the input resource grid allocation map
+Output: Sat is the slice satisfaction index SCS is the selected SCS for the target slice OM ap is the output resource allocation map
+begin M axRec = 0 ; /* Initialize the maximum unused rectangular */ Sat = SCS = 0 ; /* Initialize satisfaction index and select SCS */ foreach scs ∈ SCSk do [P F, P T ] = FindUnRe (IM apscs) ; Size = |P F | ; /* The size of all available positions */ [In] = InMaxRec (P F, P T ) ; /* Sort resource base on whether it is in the largest rectangular*/ Order = sort (1 : Size, In, ‘ascend’) ; if |P F | ≥ Fscs [k] × Tscs [k] then Sat = 1 ; /* Current slice is satisﬁed*/ tM ap = IM apscs; for pos = 1 to Fscs [k] × Tscs [k] do tM ap [P F [Order [pos]]] [P T [Order [pos]]] = k ;
+tRec = MaxUn (tM ap) ; /* Find max unused rectangular */ if tRec > M axRec then
+SCS = scs ; M axRec = tRec ; OM apscs = tM ap ;
+The evaluation results are shown in Fig. 13 with 7 slices. Each slice can serve a number of users and it requests a time-varying uniformly-distributed aggregated resources with Nk ∼ Uniform (1.6, 9) MHz and Tk ∼ Uniform (1, 10) ms, ∀sk ∈ S. Note that the granularities of all seven slices are the same as the ones shown in Fig. 11, and the applicable SCS set for the k-th slice is SCSk = {15, 30, 60} kHz, ∀sk ∈ S. As for the RAN infrastructure, the radio bandwidth is 20 MHz with Fbase = 15 kHz and allocation window is 10 ms with Tbase = 1 ms. Fig. 13a then shows the slice satisfaction ratio for all seven slices or for each granularity type (i.e., ﬁxed, contiguous, non-contiguous and minimum). The optimal policy reaches the highest satisfaction ratio (82% on average for all 7 slices) but with much higher time complexity (e.g., 1 day for the considered scenario). From the ﬁgure, one can observe that the Granular & Greedy one (81%) outperforms the others and is very close to the optimal policy as it not only follows the elasticity of resource granularity (i.e., granularity) but also seeks for the largest unallocated region (i.e., greedy) at the meantime.
+Moreover, the resource grid utilization ratio over the resource grid allocation map M ap is shown in Fig. 13b with three components: (1) the partitioned resources, (2) the largest unallocated rectangular, and (3) other unallocated resource in box plot. Both random and greedy policies have a larger unallocated rectangular ratio (20% and 23% on average) at the cost of a signiﬁcantly lower slice satisfaction ratio (73% and 71% on average) shown in Fig. 13a, i.e., more unallocated resources are due to the lower slice satisfaction ratio. Conversely, the percentage of the largest unallocated rectangular is close between the case that uses the optimal policy (12%) and the case that applies the Granular & Greedy policy (10%), which conﬁrms the performance of the proposed algorithm. Finally, the Granular & Greedy policy takes much less execution time, i.e., polynomial time, to provide such close performance, which justiﬁes its efﬁciency and applicability.
+
+Freq domain (Nb=100)
+
+Slice 1 (Fixed)
+
+Slice 5
+
+Slice 2 S7 Slice 4
+
+Slice3
+
+Slice 6
+S6
+Largest unallocated rectangular S7 (80PRB, 3ms)
+
+Time domain (Tb=10)
+(a) Intra-slice scheduling results
+
+Freq domain (Nb=100)
+
+Slice 1 (Fixed)
+
+Slice 5
+
+Slice 2 S7 Slice 4
+
+Slice3 Slice7
+
+Slice 6
+
+Slice 6
+
+Largest unallocated rectangular (100PRB, 4ms)
+
+Time domain (Tb=10)
+
+(b) Compact inter-slice accommodation
+
+Fig. 12: Examples of inter-slice resource accommodation.
+
+B. Radio resource accommodation
+After the inter-slice partitioning and intra-slice scheduling, the RAN runtime can accommodate these scheduling decisions to physical resources and generate the corresponding CI (cf. step f in Fig. 7b). In Fig. 12a, an example is shown based on the outcomes of inter-slice partitioning (cf. Fig. 11b) as well as intra-slice scheduling. The intra-slice scheduling decisions are marked with the gray portions as the scheduled parts, while the transparent portions are the unscheduled resources (i.e., unused by the intra-slice scheduler). However, a larger unallocated rectangular is formed in Fig. 12b via accommodating the per-slice scheduling results in a more compact way. Such compactness relies on the resource abstraction mechanism as mentioned in Section IV-C3. Through such scheme, the interslice accommodation is not necessary mapped to the same physical partitioned resource except for the slices that request the ﬁxed position granularity, i.e., gk = Fix.
+Like the inter-slice resource partitioning, our objective here contains the two complementary goals in (1). Hence, we can apply almost the same algorithm as in Alg. 1 with following modiﬁcations: (1) adopt the SCS selected in the inter-slice resource partitioning, i.e., SCS [k], ∀sk ∈ S outputted from Alg. 1, (2) prohibit other slices to utilize the resources partitioned for the ﬁxed-position granularity slice, and (3) replace the number of requested resource (i.e., Tk and Nk) with the number of scheduled resource (i.e., Tka and Nka are the number of scheduled resources in time and frequency domain for sk). The aggregated trafﬁc arrival rate of each slice is assumed to be proportional to the number of requested radio resource (i.e., Nk × Tk) that is further multiplied with a time-varying uniformly-distributed trafﬁc arrival ratio p.
+
+2169-3536 (c) 2018 IEEE. Translations and content mining are permitted for academic research only. Personal use is also permitted, but republication/redistribution requires IEEE permission. See http://www.ieee.org/publications_standards/publications/rights/index.html for more information.
+
+This article has been accepted for publication in a future issue of this journal, but has not been fully edited. Content may change prior to final publication. Citation information: DOI 10.1109/ACCESS.2018.2847610, IEEE Access
+16
+
+Average slice satisfaction ratio of different prioritizations after Partitioning
+
+Satisfaction Ratio (%)
+
+All slices Fix slice Contiguous slice Non-contiguous slice Min-granular slice
+
+100
+
+90
+
+80
+
+70
+
+60
+
+50
+
+40
+
+30
+
+20
+
+10
+
+0
+
+Optimal
+
+Random
+
+Greedy
+
+Granular Granular & Greedy
+
+(a) Average slice satisfaction ratio
+
+Resource Grid Utilization Ratio after Partitioning
+
+Resource Utilization (%)
+
+Partitioned resource Largest unallocated rectangular resource Other unallocated resource
+
+100
+
+90
+
+80
+
+70
+
+60
+
+50
+
+40
+
+30
+
+20
+
+10
+
+0
+
+Optimal
+
+Random
+
+Greedy
+
+Granular Granular & Greedy
+
+(b) Resource grid occupation ratio
+
+Fig. 13: Performance of different slice priortization policies in resource partitioning.
+
+Resource Grid Utilization Ratio after Accommodation, p~Uniform(0.65,1.0)
+
+Resource Utilization (%)
+
+Partitioned resource Largest unallocated rectangular resource Other unallocated resources
+100 90 80 70 60 50 40 30 20 10 0 Optimal(NA) Granular&Greedy(NA) Optimal(A) Granular&Greedy(A)
+(a) Trafﬁc arrival ratio p ∼ Uniform (0.65, 1.0)
+
+Resource Grid Utilization Ratio after Accommodation, p~Uniform(0.0,1.0)
+
+Resource Utilization (%)
+
+Partitioned resource Largest unallocated rectangular resource Other unallocated resources
+100 90 80 70 60 50 40 30 20 10 0 Optimal(NA) Granular&Greedy(NA) Optimal(A) Granular&Greedy(A)
+(b) Trafﬁc arrival ratio p ∼ Uniform (0.0, 1.0)
+Fig. 14: Performance of different slice priortization policies and resource abstraction in resource accommodation.
+
+2169-3536 (c) 2018 IEEE. Translations and content mining are permitted for academic research only. Personal use is also permitted, but republication/redistribution requires IEEE permission. See http://www.ieee.org/publications_standards/publications/rights/index.html for more information.
+
+This article has been accepted for publication in a future issue of this journal, but has not been fully edited. Content may change prior to final publication. Citation information: DOI 10.1109/ACCESS.2018.2847610, IEEE Access
+17
+
+Multiplexing Gain Multiplexing Gain Multiplexing Gain Multiplexing Gain
+
+1.5
+
+Slice multiplexing (Gs)
+
+1.4
+
+Resource multiplexing gain (Gr)
+
+1.3
+
+1.2
+
+1.1
+
+4
+
+3.5
+
+Slice multiplexing gain (Gs) Resource multiplexing gain (Gr)
+
+3
+
+2.5
+
+2
+
+1.5
+
+1.5
+
+Slice multiplexing gain (Gs)
+
+1.4
+
+Resource multiplexing gain (Gr)
+
+1.3
+
+1.2
+
+1.1
+
+4
+
+3.5
+
+Slice multiplexing gain (Gs) Resource multiplexing gain (Gr)
+
+3
+
+2.5
+
+2
+
+1.5
+
+1 Optimal Granular&Greedy
+
+1 Optimal Granular&Greedy
+
+1 Optimal
+
+1
+
+Granular&Greedy
+
+Optimal Granular&Greedy
+
+(a) Average multiplexing gain with p ∼ Uniform (0.65, 1.0)
+
+(b) Average multiplexing gain with p ∼ Uniform (0.0, 1.0)
+
+(c) Worst case multiplexing gain with p ∼ Uniform (0.65, 1.0)
+
+(d) Worst case multiplexing gain with p ∼ Uniform (0.0, 1.0)
+
+Fig. 15: Slice and radio resource multiplexing gain among different cases.
+
+We hereby evaluate the performance of two slice priortization policies, i.e., Optimal, Granular & Greedy, in Fig. 14 considering two cases: (a) no resource abstraction (denoted with NA in Fig. 14), and (b) resource abstraction is applied except for ﬁxed-position slices (denoted with A in Fig. 14). In the former case, all intra-slice scheduling decisions are accommodated within the partitioned resource (e.g., Fig. 12a), while the latter allows more freedom when accommodating (e.g., Fig. 12b). In Fig. 14a, we can see that no abstraction case only shows ∼ 2% increasing in terms of the largest unallocated rectangular when comparing with the Granular & Greedy inter-slice partitioning result (cf. Fig. 13b). In contrast, with resource abstraction scheme, the optimal and Granular & Greedy priortization policies provides ∼ 9.8% and ∼ 8.2% enhancement, respectively. Such beneﬁt is further boosted when the average trafﬁc arrival ratio p is decreased as shown in Fig. 14b, i.e., p is changed from Uniform (0.65, 1.0) to Uniform (0.0, 1.0). These results show the resource abstraction advantages in terms of defragmenting the overall resource grid. Finally, more slices can be further satisﬁed and we denote the ﬁnal set of satisﬁed slices after accommodation and multiplexing as Sa.
+
+C. Multiplexing gain
+
+To explicitly represent the level of multiplexing beneﬁts, we formulate the statistical multiplexing gain in two aspects: (1) slice and (2) radio resource block. First of all, based on the results shown in the previous two paragraphs, we can see that the number of satisﬁed slices after the inter-slice partitioning (i.e., |Sp|) is smaller than the number of satisﬁed slices after the inter-slice accommodation and multiplexing (i.e., |Sa|) via utilizing the unallocated resource. Hence, the statistical multiplexing gain in the slice aspect can be written as
+
+Gs = Number of satisﬁed slices after accommodation and multiplexing
+
+Number of satisﬁed slices after partitioning
+
+= E |Sa| ,
+
+(2)
+
+|Sp|
+
+where Sp and Sa are introduced in the previous two paragraphs respectively. Another aspect is to view the multiplexing gain in terms of the radio resource block via dividing the number of utilized resource blocks after accommodation and multiplexing by the number of scheduled resource blocks after the intraslice resource scheduling:
+
+Gr = Number of utilized resource after accommodation and multiplexing
+Number of intra-slice scheduled resources
+
+=E
+
+sk∈Sa Tka · Nka sk∈Sp Tka · Nka
+
+,
+
+(3)
+
+where Tka and Nka are the number of allocated resource blocks. Note that these two multiplexing gain formulations
+
+in Eq. (2) and Eq. (3) depend not only on the results of inter-
+
+slice resource partitioning and accommodation but also on the
+
+characteristics of extra slices to be satisﬁed, i.e., their trafﬁc
+
+patterns and resource granularities.
+
+In Fig. 15, we show the multiplexing gain based on the inter-
+
+slice partitioning and accommodation results (i.e., optimal and
+
+Granular & Greedy in Fig. 14), and utilize the aforementioned
+
+trafﬁc pattern, i.e., trafﬁc arrival ratio p, as introduced in
+
+the previous paragraph for each extra slice. Two resource
+
+granularity cases are considered for each extra slice: (1)
+
+contiguous granularity, and (2) random granularity between
+
+contiguous, non-contiguous and minimum. The former shows
+
+that the multiplexing gain in its worst case as all extra slices
+
+require the contiguous resources, while the latter one shows
+
+the average multiplexing gain. The average multiplexing gain
+
+in Fig. 15a is approximately 1.18 (Gs) and 1.26 (Gr) for both optimal and Granular & Greedy policies. When the average
+
+trafﬁc arrival ratio is decreased (i.e., p), more unused resources
+
+can be multiplexed, and hence the multiplexing gain shown in
+
+Fig. 15b are increased to 1.75 (Gs) and 2.87 (Gr). Note that the resource multiplexing gain is more signiﬁcantly increased
+
+than the slice multiplexing gain as there are more unused
+
+resources can be multiplexed.
+
+Further, even the multiplexing gains of both trafﬁc arrival
+
+ratios are reduced when considering the worst case in Fig. 15c
+
+(1.05/1.18 for Gs/Gr) and Fig. 15d (1.27/2.45 for Gs/Gr); however, both priortization policies still show close values.
+
+Note that such worst case results provide the lower bounds of
+
+multiplexing gain. When comparing the average and the worst
+
+cases, the slice multiplexing gain is reduced more obviously
+
+than the resource multiplexing gain as extra slices are rejected
+
+mostly due to their requested contiguous granularity rather
+
+than the lack of radio resources. In summary, the multiplexing
+
+gain is represented in both slice and resource block aspects.
+
+The former is more related to the resource granularity (e.g.,
+
+contiguous, non-contiguous, minimum), while the latter one
+
+concerns more on the trafﬁc pattern (i.e., Nk, Tk, p).
+
+2169-3536 (c) 2018 IEEE. Translations and content mining are permitted for academic research only. Personal use is also permitted, but republication/redistribution requires IEEE permission. See http://www.ieee.org/publications_standards/publications/rights/index.html for more information.
+
+This article has been accepted for publication in a future issue of this journal, but has not been fully edited. Content may change prior to final publication. Citation information: DOI 10.1109/ACCESS.2018.2847610, IEEE Access
+18
+
+VI. PROOF OF CONCEPTS
+To validate the concept of RAN runtime slicing system and explore different use cases, we implemented an LTEbased prototype of RAN runtime following aforementioned design in Section IV. The RAN runtime is developed based on the FlexRAN agent11 over the OAI platform [15], and each instantiated slice is built on top of the FlexRAN controller12 with the customized CP, UP, and CL. The main functionalities of the proposed RAN runtime services and CP/UP APIs are implemented and integrated within the agent. Slice selection for each user is done based on the the public land mobile network (PLMN) information, as a part of the unique international mobile subscriber identity (IMSI), in order to allow each user to associate to a slice. Note that as speciﬁed by 3GPP in [64], a single-network slice selection assistance information (S-NSSAI) can identify a slice and it comprises the (1) slice/service type (SST) and (2) slice differentiator (SD) to differentiate the slice service. Then, the user can send the NSSAI information that includes up to 8 S-NSSAIs to identify it preference(s) for slice selection.
+The current implementation of a slice service descriptor is shown in Listing 1. It can describe a slice by its BS name (i.e., name), cell identiﬁer (i.e., cell_id), and service types (i.e., service_types), where each service is deﬁned by a set of service policies (i.e., service_policy) in both downlink and uplink directions that will be applied when a slice is created or updated. Speciﬁcally, the service policies are expressed in terms of (1) the number of requested resources (i.e., vRBGs) and performance (i.e., rate and latency), (2) slice isolation requirement, and (3) slice priority as shown in listing 1. In terms of the requested resource abstraction types, currently the vRBG type 0/1 and vTBS type 0 are available and they can utilize the downlink and uplink resource allocation type 0 (see TABLE V). Hence, each slice will be associated with a vRBG pool in each TTI, and the overall resource partitioning is updated in every allocation window T . Note that the slice isolation property (cf. requested_isolation) can allow a slice to reserve its resources (i.e., without any multiplexing), whereas the slice priority (cf. requested_priority) is used to accommodate the resources and to preempt resources from other slices.
+Using the aforementioned slice service descriptor, three slices are created on the top of the a single BS. They communicate with the RAN runtime using the asynchronous communication channels. Each slice embeds the control logics and operates on the virtualized resources and states based on the modiﬁed version of FlexRAN controller and its software development kit (SDK). In following, we describe the experiment setup for each use case and present the respective results demonstrating the slice performance tradeoff between isolation/sharing as well as the ﬂexibility in terms of changing the RAN service deﬁnition dynamically.
+11https://gitlab.eurecom.fr/oai/openairinterface5g 12https://gitlab.eurecom.fr/ﬂexran/ﬂexran-rtc
+
+Listing 1: Slice service descriptor.
+enb slices : - name: BS1 cell id: val s e r v i c e t y p e s : [ ST1 , ST2 , ST3 ] - name: BS2 ...
+service policy : ST1 : UL : requested vrbg: val requested rate: val requested latency: val requested priority: val requested isolation: val DL : requested vrbg: val requested rate: val requested latency: val requested priority: val requested isolation: val ST2: ... ST3: ...
+A. Radio Resource and Control Logic Isolation
+To demonstrate the impact of inter-slice resource partitioning, we deploy three slices with different trafﬁc patterns as follows: slice 1 with a variable bit rate emulating 720p video streaming, slice 2 with compressed variable bit rate emulating a surveillance IP camera with 30 frame per second (FPS), and slice 3 with constant low bit rate emulating periodical sensing data. Each slice serves 5 different users (i.e., user 1 to user 5 belong to slice 1, user 6 to user 10 belong to slice 2, and user 11 to user 15 belong to slice 3), and each user transmits uplink and downlink data on the default radio bearer. Then, three different resource partitioning manners are applied at different time intervals: (a) fair partitioning that allocates 33% of total vRBGs to each slice before time instance t1 = 25s, (b) greedy partitioning between t1 and t2 = 40s that allocates 60% of vRBGs to slice 1, and 20% per slice 2 and slice 3, and (c) proportional partitioning after t2 that allocates 50% of vRBGs to slice1, 40% to slice 2, and 10% for slice 3. Note that our focus in this experiment is on the number of requested resources (i.e., requested_vrbg), and thus the impacts of priority and isolation are not taken into account. As for the intra-slice scheduling, we apply a simple fair scheduling among users.
+From the results presented in Fig. 16, it can be observed that the slice aggregated good-put and average latency can signiﬁcantly ﬂuctuate when applying different inter-slice resource partitioning policies. However, any change of the interslice partitioning has no impact on the intra-slice scheduling policy as shown in Fig. 17, in which all users are scheduled and the fairness is preserved. The above results conﬁrm the capability of RAN runtime in providing isolation among slices and performance guarantee, matching the challenge listed in Section IV-A. Further, it implies that the inter-slice partitioning and intra-slice scheduling can be decoupled and developed individually for different purposes to meet the requirements of both infrastructure provider and slice owner.
+
+2169-3536 (c) 2018 IEEE. Translations and content mining are permitted for academic research only. Personal use is also permitted, but republication/redistribution requires IEEE permission. See http://www.ieee.org/publications_standards/publications/rights/index.html for more information.
+
+This article has been accepted for publication in a future issue of this journal, but has not been fully edited. Content may change prior to final publication. Citation information: DOI 10.1109/ACCESS.2018.2847610, IEEE Access
+19
+
+8000 6000
+
+Slice 1 Slice 2 Slice 3
+
+Goodput (kB/s)
+
+4000
+
+2000
+
+0 0 0.5 1 1.5 2 2.5 3 3.5 4 4.5 5 5.5
+
+Time (ms)
+
+104
+
+(a) Aggregated good-put
+
+20 Slice 1 Slice 2 Slice 3
+15
+
+Latency (ms)
+
+10
+
+5
+
+0 0 0.5 1 1.5 2 2.5 3 3.5 4 4.5 5 5.5
+
+Time (ms)
+
+104
+
+(b) Average latency
+
+Fig. 16: Slice performance of dynamic inter-slice partitioning.
+
+Goodput (kB/s)
+
+DL goodput of different inter-slice partitions 3000
+
+2500
+
+2000
+
+1500
+
+1000
+
+500
+
+0 Fair partition
+
+Greedy
+
+Proportional
+
+(a) Per-user average Good-put
+
+user1 user2 user3 user4 user5 user6 user7 user8 user9 user10 user11 user12 user13 user14 user15
+
+Latency (ms)
+
+DL latency of different inter-slice partitions 80
+
+70
+
+60
+
+50
+
+40
+
+30
+
+20
+
+10
+
+0 Fair partition
+
+Greedy
+
+Proportional
+
+user1 user2 user3 user4 user5 user6 user7 user8 user9 user10 user11 user12 user13 user14 user15
+
+(b) Per-user average latency
+
+Fig. 17: User performance of dynamic inter-slice partitioning.
+
+B. Radio Resource Preemption and Multiplexing
+In this experiment, we demonstrate the impacts of resource multiplexing and preemption, i.e., requested_priority and requested_isolation in Listing 1, on the perceived performance in a scenario with three slices, each hosting one user. Speciﬁcally, besides the applied resource abstraction/virtualization scheme, different slice service policies are explored: (a) slice 1 can preempt resources of all other slices when the actual (aggregated) rate exceeds the requested rate, (b) slice 2 can only increase its multiplexing gain by utilizing the unallocated resources, and (c) slice 3 may sustain its requested data rate as it can neither preempt nor multiplex resources but is subject to the preemption from high priority slice (i.e., slice 1).
+We ﬁrstly show the box plot of measured round trip time (RTT) distribution in Fig. 18 with different packet size (PS) ranging from 64 to 8192 bytes and inter-departure time (IDT) from 0.2 to 1 second. We can observe that the smallest RTT with the lowest variability is achieved for slice 1, as such slice has the ability to preempt resources from others, and hence it can utilize available radio resources to meet its instantaneous trafﬁc dynamics. Slice 2 is able to maintain the average RTT compared with slice 1 with opportunistic improvement when there are some unallocated resources to be multiplexed (cf. Fig. 7b). However, it suffers from delay variability caused by the scheduling delay. Slice 3 experiences the largest average RTT (almost twice as slice 1) with the highest variability, and it represents a typical best effort service. Besides, the relations between the measured RTT and the characteristics of trafﬁc (i.e., PS and IDT) are observed as the following. We can see that there is a positive correlation between RTT and PS for slice 1, as such slice does not experience any scheduling delay due to the resource preemption scheme, and thus the RTT is only proportional to the size of packet. As for slice 3, an extra positive correlation is observed between the IDT and the measured RTT, i.e., the higher IDT has a higher RTT. The reason being that the longer IDT trafﬁc of slice 3 suffers from the scheduling delay as it can neither preempt others’ resource nor multiplex unused resources to reduce its RTT. By contrast, for slice 2, there is no straightforward relation between IDT and RTT since it can utilize some unused resource opportunistically.
+When examining the slice aggregated good-put and delayjitter in Fig. 19, it can be seen that slice 1 can ﬂexibly adapt its data rate as a function of its workload by preempting the resources from other slices, i.e., from 3 Mbps to 6 Mbps, while slice 2 experiences a data rate drop from its desired 10 Mbps to 8 Mbps. The same trend is observed in the delay jitter measurement, in which slice 1 experiences the minimum jitter as it has the highest priority and slice 3 suffers the largest delay jitter due to its lowest priority.
+The above results reveal that the impact of slice policy in terms of the multiplexing and priority when creating a slice. They enable resource reservation and preemption to potentially meet the slice-speciﬁc QoS requirements as well as the resource multiplexing to increase the efﬁciency of resource utilization by sharing the unused resources.
+
+2169-3536 (c) 2018 IEEE. Translations and content mining are permitted for academic research only. Personal use is also permitted, but republication/redistribution requires IEEE permission. See http://www.ieee.org/publications_standards/publications/rights/index.html for more information.
+
+This article has been accepted for publication in a future issue of this journal, but has not been fully edited. Content may change prior to final publication. Citation information: DOI 10.1109/ACCESS.2018.2847610, IEEE Access
+20
+
+RTT(ms)
+
+RTT(ms)
+
+Slice 1 (preemption) 300
+IDT 1.0(s) IDT 0.8(s) IDT 0.4(s) IDT 0.2(s)
+250
+
+200
+
+150
+
+100
+
+50
+
+0 64 768 2048
+
+4096
+
+Packet Size (byte)
+
+(a) Slice 1
+
+Slice 2 (multiplex) 300
+IDT 1.0(s) IDT 0.8(s) IDT 0.4(s)
+250
+
+8192
+IDT 0.2(s)
+
+200
+
+150
+
+100
+
+50
+
+0 64 768 2048
+
+4096
+
+Packet Size (byte)
+
+8192
+
+(b) Slice 2
+
+Slice 3 (neither preempt nor multiplex) 300
+IDT 1.0(s) IDT 0.8(s) IDT 0.4(s) IDT 0.2(s)
+250
+
+200
+
+150
+
+100
+
+50
+
+0 64 768 2048
+
+4096
+
+8192
+
+Packet Size (byte)
+
+(c) Slice 3
+
+Fig. 18: Impact of preemption and multiplexing on RTT.
+
+RTT(ms)
+
+C. Network function and state ﬂexibility
+We then show the capability of the RAN runtime to change the service deﬁnition of the underlying RAN module between monolithic and disaggregated deployments from the infrastructure provider perspective. In particular, we consider three possible RAN deployments at different time instances without instantiating any slice: (a) monolithic RAN deployment at t1, (b) disaggregated RAN deployment using 3GPP split option 8 [42] at t2, and (c) using 3GPP split option 7-1 at t3. Such BS only has a single antenna and it is operated in FrequencyDivision Duplexing (FDD) mode with 5 MHz radio bandwidth. Our considered disaggregated RAN deployment uses UDP/IP based Ethernet transportation over the fronthaul interface with
+
+one switch between RU and DU to route the trafﬁc. The UP measurement results are shown in Fig. 20 in terms of the good-put, delay jitter and RTT when a 15 Mbps trafﬁc ﬂow is transferred in the DL direction. We can see that these is no good-put drop when changing the functional split. This is because the considered splits (i.e., performing cell processing at the RU) only require RAN module reconﬁguration without any state synchronization, which explains why the good-put remains unchanged among different deployments. As for the delay jitter and RTT, they are increased at t2 and t3 due to the Ethernet packet loss when changing the split as well as the extra time spent for the Ethernet packet transport (i.e., packetization [65] and radio sample compression/decompression) along the fronthaul links and the switch.
+We have to mention that although the changes of functional split are mainly reserved for the infrastructure provider to ensure the network service performance in the devised approach, while the update of split can be made possible for a slice owner by appropriately customizing the CP/UP functions at each RAN module. In such a case, the RAN runtime shall make sure that the SLA is maintained when there is any change in the service service descriptor, and transfer the CP/UP states between disaggregated RAN modules (i.e., RU, DU, CU), as listed in TABLE VI.
+VII. CONCLUSIONS AND FUTURE WORKS
+In this work, we propose the RAN runtime slicing system that serves as a ﬂexible execution environment to run multiple customized slice instances with the required levels of isolation while sharing the underlying RAN modules and infrastructure. We elaborate on the design of such system and identify the its functionalities in both control and user planes. A new set of radio resource abstractions are deﬁned to efﬁciently provide resource isolation among different slices. On the userplane, the forwarding engine of RAN runtime is introduced to compose the input and output data stream for a ﬂexible processing pipeline composition. We also propose the interslice resource partitioning and accommodation approach that can satisfy the requests of different granularities and maintain a signiﬁcant multiplexing gain with acceptable complexity. Finally, we implement the proposed RAN runtime slicing system over the OAI platform in three use cases that exactly match aforementioned RAN slicing challenges.
+In the future, we plan to extend the current work in several directions: (1) extend the resource abstraction approach to support additional performance metrics (e.g., latency, reliability), (2) formulate the QoS satisfaction objective when partitioning/accommodating radio resources, (3) examine the performance impact on the function dedication/sharing on different network layers, and (4) establish a collaboration scheme between multiple RAN runtime instances to enable the large-scale control logics.
+ACKNOWLEDGEMENT
+This work has received funding from the European Union’s Horizon 2020 Framework Programme under grant agreement No. 762057 (5G-PICTURE) and No. 761913 (SliceNet).
+
+2169-3536 (c) 2018 IEEE. Translations and content mining are permitted for academic research only. Personal use is also permitted, but republication/redistribution requires IEEE permission. See http://www.ieee.org/publications_standards/publications/rights/index.html for more information.
+
+This article has been accepted for publication in a future issue of this journal, but has not been fully edited. Content may change prior to final publication. Citation information: DOI 10.1109/ACCESS.2018.2847610, IEEE Access
+21
+
+Goodput (Mbps)
+
+14
+
+12
+
+Slice 1 Slice 2 Slice 3
+
+10
+
+8
+
+6
+
+4
+
+2
+
+0 0 5 10 15 20 25 30 35
+Time (second)
+
+Delay Jitter (ms)
+
+8
+Slice 1 Slice 2 Slice 3
+6
+4
+2
+0 0 5 10 15 20 25 30 35
+Time (second)
+
+Fig. 19: Impact of preemption and multiplexing on good-put and delay jitter.
+
+Goodput (Mbps)
+
+15.5
+
+15.4
+
+15.3
+
+15.2
+
+15.1
+
+15
+
+14.9
+
+14.8
+
+14.7
+
+14.6
+
+14.5
+
+t1
+
+t2
+
+t3
+
+1.6
+
+1.4
+
+1.2
+
+1
+
+0.8
+
+0.6
+
+0.4
+
+0.2
+
+0
+
+t1
+
+t2
+
+t3
+
+Delay jitter (ms) Round trip time (ms)
+
+90
+
+80
+
+70
+
+60
+
+50
+
+40
+
+t1
+
+t2
+
+t3
+
+Fig. 20: Flexible RAN deployment impacts on good-put, delay jitter and RTT.
+
+REFERENCES
+[1] TR 28.801 Study on management and orchestration of network slicing for next generation network (Release 15), 3GPP, Sep. 2017.
+[2] A. Nakao, P. Du, Y. Kiriha, F. Granelli, A. A. Gebremariam, T. Taleb, and M. Bagaa, “End-to-end Network Slicing for 5G Mobile Networks,” Journal of Information Processing, vol. 25, pp. 153–163, 2017.
+[3] P. Rost, A. Banchs, I. Berberana, M. Breitbach, M. Doll, H. Droste, C. Mannweiler, M. A. Puente, K. Samdanis, and B. Sayadi, “Mobile Network Architecture Evolution toward 5G,” IEEE Communications Magazine, vol. 54, no. 5, pp. 84–91, May 2016.
+[4] IMT-2020 Deliverables, ITU-T Focus Group, 2017. [5] TR 23.799 Study on Architecture for Next Generation System (Release
+14), 3GPP, Dec. 2016. [6] NGMN Alliance, “Description of Network Slicing Concept,” Tech. Rep.,
+Jan. 2016. [7] 5G PPP Architecture Working Group, “View on 5G Architecture,” White
+Paper, Jul. 2016. [8] V. G. Nguyen and Y. H. Kim, “Slicing the Next Mobile Packet
+Core Network,” in 2014 11th International Symposium on Wireless Communications Systems (ISWCS), Aug. 2014, pp. 901–904. [9] T. Taleb, M. Corici, C. Parada, A. Jamakovic, S. Rufﬁno, G. Karagiannis, and T. Magedanz, “EASE: EPC as a Service to Ease Mobile Core Network Deployment over Cloud,” IEEE Network, vol. 29, no. 2, pp. 78–88, Mar. 2015. [10] Z. A. Qazi, M. Walls, A. Panda, V. Sekar, S. Ratnasamy, and S. Shenker, “A High Performance Packet Core for Next Generation Cellular Networks,” in Proceedings of the Conference of the ACM Special Interest Group on Data Communication, ser. SIGCOMM ’17. ACM, 2017, pp. 348–361. [11] A. Ksentini and N. Nikaein, “Toward Enforcing Network Slicing on RAN: Flexibility and Resources Abstraction,” IEEE Communications Magazine, vol. 55, no. 6, pp. 102–108, Aug. 2017.
+
+[12] X. Foukas, M. Mahesh K., and K. Kontovasilis, “Orion: RAN Slicing for a Flexible and Cost-Effective Multi-Service Mobile Network Architecture,” in Proceedings of the 23rd Annual International Conference on Mobile Computing and Networking, ser. MobiCom ’17. ACM, 2017, pp. 127–140.
+[13] TR 23.707 Architecture enhancements for dedicated core networks; Stage 2 (Release 13), 3GPP, Dec. 2014.
+[14] TR 23.711 Enhancements of Dedicated Core Networks selection mechanism (Release 14), 3GPP, Sep. 2016.
+[15] N. Nikaein, M. K. Marina, S. Manickam, A. Dawson, R. Knopp, and C. Bonnet, “OpenAirInterface: A Flexible Platform for 5G Research,” ACM SIGCOMM Computer Communication Review, vol. 44, no. 5, pp. 33–38, Oct. 2014.
+[16] X. Foukas, N. Nikaein, M. M. Kassem, M. K. Marina, and K. P. Kontovasilis, “FlexRAN: A Flexible and Programmable Platform for Software-Deﬁned Radio Access Networks,” in Proceedings of the 12th International on Conference on Emerging Networking EXperiments and Technologies, ser. CoNEXT ’16. ACM, 2016, pp. 427–441.
+[17] TS 23.251 Network sharing; Architecture and functional description, 3GPP, Jan. 2009.
+[18] A. Khan, W. Kellerer, K. Kozu, and M. Yabusaki, “Network Sharing in the Next Mobile Network: TCO Reduction, Management Flexibility, and Operational Independence,” IEEE Communications Magazine, vol. 49, no. 10, pp. 134–142, Oct. 2011.
+[19] L. Doyle, J. Kibilda, T. K. Forde, and L. DaSilva, “Spectrum Without Bounds, Networks Without Borders,” Proceedings of the IEEE, vol. 102, no. 3, pp. 351–365, Mar. 2014.
+[20] N. Nikaein, E. Schiller, R. Favraud, K. Katsalis, D. Stavropoulos, I. Alyafawi, Z. Zhao, T. Braun, and T. Korakis, “Network Store: Exploring Slicing in Future 5G Networks,” in Proceedings of the 10th International Workshop on Mobility in the Evolving Internet Architecture, ser. MobiArch ’15. ACM, 2015, pp. 8–13.
+
+2169-3536 (c) 2018 IEEE. Translations and content mining are permitted for academic research only. Personal use is also permitted, but republication/redistribution requires IEEE permission. See http://www.ieee.org/publications_standards/publications/rights/index.html for more information.
+
+This article has been accepted for publication in a future issue of this journal, but has not been fully edited. Content may change prior to final publication. Citation information: DOI 10.1109/ACCESS.2018.2847610, IEEE Access
+22
+
+[21] K. Katsalis, N. Nikaein, E. J. Schiller, A. Ksentini, and T. Braun, “Network Slices Towards 5G Communications: Slicing the LTE network,” IEEE Communications Magazine, vol. 55, no. 8, pp. 146–154, Aug. 2017.
+[22] X. An, R. Trivisonno, H. Einsiedler, D. von Hugo, K. Haensge, X. Huang, Q. Shen, D. Corujo, K. Mahmood, D. Trossen, M. Liebsch, and C.-T. Phan, “End-to-End Architecture Modularisation and Slicing for Next Generation Networks,” CoRR, vol. abs/1611.00566, 2016. [Online]. Available: http://arxiv.org/abs/1611.00566
+[23] K. Samdanis, X. Costa-Perez, and V. Sciancalepore, “From Network Sharing to Multi-Tenancy: The 5G Network Slice Broker,” IEEE Communications Magazine, vol. 54, no. 7, pp. 32–39, Jul. 2016.
+[24] I. Chih-Lin, S. Han, Z. Xu, S. Wang, Q. Sun, and Y. Chen, “New Paradigm of 5G Wireless Internet,” IEEE Journal on Selected Areas in Communications, vol. 34, no. 3, pp. 474–482, Mar. 2016.
+[25] X. Zhou, R. Li, T. Chen, and H. Zhang, “Network Slicing as a Service: Enabling Enterprises Own Software-Deﬁned Cellular Networks,” IEEE Communications Magazine, vol. 54, no. 7, pp. 146–153, Jul. 2016.
+[26] S. Sharma, R. Miller, and A. Francini, “A Cloud-Native Approach to 5G Network Slicing,” IEEE Communications Magazine, vol. 55, no. 8, pp. 120–127, Aug. 2017.
+[27] H. Zhang, N. Liu, X. Chu, K. Long, A.-H. Aghvami, and V. C. Leung, “Network Slicing Based 5G and Future Mobile Networks: Mobility, Resource Management, and Challenges,” IEEE Communications Magazine, vol. 55, no. 8, pp. 138–145, Aug. 2017.
+[28] A. Rostami, P. Ohlen, K. Wang, Z. Ghebretensae, B. Skubic, M. Santos, and A. Vidal, “Orchestration of RAN and Transport Networks for 5G: An SDN Approach,” IEEE Communications Magazine, vol. 55, no. 4, pp. 64–70, Apr. 2017.
+[29] R. Kokku, R. Mahindra, H. Zhang, and S. Rangarajan, “NVS: A Substrate for Virtualizing Wireless Resources in Cellular Networks,” IEEE/ACM Transactions on Networking, vol. 20, no. 5, pp. 1333–1346, Oct. 2012.
+[30] X. Costa-Pe´rez, J. Swetina, T. Guo, R. Mahindra, and S. Rangarajan, “Radio Access Network Virtualization for Future Mobile Carrier Networks,” IEEE Communications Magazine, vol. 51, no. 7, pp. 27–35, Jul. 2013.
+[31] R. Mahindra, M. A. Khojastepour, H. Zhang, and S. Rangarajan, “Radio Access Network Sharing in Cellular Networks,” in 2013 21st IEEE International Conference on Network Protocols (ICNP), Oct. 2013, pp. 1–10.
+[32] R. Kokku, R. Mahindra, H. Zhang, and S. Rangarajan, “CellSlice: Cellular Wireless Resource Slicing for Active RAN Sharing,” in 2013 Fifth International Conference on Communication Systems and Networks (COMSNETS), Jan. 2013, pp. 1–10.
+[33] J. He and W. Song, “AppRAN: Application-Oriented Radio Access Network Sharing in Mobile Networks,” in 2015 IEEE International Conference on Communications (ICC), Jun. 2015, pp. 3788–3794.
+[34] A. Aijaz, “Hap − SliceR: A Radio Resource Slicing Framework for 5G Networks With Haptic Communications,” IEEE Systems Journal, pp. 1–12, Jan. 2017.
+[35] Y. Zaki, L. Zhao, C. Goerg, and A. Timm-Giel, “LTE Mobile Network Virtualization,” Mobile Networks and Applications, vol. 16, no. 4, pp. 424–432, Aug. 2011.
+[36] C. Liang and F. R. Yu, “Wireless Virtualization for Next Generation Mobile Cellular Networks,” IEEE wireless communications, vol. 22, no. 1, pp. 61–69, Feb. 2015.
+[37] A. Gudipati, L. E. Li, and S. Katti, “RadioVisor: A Slicing Plane for Radio Access Network,” in Proceedings of the Third Workshop on Hot Topics in Software Deﬁned Networking, ser. HotSDN ’14. ACM, 2014, pp. 237–238.
+[38] P. Rost, C. Mannweiler, D. S. Michalopoulos, C. Sartori, V. Sciancalepore, N. Sastry, O. Holland, S. Tayade, B. Han, D. Bega et al., “Network Slicing to Enable Scalability and Flexibility in 5G Mobile Networks,” IEEE Communications Magazine, vol. 55, no. 5, pp. 72–79, May 2017.
+[39] R. Ferrus, O. Sallent, J. Perez-Romero, and R. Agusti, “On 5G Radio Access Network Slicing: Radio Interface Protocol Features and Conﬁguration,” IEEE Communications Magazine, vol. 56, no. 5, pp. 184–192, May 2018.
+[40] P. Marsch, I. Da Silva, O. Bulakci, M. Tesanovic, S. E. El Ayoubi, T. Rosowski, A. Kaloxylos, and M. Boldi, “5G Radio Access Network Architecture: Design Guidelines and Key Considerations,” IEEE Communications Magazine, vol. 54, no. 11, pp. 24–32, Nov. 2016.
+[41] K. Katsalis, N. Nikaein, E. Schiller, R. Favraud, and T. I. Braun, “5G Architectural Design Patterns,” in 2016 IEEE International Conference on Communications Workshops (ICC), May 2016, pp. 32–37.
+
+[42] TR 38.801 Study on new radio access technology: Radio access architecture and interfaces (Release 14), 3GPP, Mar. 2017.
+[43] TR 38.804 Study on new radio access technology: Radio Interface Protocol Aspects (Release 14), 3GPP, Mar. 2017.
+[44] M. Yang, Y. Li, D. Jin, L. Su, S. Ma, and L. Zeng, “OpenRAN: A Software-deﬁned Ran Architecture via Virtualization,” ACM SIGCOMM Computer Communication Review, vol. 43, no. 4, pp. 549–550, Aug. 2013.
+[45] I. F. Akyildiz, P. Wang, and S.-C. Lin, “SoftAir: A Software Deﬁned Networking Architecture for 5G Wireless Systems,” Computer Networks, vol. 85, pp. 1–18, 2015.
+[46] A. Gudipati, D. Perry, L. E. Li, and S. Katti, “SoftRAN: Software Deﬁned Radio Access Network,” in Proceedings of the Second ACM SIGCOMM Workshop on Hot Topics in Software Deﬁned Networking, ser. HotSDN ’13. ACM, 2013, pp. 25–30.
+[47] T. Chen, H. Zhang, X. Chen, and O. Tirkkonen, “SoftMobile: Control Evolution for Future Heterogeneous Mobile Networks,” IEEE Wireless Communications, vol. 21, no. 6, pp. 70–78, Dec. 2014.
+[48] M. Bansal, J. Mehlman, S. Katti, and P. Levis, “OpenRadio: A Programmable Wireless Dataplane,” in Proceedings of the First Workshop on Hot Topics in Software Deﬁned Networks, ser. HotSDN ’12. ACM, 2012, pp. 109–114.
+[49] W. Wu, L. E. Li, A. Panda, and S. Shenker, “PRAN: Programmable Radio Access Networks,” in Proceedings of the 13th ACM Workshop on Hot Topics in Networks, ser. HotNets-XIII. ACM, 2014, pp. 6:1–6:7.
+[50] O. Sallent, J. Perez-Romero, R. Ferrus, and R. Agusti, “On Radio Access Network Slicing from a Radio Resource Management Perspective,” IEEE Wireless Communications, vol. 24, no. 5, pp. 166–174, Oct. 2017.
+[51] J. Matias, J. Garay, N. Toledo, J. Unzilla, and E. Jacob, “Toward an SDN-enabled NFV Architecture,” IEEE Communications Magazine, vol. 53, no. 4, pp. 187–193, Apr. 2015.
+[52] M. Kablan, A. Alsudais, E. Keller, and F. Le, “Stateless Network Functions: Breaking the Tight Coupling of State and Processing,” in 14th USENIX Symposium on Networked Systems Design and Implementation (NSDI 17). USENIX Association, 2017, pp. 97–112.
+[53] J. Kim, D. Kim, and S. Choi, “3GPP SA2 Architecture and Functions for 5G Mobile Communication System,” ICT Express, vol. 3, no. 1, pp. 1–8, 2017.
+[54] A. A. Zaidi, R. Baldemair, H. Tullberg, H. Bjorkegren, L. Sundstrom, J. Medbo, C. Kilinc, and I. Da Silva, “Waveform and Numerology to Support 5G Services and Requirements,” IEEE Communications Magazine, vol. 54, no. 11, pp. 90–98, Nov. 2016.
+[55] TS 38.211 NR; Physical channels and modulation (Release 15), 3GPP, Dec. 2017.
+[56] Open vSwitch. [Online]. Available: http://openvswitch.org/ [57] P. Bosshart, G. Gibb, H.-S. Kim, G. Varghese, N. McKeown, M. Iz-
+zard, F. Mujica, and M. Horowitz, “Forwarding Metamorphosis: Fast Programmable Match-action Processing in Hardware for SDN,” ACM SIGCOMM Computer Communication Review, vol. 43, no. 4, pp. 99– 110, Aug. 2013. [58] C.-Y. Chang, N. Nikaein, R. Knopp, T. Spyropoulos, and S. S. Kumar, “FlexCRAN: A Flexible Functional Split Framework over Ethernet Fronthaul in Cloud-RAN,” in 2017 IEEE International Conference on Communications (ICC), May 2017, pp. 1–7. [59] O. Arouk, N. Nikaein, and T. Turletti, “Multi-Objective Placement of Virtual Network Function Chains in 5G,” in 2017 IEEE 6th International Conference on Cloud Networking (CloudNet), Sep. 2017, pp. 1–6. [60] A. Caprara and M. Monaci, “On the two-dimensional knapsack problem,” Operations Research Letters, vol. 32, no. 1, pp. 5–14, 2004. [61] C.-Y. Chang, N. Nikaein, and T. Spyropoulos, “Radio Access Network Resource Slicing for Flexible Service Execution,” in 2018 IEEE Conference on Computer Communications Workshops (INFOCOM WKSHPS). IEEE, May 2018. [62] J. Van De Belt, H. Ahmadi, and L. E. Doyle, “A Dynamic Embedding Algorithm for Wireless Network Virtualization,” in 2014 IEEE 80th Vehicular Technology Conference (VTC2014-Fall), Sep. 2014, pp. 1–6. [63] M. Yang, Y. Li, L. Zeng, D. Jin, and L. Su, “Karnaugh-map Like Online Embedding Algorithm of Wireless Virtualization,” in The 15th International Symposium on Wireless Personal Multimedia Communications, Sep. 2012, pp. 594–598. [64] TS 23.501 System Architecture for the 5G System; Stage 2 (Release 15), 3GPP, Jul. 2017. [65] C.-Y. Chang, R. Schiavi, N. Nikaein, T. Spyropoulos, and C. Bonnet, “Impact of packetization and functional split on C-RAN fronthaul performance,” in 2016 IEEE International Conference on Communications (ICC), May 2016, pp. 1–7.
+
+2169-3536 (c) 2018 IEEE. Translations and content mining are permitted for academic research only. Personal use is also permitted, but republication/redistribution requires IEEE permission. See http://www.ieee.org/publications_standards/publications/rights/index.html for more information.
+

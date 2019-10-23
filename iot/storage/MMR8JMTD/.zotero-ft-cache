@@ -1,0 +1,639 @@
+This article has been accepted for publication in a future issue of this journal, but has not been fully edited. Content may change prior to final publication. Citation information: DOI 10.1109/LWC.2018.2842189, IEEE Wireless Communications Letters
+1
+
+Slicing the Edge: Resource Allocation for RAN Network Slicing
+Phuong Luu Vo, Minh N. H. Nguyen, Tuan Anh Le, Nguyen H. Tran, Member, IEEE
+
+Abstractâ€”Network slicing is considered to be a crucial feature of 5G cellular system. By dividing the network infrastructure into multiple logical segments, network slicing can support parallel services with different requirements. While technology developments focus on slicing the core networks, there are limited studies in network slicing for radio access networks (RAN). Hence, in this work, we study the RAN slicing and slice coordination, which is formulated as a bi-convex problem. Even though there are complicated couplings between the RAN resource allocation for each slice and the coordination of the slices that share the same resources, we design two algorithms addressing these couplings of this bi-convex problem. Simulation results validate the efï¬cacy of our proposed algorithms.
+I. INTRODUCTION
+Network slicing is emerging as one of the key elements to enable the ï¬fth generation (5G) cellular networks. Specifically, with network slicing, the network infrastructure can be segmented into multiple logical network slices to support various services with different requirements. For example, one network slice is dedicated to augmented reality applications with ultra-reliable and low-latency communications, whereas another slice is designated for extremely high throughput video-on-demand services. With those beneï¬ts, network slicing has attracted interest from various mobile operators, e.g., SK Telecom and Ericsson demonstrated how network slices were created to support augmented reality in 2015 whereas Ericsson and NTT DoCoMo provided a dynamic network slicing proof-of-concept for 5G core networks in 2016 [1].
+Recently, a number of comprehensive surveys have discussed different 5G network slicing architectures and its applications, including vehicular networks, information-centric networks, isolated wireless network slicing, etc., [2]â€“[5]. However, these works do not consider the problems of slice allocation and coordination, which are equally important to bring network slicing into fruition. Thus, in this work, we propose slicing algorithms that can perform radio access network (RAN) slicing (including base station (BS) bandwidth, caching, and backhaul capacties) and handle the coordination between these slices. While BS radio bandwidth is inarguably a critical resource of RAN, in 5G cellular system, caching
+
+and backhaul will play important roles because i) the backhaul link will be bottlenecked due to 5G network densiï¬cation, and ii) caching at BS can reduce the trafï¬c to the core network. However, cache storage and backhaul link are mostly ignored in RAN slicing. Furthermore, in order to support a wide range of segmented services, the coordination of all created slices to optimize the aggregated slice performance is also a critical issue, which is, unexpectedly, under-explored.
+We see that none of the existing works consider the RAN slicing of jointly BS radio bandwidth, caching, and backhaul components. This creates a unique challenge: how to allocate and coordinate multiple RAN slices for tenants such that the aggregated load of all allocated slices and the backhaul delay are minimized, considering each physical resource has its own capacity constraint. This challenge imposes two interdependences: while the ï¬rst one is between the BS radio bandwidth and caching slice allocation to minimize the aggregate BS slice load, the second one is between the caching and backhaul slice allocation to minimize the aggregate backhaul delay.
+By tackling these challenges, our contributions can be summarized as follows:
+â€¢ We ï¬rst formulate a network slicing design as an optimization problem, which is further shown to be a biconvex problem, that accounts for both RAN vertical slicing and slice coordination issues. To solve this problem, we propose two alternative minimization algorithms for this bi-convex problem. While the ï¬rst is a centralized scheme that can be supported by 5G network virtualization and orchestration tools [2], the second one is a distributed approach where all slices coordinate to reach the solution.
+â€¢ Even though our alternative minimization approaches have no global convergence guarantee, simulation results show that they can achieve a global optimal solution (compared with exhaustive search) in a simple scenario with two tenants. When the number of tenants is increased, the results show that our algorithms can converge to the same performance as that of IpOPt solver, validating the efï¬cacy of our proposed approaches.
+
+P. Vo is with School of Computer Science and Engineering, International University-VNUHCM, Vietnam (email: vtlphuong@hcmiu.edu.vn). This research is funded by Vietnam National Foundation for Science and Technology Development (NAFOSTED) under grant number 102.022015.36.
+TA. Le is with Faculty of Engineering and Technology, Thu Dau Mot University, Vietnam (email: letuanh@tdmu.edu.vn).
+M.N.H. Nguyen is with the Department of Computer Science and Engineering, Kyung Hee University, Korea (email: minhnhn@khu.ac.kr).
+N.H. Tran is with the School of Information Technologies, The University of Sydney, Sydney, NSW 2006, Australia (email: nguyen.tran@sydney.edu.au).
+
+II. SYSTEM MODEL
+A. Network Model
+We consider a network slicing architecture where a set N of tenants (e.g., services) sharing a physical network resources, including a BS with a cache storage and capacity-constrained backhaul link as in Fig. 1. The BS radio bandwidth, cache storage, and backhaul link are denoted by W (MHz), S (contents), and B (Mbps), respectively.
+
+2162-2337 (c) 2018 IEEE. Personal use is permitted, but republication/redistribution requires IEEE permission. See http://www.ieee.org/publications_standards/publications/rights/index.html for more information.
+
+This article has been accepted for publication in a future issue of this journal, but has not been fully edited. Content may change prior to final publication. Citation information: DOI 10.1109/LWC.2018.2842189, IEEE Wireless Communications Letters
+2
+
+Slice 1 Slice 2 Slice 3
+
+Base Station í µí¼¶í µí¼¶í µí¿í µí¿
+
+í µí¼¶í µí¼¶í µí¿í µí¿
+
+í µí¼¶í µí¼¶í µí¿‘í µí¿‘
+
+Cache Backhaul
+Core Network
+
+í µí¼·í µí¼·í µí¿í µí¿
+
+í µí¼·í µí¼·í µí¿í µí¿
+
+í µí¼·í µí¼·í µí¿‘í µí¿‘
+
+í µí¼¸í µí¼¸í µí¿í µí¿
+
+í µí¼¸í µí¼¸í µí¿í µí¿
+
+í µí¼¸í µí¼¸í µí¿‘í µí¿‘
+
+Fig. 1: A RAN network slicing model with three tenants.
+
+These network resources will be â€œslicedâ€ according to the
+demand of each tenant. Speciï¬cally, we deï¬ne a slice allocated
+to a tenant n by a tuple (Î±n, Î²n, Î³n), which is a fraction of (W, S, B), respectively, such that nâˆˆN Î±n = nâˆˆN Î²n =
+nâˆˆN Î³n = 1. We denote the vector (Î±n)nâˆˆN by Î±, similarly for Î² and Î³.
+Each tenant n has its own set of users Un. Users of all tenants request the contents from a catalog with a set F of contents with equal size L1. Furthermore, for a tenant n with
+its user un âˆˆ Un, content access pattern of un is modeled by a distribution pun,f such that fâˆˆF pun,f = 1, âˆ€un âˆˆ Un.
+We consider a timeslot model where slicing decision is
+updated according to the demand of tenantsâ€™ users (e.g., 10
+minutes). In one timeslot, the tenant nâ€™s user request rate for
+contents is denoted by Î»un , âˆ€un âˆˆ Un.
+
+B. Cache Slicing
+
+According to [6], by using the reset time-to-live (TTL) cache model, the hit probability of content f of tenant n is
+
+h = 1 âˆ’ e n,f
+
+âˆ’ unâˆˆUn Î»un,f Tn,f
+
+(1)
+
+where Î»un,f := pun,f Î»un , and Tn,f is the characteristic time of content f of tenant n, which can be considered as timer in TTL caching. Because the expected number of contents of a tenant must not exceed its allocated cached capacity, we have
+
+fâˆˆF hn,f = Î²nS, âˆ€n âˆˆ N .
+
+(2)
+
+Since the number of contents is very large, the request rate to
+
+each content of tenant n can be small. Thus, we approximately
+
+have
+
+hn,f =
+
+unâˆˆUn Î»un,f Tn,f , âˆ€n âˆˆ N ,
+
+(3)
+
+since eâˆ’x = 1 âˆ’ x when x is small enough.
+
+Tenants usually have no content discrimination; thus, all of
+
+their contents have the same characteristic time: Tn,f = Tn,
+
+âˆ€f . Therefore, from (2) and (3), we have
+
+hn,f =
+
+unâˆˆUn Î»un,f Î» unâˆˆUn un
+
+Î²nS,
+
+âˆ€n âˆˆ N .
+
+(4)
+
+There are two implications from (4): i) the hit probability
+
+of each content increases when the cache space increases,
+
+and ii) the hit probability is proportional to the request rate.
+
+Furthermore, the content with a higher request rate (i.e., more
+
+popular) has a higher hit probability.
+
+1Heterogeneous content sizes can be divided into multiple content chunks with the same size.
+
+C. BS Bandwidth Slicing
+When the tenant n receives its BS slicing Î±n, the BS bandwidth it receives is Î±nW . With this bandwidth, the downlink rate of a tenant nâ€™s user is as follows
+
+cun = Î±nW log(1 + SN Run ), âˆ€un âˆˆ Un,
+
+(5)
+
+where SN Run is user unâ€™s received signal-to-noise ratio. The SN Run can be given as
+
+SN Run
+
+=
+
+gun Pun Ïƒu2n + Iun
+
+,
+
+(6)
+
+where gun captures the channel gain (i.e., path loss, shadow-
+ing, etc.) from the BS to the location of user un, Pun is the BS transmission power, Ïƒu2n denotes the background noise, and Iun denotes the other average interference sources (e.g.,
+coming from neighboring BSs) seen by user un. We assume
+that all users of tenant n will be scheduled in a time-shared
+
+manner (e.g., TDMA) so there is no inter-user interference.
+
+From (4), the hit rate and missed rate of the user un are deï¬ned respectively as follows
+
+Î»huint =
+
+f Î»un,f hn,f =
+
+f Î»un,f
+
+unâˆˆUn Î»un,f Î» unâˆˆUn un
+
+Î²nS
+
+(7)
+
+Î»m unis = Î»un âˆ’ Î»huint, âˆ€un âˆˆ Un.
+
+(8)
+
+When a request to a content f of tenant n is hit (i.e., the content is found in the cache storage), this request can be served by the BS slice of tenant n immediately. Therefore, the load of the BS slice n is
+
+Ïn(Î±n, Î²n) =
+
+Î»huint , Âµ unâˆˆUn un
+
+(9)
+
+where Âµun = cun /L is the service rate of user unâ€™s content. D. Backhaul Capacity Slicing
+
+When the requests are missed, they will be forwarded to the content server and downloaded through the backhaul link. Given the backhaul capacity slice Î³nB, the backhaul linkâ€™s delay cost of the tenant n is modeled by using M/M/1 queueing delay [7] as follows
+
+Î¦n(Î²n, Î³n) :=
+
+, Î»m n is
+Âµm n isâˆ’Î»m n is
+âˆ,
+
+0 â‰¤ Î»m n is < Âµm n is; otherwise,
+
+(10)
+
+where Î»m n is := unâˆˆUn Î»m unis, and Âµm n is = Î³nB/L is the backhaul service rate for tenant n.
+
+III. RAN NETWORK SLICING
+In this section, we ï¬rst formulate the RAN slicing problem, then propose two algorithms for this problem.
+
+A. Problem Formulation The RAN network slicing is formulated as follows
+
+min.
+Î±,Î²,Î³ â‰¥0
+s.t.
+
+Ïn(Î±n, Î²n) + Ï‰
+
+Î¦n(Î²n, Î³n) (11)
+
+nâˆˆN
+
+nâˆˆN
+
+nâˆˆN Î±n =
+
+nâˆˆN Î²n =
+
+nâˆˆN Î³n = 1, (12)
+
+Ïn(Î±n, Î²n) â‰¤ 1 âˆ’ , âˆ€n âˆˆ N .
+
+(13)
+
+2162-2337 (c) 2018 IEEE. Personal use is permitted, but republication/redistribution requires IEEE permission. See http://www.ieee.org/publications_standards/publications/rights/index.html for more information.
+
+This article has been accepted for publication in a future issue of this journal, but has not been fully edited. Content may change prior to final publication. Citation information: DOI 10.1109/LWC.2018.2842189, IEEE Wireless Communications Letters
+3
+
+In this problem, the objective is to minimize two components:
+
+i) the aggregated BS slice load for load-balancing, and ii)
+
+the backhaul link cost of all slices for delay minimization,
+
+where Ï‰ is a weight factor which characterizes the Pareto
+
+optimal values of these two objectives. This objective captures
+
+two interdependences i) between the BS radio bandwidth and
+
+caching slice allocation to minimize the aggregate slice load,
+
+and ii) between the caching and backhaul slice allocation to
+
+minimize the aggregate backhaul delay. Constraint (13) pre-
+
+vents an over-loaded tenantâ€™s BS slice with a pre-determined
+
+threshold .
+
+We see that
+
+Ïn(Î±n, Î²n) =
+
+un âˆˆUn
+
+Î»huint Âµun
+
+=
+
+Î¸n
+
+Î²n Î±n
+
+,
+
+(14)
+
+where Î¸n :=
+
+un âˆˆUn
+
+. Thus, the fâˆˆF Î»un,f
+
+un âˆˆUn Î»un,f unâˆˆUn Î»un
+
+S
+
+cun /L
+
+objective (11) can be rewritten as follows
+
+nâˆˆN
+
+Î¸n
+
+Î²n Î±n
+
++Ï‰
+
+Î¦n(Î²n, Î³n).
+nâˆˆN
+
+(15)
+
+We observe that (11) is not a convex, but a bi-convex problem:
+
+Although it is not jointly convex of all variables, given Î²n, it is convex with respect to both Î±n and Î³n, âˆ€n âˆˆ N , and vice versa. Thus, we next propose two alternative minimization
+
+algorithms solving this bi-convex problem.
+
+to collect all information of tenants. When the tenant private information, e.g., hit/miss rates, is unobtainable, a decentralized scheme is needed to implement the RAN network slicing problem (11).
+2) Decentralized Approach: We next design a decentralized algorithm based on the Jacobi-Proximal Alternating Direction Method of Multipliers (JP-ADMM) method in [9]. Although there are several decentralized optimization algorithms such as dual decomposition and ADMM, we adopt this JP-ADMM method, which is a variant of ADMM, because it i) converges faster than dual decomposition method, and ii) exploits the parallelized structure of subproblem [9].
+At each iteration k, given the announced dual variables (u(1k), u(2k), u(3k)) and aggregated values nâˆˆN Î²n(k),
+nâˆˆN Î±n(k), nâˆˆN Î³n(k) of previous iteration, at the ï¬rst step, each tenant n only needs to solve its own problem as follow: First, each tenant n updates Î²n(k+1) by solving
+
+min.
+Î²n â‰¥0
+s.t.
+
+Î¸n
+
+Î²n Î±n(k)
+
++ Ï‰ Î¦n(Î²n, Î³n(k)) +
+
+Ï„n 2
+
+(Î²n
+
+âˆ’
+
+Î²n(k))2
+
+Ï
+
++ 2
+
+Î²n +
+
+i=n Î²i(k) âˆ’ 1 âˆ’ u(1k)/Ï 2
+
+(22)
+
+Contraint (18).
+
+Then, with this Î²n(k+1), the tenant n updates (Î±n(k+1), Î³n(k+1)) by solving
+
+B. Algorithms
+The ï¬rst algorithm is centralized. This is inspired by the emerging software-deï¬ned network orchestration tools which can maintain a global state information to centrally implement network slicing [2].
+1) Centralized Approach: We adopt the Proximal Block Coordinate Descent (PBCD) method presented in [8] for solving a general multi-convex problem.
+At each iteration indexed by k, given the previously achieved Î±(k) and Î³(k), a controller will solve the following convex problem to obtain Î²(k+1) as follows
+
+min. Î¸n
+Î±n ,Î³n â‰¥0
+
+Î²n(k+1) Î±n
+
++ Ï‰ Î¦n(Î²n(k+1), Î³n)
+
++
+
+Ï„n 2
+
+(Î±n
+
+âˆ’
+
+Î±n(k))2
+
++
+
+Ï 2
+
+Î±n +
+
+i=n
+
+Î±i(k)
+
+âˆ’
+
+1
+
+âˆ’
+
+u(2k) Ï
+
+2
+
++
+
+Ï„n 2
+
+(Î³n
+
+âˆ’
+
+Î³n(k))2
+
++
+
+Ï 2
+
+Î³n +
+
+i=n
+
+Î³i(k)
+
+âˆ’
+
+1
+
+âˆ’
+
+u(3k) Ï
+
+2
+
+s.t. Contraint (21).
+
+At the second step, the dual variables can be updated by the controller as follows
+
+min.
+Î²â‰¥0
+s.t.
+
+nâˆˆN
+
+Î¸n
+
+Î²n Î±n(k)
+
++
+
+Ï‰
+
+nâˆˆN
+
+Î¦n(Î²n,
+
+Î³n(k))
+
++
+
+Ï 2
+
+Î² âˆ’ Î²(k)
+
+2u(ik+1) = u(ik) âˆ’ ÏƒÏ
+
+N n=1
+
+x(i,kn+1)
+
+âˆ’
+
+1
+
+, i = 1, 2, 3,
+
+(23)
+
+(16) where x(i,kn+1) denotes Î²n(k+1), Î±n(k+1), Î³n(k+1) when i = 1, 2, 3,
+
+nâˆˆN Î²n = 1, Î¸nÎ²n âˆ’ (1 âˆ’ )Î±n(k) â‰¤ 0, âˆ€n âˆˆ N .
+
+(17) respectively. Then, dual variables and the aggregated values
+
+(18)
+
+nâˆˆN Î²n(k+1), nâˆˆN Î±n(k+1), and nâˆˆN Î³n(k+1) will be announced to all tenants. The signaling of the proposed schemes
+
+Then, based on this Î²(k+1), the controller updates can be implemented via Type 5 interface as in [3]. When Ï„n
+
+Î±(k+1), Î³(k+1) by solving the following convex problem
+
+and Ïƒ are chosen according to [9], the above two steps are
+
+min.
+Î±,Î³ â‰¥0
+
+nâˆˆN
+
+Î¸n
+
+Î²n(k+1) Î±n
+
++Ï‰
+
+nâˆˆN Î¦n(Î²n(k+1), Î³n)
+
+Ï +
+
+Î± âˆ’ Î±(k)
+
+2+ Ï
+
+Î³ âˆ’ Î³(k)
+
+2
+
+(19)
+
+2
+
+2
+
+repeatedly performed until convergence.
+IV. CASE STUDIES For simulation settings, we consider an area of 500m x 500m where the BS is at the center and user locations are
+
+s.t.
+
+nâˆˆN Î±n = nâˆˆN Î³n = 1,
+
+Î¸nÎ²n(k+1) âˆ’ (1 âˆ’ )Î±n â‰¤ 0, âˆ€n âˆˆ N ,
+
+(20) uniformly distributed. We consider four tenants, which have
+
+(21)
+
+the number of users follows a uniform distribution within [10, 30], and users of each tenant have the same request rates.
+
+The algorithm will alternatively solve (16) and (19) repeatedly The BS transmission power Pun is 49 dBm and the bandwidth
+
+until convergence [8].
+
+W is 20 MHz. Furthermore, we consider 50,000 contents with
+
+For this approach, the controller, which can be the Network ï¬xed size 100KB, the content popularity with Zipf distribution,
+
+Element Manager on the shared BS as proposed in [3], has and Ï‰ is set to 1. In the following, we consider two scenarios
+
+2162-2337 (c) 2018 IEEE. Personal use is permitted, but republication/redistribution requires IEEE permission. See http://www.ieee.org/publications_standards/publications/rights/index.html for more information.
+
+This article has been accepted for publication in a future issue of this journal, but has not been fully edited. Content may change prior to final publication. Citation information: DOI 10.1109/LWC.2018.2842189, IEEE Wireless Communications Letters
+4
+
+Total Cost Total Cost
+,WHUDWLRQV $JJUHJDWHG%6/RDG %DFNKDXO/LQN&RVW
+
+10 5
+0 10 5
+0
+
+Two Tenants Scenario Exhaustive Search IpOpt Solver PBCD JP-ADMM
+
+10
+
+20
+
+30
+
+Four Tenants Scenario
+
+40
+
+50
+
+IpOpt Solver PBCD JP-ADMM
+
+10
+
+I2t0erations30
+
+40
+
+50
+
+Fig. 2: Cost convergence.
+
+   
+ 3%&'
+
+-3$'00
+
+Fig. 3: Iteration convergence.
+
+      
+  
+
+      
+  
+
+Fig. 4: Cost trade-off with varying Ï‰.
+
+0.4 0.2 0.0
+0 1.0
+0.5
+0.0 0
+0.4 0.2 0.0
+0
+
+10
+
+20
+
+IpOpt Solver
+
+30
+
+40
+
+50
+
+PBCD
+
+JP-ADMM
+
+10
+
+20
+
+30
+
+40
+
+50
+
+Tenant 1 Tenant 2 Tenant 3 Tenant 4
+
+10
+
+I2t0erations30
+
+40
+
+50
+
+Fig. 5: Slicing allocation of four tenants.
+
+of two tenants and four tenants, in which the cache capacity (number of ï¬les) and backhaul capacity (Mbps) are 220 and 800 for the ï¬rst scenario, and 220 and 1200 for the second scenario, respectively. We use Julia to implement our proposed algorithms.
+Even though our proposed algorithms does not theoretically guarantee the global optimum for the bi-convex problem (11), Fig. 2 shows that both algorithms can numerically converge to a tenantâ€™s global optimal cost, compared with an exhaustive search and IpOpt solver in a simple scenario of two tenants. In the second scenario with four tenants, since exhaustive search is impractical in this case, we compare the total cost convergence of the proposed schemes with that of IpOpt in the lower plot of Fig. 2, which shows that all have the same convergent value. Also, the convergence of BS, cache, and backhaul slicing is shown in Fig. 5. We see that Tenant 1 and 4 with higher trafï¬c demands use most of the BS and cache capacities while the remaining tenants will get contents via backhaul link by using 38% and 44% backhaul capacity. Although Tenant 1 receives 46% and 49% of BS and cache capacities, respectively, it still needs an additional 17% of backhaul capacity for its high demand.
+For statistical distribution of convergent iterations sampled from 300 simulations as shown in Fig. 3, we see that the PBCD has faster convergence than the JP-ADMM scheme. However, JP-ADMM surpasses PBCD in twofold: First, the size of the optimization problem in each iteration of PBCD is larger than
+
+that of JP-ADMM. Second, PBCD is a centralized approach in which the controller needs all the tenantsâ€™ private information, whereas with distributed algorithm JP-ADMM, the controller only needs to observe the current physical resource load. Finally, in Fig 4, we study the trade-off between tenant load and backhaul cost in four-tenant scenario by tuning Ï‰. This table shows that lower values of Ï‰ give lower tenant load and higher backhaul cost, and vice versa.
+V. CONCLUSIONS
+We studied the network slicing for multiple services using RAN resources such as BS, cache storage, and backhaul capacity. The considered RAN network slicing is formulated as a bi-convex problem that accounts for dependencies between resource allocation for each slice and coordination of slices sharing the same resources. We proposed two algorithms for solving the formulated bi-convex problem and simulation results show that the proposed algorithms can converge to the solution validated by other baselines.
+REFERENCES
+[1] J. P. Tomas, â€œUnderstanding network slicing, a key technology for 5G,â€ 2017. [Online]. Available: http://www.rcrwireless.com/20170106/ internet-of-things/network-slicing-5g-tag23-tag99
+[2] A. Nakao, P. Du, Y. Kiriha, F. Granelli, A. A. Gebremariam, T. Taleb, and M. Bagaa, â€œEnd-to-end Network Slicing for 5G Mobile Networks,â€ Journal of Information Processing, vol. 25, pp. 153â€“163, 2017.
+[3] G. Tseliou, K. Samdanis, F. Adelantado, X. C. Perez, and C. Verikoukis, â€œA capacity broker architecture and framework for multi-tenant support in LTE-A networks,â€ in IEEE ICC. IEEE, may 2016, pp. 1â€“6.
+[4] J. S. Panchal, R. D. Yates, and M. M. Buddhikot, â€œMobile Network Resource Sharing Options: Performance Comparisons,â€ IEEE Transactions on Wireless Communications, vol. 12, no. 9, pp. 4470â€“4482, sep 2013.
+[5] M. Richart, J. Baliosian, J. Serrat, and J.-L. Gorricho, â€œResource Slicing in Virtual Wireless Networks: A Survey,â€ IEEE Transactions on Network and Service Management, vol. 13, no. 3, pp. 462â€“476, sep 2016.
+[6] D. L. Fofack, N. Choungmo and Dehghan, M. and Towsley, D. and Badov, M. and Goeckel, â€œOn the Performance of General Cache Networks,â€ in ACM ValueTools, Bratislava, Slovakia, 2014, pp. 106â€“113.
+[7] T. Han and N. Ansari, â€œNetwork Utility Aware Trafï¬c Load Balancing in Backhaul-Constrained Cache-Enabled Small Cell Networks with Hybrid Power Supplies,â€ IEEE Transactions on Mobile Computing, vol. 16, no. 10, pp. 2819â€“2832, Oct. 2017.
+[8] Y. Xu and W. Yin, â€œA block coordinate descent method for regularized multiconvex optimization with applications to nonnegative tensor factorization and completion,â€ SIAM Journal on imaging sciences, vol. 6, no. 3, pp. 1758â€“1789, 2013.
+[9] W. Deng, M.-J. Lai, Z. Peng, and W. Yin, â€œParallel multi-block ADMM with o(1/k) convergence,â€ Journal of Scientiï¬c Computing, vol. 71, no. 2, pp. 712â€“736, may 2017.
+
+2162-2337 (c) 2018 IEEE. Personal use is permitted, but republication/redistribution requires IEEE permission. See http://www.ieee.org/publications_standards/publications/rights/index.html for more information.
+
