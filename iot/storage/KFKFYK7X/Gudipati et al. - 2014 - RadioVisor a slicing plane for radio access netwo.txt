@@ -1,0 +1,127 @@
+RadioVisor: A Slicing Plane for Radio Access Networks
+
+Aditya Gudipati
+Stanford University
+adityag1@stanford.edu
+
+Li Erran Li
+Bell Labs, Alcatel Lucent
+erranlli@research.belllabs.com
+
+Sachin Katti
+Stanford University
+skatti@stanford.edu
+
+Categories and Subject Descriptors
+C.2 [Network Architecture and Design]: Wireless Communication; C.2 [Network Operations]: Network Management
+General Terms
+Design, Management
+Keywords
+Radio Access Networks, Software Deﬁned Networking
+1. INTRODUCTION
+To cope with the exponential traﬃc growth, increasingly diverse traﬃc mix including voice, video, machineto-machine(M2M), and the spectrum shortage, wireless networks have to get densely deployed and dynamically adapt to meet the distinct requirements of diverse traﬃc classes.
+However, dense deployments with a frequency reuse of one (all basestations operate on the same band) lead to an interference-limited network. Such a network requires coordination among basestations for eﬃcient resource management. To achieve this coordination, SoftRAN [1] proposes that all base stations deployed in a geographical area should be abstracted as a virtual big-base station. A logically centralized control plane manages radio resources (abstracted as 3D grid of space, time and frequency), while the individual basestations are simpler radio elements with minimal control logic.
+Even if such an abstraction is achieved, dense deployments are still very expensive to deploy and operate. RAN sharing across operators could help amortize this cost.
+We build on SoftRAN and present RadioVisor, a slicing plane that dynamically slice 3D resource grid based on traﬃc among operators. This will enable operators to innovate in scheduling, interference management and even
+Permission to make digital or hard copies of part or all of this work for personal or classroom use is granted without fee provided that copies are not made or distributed for proﬁt or commercial advantage, and that copies bear this notice and the full citation on the ﬁrst page. Copyrights for third-party components of this work must be honored. For all other uses, contact the owner/author(s). Copyright is held by the author/owner(s). HotSDN’14, August 22, 2014, Chicago, IL, USA. ACM 978-1-4503-2989-7/14/08. http://dx.doi.org/10.1145/2620728.2620782.
+
+in physical layer (PHY). Operators should be able to subdivide its own slice and ﬂexibly deﬁne sub-slices based on subscriber attributes and application types (e.g. voice, video) to support a wide range of application requirements and business relationships.
+Such architecture raises unique challenges compared to data-center and enterprise networks (FlowVisor [2]), since radio resources are inherently coupled due to the shared nature of wireless media.
+2. RADIOVISOR DESIGN
+RadioVisor enables each controller to access a slice of the radio access network infrastructure. RadioVisor ensures isolation of the diﬀerent slices in terms of control channel messages, radio element resources such as CPU, and radio resources.
+2.1 Architecture
+RadioVisor system architecture consists of three key components as shown in Figure 1: the device and application to slice mapping, the radio resource allocation and isolation function and the slice manager. We focus on isolation of radio resources.
+RadioVisor needs to demultiplex traﬃc to and from the controllers of virtual operators. If each virtual operator’s ID is broadcasted through the physical broadcast channel of each allocated radio element (LTE RAN sharing supports this), that makes demultiplexing of signaling traﬃc among virtual operators easy. Static splitting of radio resources can be very ineﬃcient under variable load. Radio Visor enables dynamic resource sharing while preserving control of resources by the virtual operators. RadioVisor slices the 3D resource grid in a max min fashion according to resource requests and the service agreements. The key challenge is to make eﬃcient allocation while ensuring fairness and isolation.
+3. RADIOVISOR SUBGRID ALLOCATION AND ISOLATION ALGORITHM
+Figure 1: RadioVisor Architecture
+
+237
+
+We assume there are B base stations in a geographical area being shared by N network operators. The RadioVisor needs to slice R time-frequency slots at each base station among the N network operators while ensuring isolation (no interference between slices) and fairness (max-min). The objective is to maximize total network utility.
+3.1 Problem Formulation
+We assume, basestations can use two possible power levels (high power and low power). High power is used to transmit to edge users and causes interference to the edge users in neighboring cells. Low power is used to transmit to users in inner region of a cell and does not cause any interference to the neighboring cells.
+RadioVisor performs resource block allocation and power allocation at each base station to each network operator.
+Variables: Xi (i ∈ {1, 2, . . . , N }) is a binary matrix variable of size B × R. xi(b, r) = 1 implies that the resource block r in base station b has been allocated to network operator i at high power. Similarly, Yi (i ∈ {1, 2, . . . , N }) denotes resource allocations at low power.
+Interference graph inputs: I is a binary matrix of size B × B. I(b, b′) = 1, implies if the same resource block is assigned with high power at base stations b and b′, then they will experience signiﬁcant interference from each other on that resource block.
+Operator Utility function: Each operator provides a utility function which describes the utility achieved by the operator as a function of the resources allocated to it. The utility function should be piecewise linear and resource allocation needs to be expressed as a set of linear constraints. The utility values should be normalized by maximum possible utility (i.e. all values in the range 0 to 1).
+For example, assume at base station b, an operator i requires 2 resource block at high power (for edge users) and either 1 resource block at high power or 2 resource blocks at low power (for inner users) to achieve a utility of 0.5. Thereafter, every 1 resource block at high power or 2 resource blocks at low power achieve an additional utility of 0.1. Then, the utility function of operator i can be described as :
+
+0
+
+
+
+ if 
+
+xi(b, :) < 2 or
+
+xi(b, :) +
+
+yi (b,:) 2
+
+<
+
+3
+
+
+
+Ui =
+
+0.5 + 
+
+xi(b, :) +
+
+yi (b,:) 2
+
+−
+
+3
+
+∗ 0.1
+
+ if
+
+xi(b, :) ≥ 2 and
+
+xi(b, :) +
+
+yi (b,:) 2
+
+≥
+
+3
+
+Constraints: The same resource block can’t be assigned to two diﬀerent operators or at two diﬀerent power levels. That is,
+
+N
+
+N
+
+xi(b, r) + yi(b, r) ≤ 1, ∀1 ≤ r ≤ R, 1 ≤ b ≤ B
+
+i=1
+
+i=1
+
+The isolation constraint: A network operator should not experience signiﬁcant interference from another network operator. This can be expressed as:
+If a particular resource block at base station b is assigned to network operator i at high power and I(b, b′) = 1. Then
+
+the same resource block at base station b′ should not be assigned to another network operator j at high power:
+xi(b, r) + xj(b′, r) ≤ 2 − I(b, b′)
+Note that our isolation constraints do not prevent the allocation of the same resource block to interfering base stations of the same operator!
+Objective function: We need to maximize total system utility while ensuring max-min fairness of utility among operators T Ui (i ∈ {1, 2, . . . , N }). Total utility T Ui achieved by each network operator can be calculated from its utility function.
+3.2 Algorithm for heuristic solution
+The original problem is mixed integer We propose a heuristic to solve this problem by relaxing the integer constraints to linear ones (0 ≤ xi(b, r) ≤ 1).
+Then we adapt the hybrid algorithm for ﬂexible tradeoﬀ between max-min fairness and throughput described in [3]. We ﬁrst ﬁnd the resource allocation that ensures max-min fairness of utility across operators. Then, we maximize the total utility while ensuring that each operator atleast achieves 80% of its max-min fair utility.
+This now becomes a convex problem and can be solved. Once solved, we perform the actual resource allocation by picking the resource r at the basestation b with highest xi(b, r) or yi(b, r) and allocating it to the corresponding operator i. Having ﬁxed one variable, the dynamics of the problem change and we solve the convex relaxation again and ﬁx another variable. We repeat the process till all variables are solved.
+Note that while re-solving the problem (with xi(b, r) = 1), we inherently force xj(b′, r) = 0, where j is any other operator and b′ is a neighboring basestation. This in turn, increases the likelihood that resource block r at basestation b′ also gets allocated to operator i, thus allowing operator i to utilize advanced interference-management techniques on resource r. More details can be found in http://stanford.edu/~adityag1/files/radio- visor.pdf .
+4. DISCUSSION
+Besides isolating resource subgrids at the air interface, RadioVisor also needs to isolate backhaul bandwidth and control plane resources such as the bandwidth between the virtual operators’ controllers and each radio element, the CPU resources at each radio element. RadioVisor can apply similar mechanisms used in FlowVisor [2]. For example, VLANs can be used to isolate backhaul bandwidth among virtual operators.
+5. REFERENCES
+[1] A. G., D. P., L. E. L., and S. K., “SoftRAN: Software deﬁned radio access network,” in ACM HotSDN, 2013.
+[2] R. S., G. G., K. Y., G. A., M. C., N. M., and G. P., “Can the production network be the testbed?,” in USENIX OSDI, 2010.
+[3] E. Danna, S. Mandal, and A. Singh, “A practical algorithm for balancing the max-min fairness and throughput objectives in traﬃc engineering.,” in INFOCOM,
+pp. 846–854, IEEE, 2012.
+
+238
+
+

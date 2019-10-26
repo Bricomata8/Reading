@@ -1,0 +1,1441 @@
+This article has been accepted for inclusion in a future issue of this journal. Content is final as presented, with the exception of pagination.
+
+IEEE/ACM TRANSACTIONS ON NETWORKING
+
+1
+
+Multi-Tenant Radio Access Network Slicing: Statistical Multiplexing of Spatial Loads
+Pablo Caballero, Albert Banchs, Senior Member, IEEE, Gustavo de Veciana, Fellow, IEEE, and Xavier Costa-Pérez, Member, IEEE
+
+Abstract— This paper addresses the slicing of radio access network resources by multiple tenants, e.g., virtual wireless operators and service providers. We consider a criterion for dynamic resource allocation amongst tenants, based on a weighted proportionally fair objective, which achieves desirable fairness/protection across the network slices of the different tenants and their associated users. Several key properties are established, including: the Pareto-optimality of user association to base stations, the fair allocation of base stations’ resources, and the gains resulting from dynamic resource sharing across slices, both in terms of utility gains and capacity savings. We then address algorithmic and practical challenges in realizing the proposed criterion. We show that the objective is NP-hard, making an exact solution impractical, and design a distributed semi-online algorithm, which meets performance guarantees in equilibrium and can be shown to quickly converge to a region around the equilibrium point. Building on this algorithm, we devise a practical approach with limited computational information and handoff overheads. We use detailed simulations to show that our approach is indeed near-optimal and provides substantial gains both to tenants (in terms of capacity savings) and end users (in terms of improved performance).
+Index Terms— Wireless networks, multi-tenant networks, RAN-sharing, network slicing, resource allocation.
+I. INTRODUCTION
+D RIVEN by the capacity requirements forecasted for future mobile networks as well as the decreasing margins obtained by operators, infrastructure sharing has established itself as a key business model for mobile operators to reduce the deployment and operational costs of their networks (e.g., [1] reports a 280% increase in deals within the last 5 years). While passive and active sharing solutions, ranging from exclusive allocation of resources to roaming agreements, are used and have been standardized, these sharing approaches are based on ﬁxed contractual agreements with Mobile Virtual Network Operators (MVNO) over long time
+Manuscript received May 8, 2016; revised December 23, 2016 and May 14, 2017; accepted June 12, 2017; approved by IEEE/ACM TRANSACTIONS ON NETWORKING Editor K. Psounis. The work of P. Caballero and G. de Veciana was supported by the NSF Award under Grant CNS-1343383. The work of A. Banchs was supported in part by the H2020-ICT-2014-2 5G NORMA project under Grant 671584 and in part by the Spanish project DRONEXT under Grant TEC2014-58964-C2-1-R. The work of X. CostaPérez was supported by the H2020-ICT-2014-2 5G NORMA project under Grant 671584. (Corresponding author: Pablo Caballero.)
+P. Caballero and G. de Veciana are with The University of Texas at Austin, Austin, TX 78712 USA (e-mail: pablo.caballero@utexas.edu).
+A. Banchs is with the University Carlos III of Madrid, 28911 Leganés, Spain, and also with the IMDEA Networks Institute, 28918 Leganés, Spain.
+X. Costa-Pérez is with NEC Europe Ltd., 69115 Heidelberg, Germany. Digital Object Identiﬁer 10.1109/TNET.2017.2720668
+
+periods (typically on a monthly/yearly basis). In this paper, we focus on a structured dynamic slicing approach which enables a much more efﬁcient sharing of network resources, as envisioned by the 3GPP Network Sharing Enhancements for future mobile networks which the authors contributed to [2]. Following [3], our approach divides the infrastructure into network slices, assigning a different slice to each operator, and implements the sharing of network resources among operators by dynamically allocating resources to slices. Such a novel network slicing approach is expected to result in new business models and revenue sources for infrastructure providers (see, e.g., [3]). Indeed, this approach supports not only classical players (mobile operators) but also new ones such as Over-The-Top (OTT) service providers that may buy a slice of the network to ensure satisfactory service to their users (e.g., Amazon Kindle’s support for downloading content or a pay TV channel including a premium subscription). In the literature, the term tenants is often used to refer to the different types of players, and multi-tenancy refers to approaches enabling dynamic network slicing and resource sharing for multiple tenants. For simplicity, hereafter we use the term operator in a broad sense to refer to classical (virtual) operators as well as the new players enabled by this approach.
+In designing a practical solution for dynamic resource sharing among slices we face multiple challenges. To start with, we need a sharing criterion that not only allocates resources to operators (and their corresponding slices) fairly, but also, shares the resources of each operator fairly among its users. Furthermore, the criterion should allow for ﬂexible sharing “levels” to meet operators’ heterogeneous requirements; for practical purposes, these levels should be coarsegrained, rather than based on instantaneous resource needs. When allocating resources to an operator, one should take into account the numbers and locations of active users on the network–indeed some locations may see higher demand and (consequently) the associated resources might be scarce.
+Beyond the criterion itself, designing an algorithm to implement it, while realizing timely adaptation to network changes, is also very challenging. Given the amount of information involved (including the channel quality of each user) and its dynamic nature, the algorithm should be as distributed as possible. Also, since the algorithm may be triggered frequently (whenever a user joins, leaves or changes its location), it should be computationally efﬁcient. When adapting to network changes, the algorithm should control the number of handoffs triggered, as those may represent a high overhead.
+
+1063-6692 © 2017 IEEE. Personal use is permitted, but republication/redistribution requires IEEE permission. See http://www.ieee.org/publications_standards/publications/rights/index.html for more information.
+
+This article has been accepted for inclusion in a future issue of this journal. Content is final as presented, with the exception of pagination.
+
+2
+
+IEEE/ACM TRANSACTIONS ON NETWORKING
+
+Key Contributions
+This paper proposes a criterion for slicing the network infrastructure amongst operators and an algorithm to allocate resources accordingly. The key contributions are as follows. In Section II, we introduce a criterion for dynamic resource sharing among operators; while the criterion has been proposed before, we provide a characterization supporting its use in a multi-tenant network setting. These properties are developed in Section II-C, providing insights on the optimality and fairness of the resulting allocations, and the beneﬁts are studied in Section II-D, by characterizing the capacity savings by means of a closed-formula. We show that the criterion not only improves overall network utility but also that of each individual operator, thus guaranteeing that operators are not harmed by the sharing of resources amongst slices. In Section III-A, we show the criterion corresponds to an NP-hard problem, motivating the need to devise an efﬁcient approximation algorithm which is introduced in Section III-B. The proposed algorithm is semi-online, distributed, incurs low computational complexity, and has been speciﬁcally designed to control overheads associated with handoffs and/or mobile user reassociations; we rely on several intermediate analytical results to drive the key design choices underlying our algorithm. Section IV provides a comprehensive performance evaluation based on detailed simulations, showing that (i) operators can save up to 80% capacity while providing the same quality to their users, and (ii) for a ﬁxed capacity, we improve user performance in terms of ﬁle download times by up to 30%, among other results.
+Related Work
+We next review and contrast our work to the state-of-theart in (i) resource allocation based on proportional fairness, and (ii) resource sharing among operators.
+Considerable research effort has been devoted to address the problem of fair resource allocation in networks. In wireline networks, fair resource allocation based on utility function maximization has been extensively studied following the seminal work of [4]. Building on this work, further algorithms for congestion control in multi-path environments have been proposed [5], [6]. Not unlike our work, these algorithms are distributed. However, they allow users to decide among multiple routes while we focus on a wireless setting where each user can only use one resource (her base station).
+In the speciﬁc context of wireless networks, several approaches have been proposed [7]–[9] to the problem of resource allocation and user association based on weighted and unweighted proportional fairness, respectively. The unweighted case has been largely studied in the literature in different contexts (e.g., power control [10], interference avoidance [11]). Bu et al. [7] and Son et al. [11] analyzed the complexity of the problem and proved the existence of polynomial time algorithms which provide an exact solution, and [9] designed a distributed algorithm with convergence guarantees. In contrast to the above, the resource allocation criterion proposed in this paper relies on weighted proportional fairness, with operator-speciﬁc weights; this is a more difﬁcult
+
+problem as it is NP-hard [7] and the convergence of distributed greedy algorithms cannot be guaranteed [12].
+Weighted proportional fair resource allocation in the context of wireless networks has also been studied from different angles. In [8], an algorithm with tight worst-case performance bounds is proposed, while [13] proposes an heuristic algorithm. In contrast to the distributed approach proposed in this paper, both algorithms are centralized and require the availability of the full network state information, which may be very challenging to gather in a timely manner. Hou and Chen [14] and Hou and Gupta [15] propose a Gibbs-sampling mechanism based on simulated annealing that converges to an optimal solution. However, the convergence of such mechanisms is known to be very slow and for this reason the authors resort to a more practical greedy solution. For the proposed greedy solution, the authors neither provide performance bounds nor analyze convergence; additionally, the overhead is not controlled, which limits their practical deployment. All the approaches mentioned above address the problem of a singleoperator network, in contrast to our work which focuses on the slicing and sharing of resources among multiple operators.
+Multi-operator network sharing has been studied from many different angles, including planning, economics, coverage, performance, etc. (see e.g. [16]–[18]). This paper focuses specifically on the design of algorithms for resource sharing among operators, which has been previously addressed by [19]–[23]; however, all these works differ substantially from ours in terms of scope, criterion or approach. In [19] and [20], the optimization of the network utility follows a different criterion from the one in this paper, weighted proportional fairness, which (as we show) provides many desirable properties. The works of [21] and [22] present a proportional fair formulation similar to ours; however, they do not provide a rationale for their choice, in contrast to the solid analytical arguments provided here. Furthermore, [21] does not address the algorithm design, while [22] uses a general non-linear solver that incurs a very high computational complexity (as conﬁrmed by our results of Section IV-D). Finally, [23] follows a game theoretic approach where operators bid for resources, which results in a fundamentally different problem from the one addressed here.
+In summary: (i) while there has been substantial research on proportional fair resource allocation, its application to multioperator settings and the associated problems have not been studied, and (ii) in spite of the substantial work devoted to proportional fairness in general settings, there is a gap in the systematic study of distributed mechanisms for joint resource allocation and user association that build on analytical results.
+II. RESOURCE ALLOCATION CRITERION
+In this section, we formulate the optimization problem that will drive (i) the association of users to base stations, and (ii) the allocation of base stations’ resources to users. Hereafter, we refer to this optimization as the multi-operator resource allocation (MORA) criterion. We show analytically that the criterion satisﬁes desirable properties in terms of optimality and fairness, and develop a simple model to evaluate the potential sharing gains of our network slicing approach.
+
+This article has been accepted for inclusion in a future issue of this journal. Content is final as presented, with the exception of pagination.
+
+CABALLERO et al.: MULTI-TENANT RAN SLICING: STATISTICAL MULTIPLEXING OF SPATIAL LOADS
+
+3
+
+A. System Model
+We start by presenting our system model which was devel-
+oped with LTE/LTE-A systems in mind, but is generally
+applicable to cellular systems. Consider a network consisting of a set B of base stations (or sectors in case of sector antennas) that are shared by a set of operators O. At any given time, we let U denote the set of users sharing the network and Uo, o ∈ O the subsets of users belonging to each operator. An allocation of resources involves two sets of
+variables: (i) the association of users to base stations, denoted by x = (xub : u ∈ U, b ∈ B), where each user u is associated with a single base station, i.e., xub = 1 for one of the base stations and 0 otherwise, and (ii) the allocation of
+the resources of each base station among its associated users, denoted by f = (fub : u ∈ U, b ∈ B), where fub is the fraction of the base station b’s resources which are allocated to user u.1 Note that in our model we ignoring the discrete
+nature of such resources, and assume that fu,b can take any value in the continuous range [0,1].
+We let c˜ub denote the average rate per resource unit seen by user u at base station b under current radio conditions,2 and let Cb be the base station’s total amount resources. Given that the user is allocated a fraction fub of the base station’s resources, her rate is given by fubCbc˜ub. For notational convenience, we deﬁne the achievable rate of the user as cub := c˜ubCb, which yields the following rate allocation:
+
+(i) network resources are fairly shared among the various operators according to their share, and (ii) at the same time, the resources allocated to a given operator are fairly shared among the users of that operator. To achieve this, we follow an approach akin to that in [27]3: we maximize the overall network utility resulting from aggregating operator utilities, where the utility of an operator is in turn the aggregation of its users’ utilities. To this end, we deﬁne the overall network utility as the sum of operators’ utilities weighted by the shares,
+W (x, f ) = so Uo(x, f ),
+o∈O
+and the operator utility as the sum utility of the operator’s users normalized by the number of users (where a user’s utility is logarithmic in its rate),
+1 Uo(x, f ) = |Uo| u∈Uo log(ru(x, f )),
+By weighting the operator utilities with the shares, we give higher priority to operators with larger shares, and by normalizing with the number of users, we avoid that operators with more users are better off. For instance, with this choice, under uniformly loaded base stations an operator with twice the share of another one will get twice as many resources, independent of the number of users of each. Combining the above equations, one can rewrite the network utility as follows:
+
+ru(x, f ) := xubfubcub.
+b∈B
+Note that the deﬁnition of cub actually represents an abstraction of the underlying physical resources, accounting for the various physical layer techniques (such as, e.g., power control or MU-MIMO) as well as the interference from different sources (including that of neighboring base stations). In line with similar analyses in the literature [19], [21], [22], [24]–[26], we shall assume that cub is ﬁxed for each user and base station pair.
+
+W (x, f ) =
+
+wu log(ru(x, f )),
+
+(1)
+
+o∈O u∈Uo
+
+where the user weights wu are deﬁned as the operator network share divided by the current number of users of the operator, i.e., wu = so/|Uo| (in simple terms, the network share of an operator is divided equally amongst its current users).4
+With the above, we can now formulate the MORA optimiza-
+tion problem as follows. Such optimization corresponds to the
+weighted proportional fair criterion (see e.g. [4]) extended to
+a multi-operator setting that considers utilities of the operators, rather than the ones of the individual users5:
+
+B. MORA Criterion
+In line with previous approaches [19], [21], [22], the underlying assumption behind our criterion is that operators share the cost of deploying and/or maintaining the infrastructure, and the resources received by each operator should be based on the level of its (ﬁnancial) contribution to the shared network: if an operator contributes twice as much as another, it should roughly get twice the resources. To this end, each operator is assigned a network share so ∈ [0, 1], to represent its level of contribution to the network. Without loss of generality, these shares are normalized so that o∈O so = 1.
+The proposed criterion allocates resources across operators dynamically, tracking changes in the numbers and locations of operators’ mobile users and the associated transmission rates cub. When doing this, we need to make sure that
+1For instance, in LTE/LTE-A fub denotes the fraction of physical Resource Blocks, in FDM the fraction of bandwidth and in TDM the fraction of time
+2Note that such average rates depend on the choice of modulation and coding scheme(s) selected for the user, after averaging out short-term ﬂuctuations.
+
+max W (x, f ),
+
+(2a)
+
+x,f
+
+subject to: ru(x, f ) = xubfubcub, ∀u
+
+(2b)
+
+b∈B
+
+xub = 1 and xub ∈ {0, 1}, ∀b, u (2c)
+b∈B
+
+fubxub ≤ 1 and fub ≥ 0, ∀b, u. (2d)
+u∈U
+
+In the sequel we shall let xMORA, f MORA denote a (possibly not unique) optimal solution to this optimization problem.
+
+3Reference [27] addresses a similar problem to ours in the context of users and ﬂows, as it aims at allocating resources fairly to users while preserving fairness among the ﬂows of each user.
+4While our deﬁnition of network utility coincides with that for weighted proportional fairness, the criterion proposed here is fundamentally different: we consider resource allocation across time and vary the weights with the number of users, while weighted proportional fairness typically focuses on a static scenario and relies on ﬁxed weights.
+5Note that (2c) ensures that a user is associated with one (and only one) base station.
+
+This article has been accepted for inclusion in a future issue of this journal. Content is final as presented, with the exception of pagination.
+
+4
+
+IEEE/ACM TRANSACTIONS ON NETWORKING
+
+This formulation provides the optimal resource allocation at a given time under the current cub values (given by the selected modulation-coding schemes); in a dynamic setting, such allocations would be re-evaluated when any of the cub values change, due to changes in the (average) channel quality.
+Note that, once MORA returns the user association x and resource allocation f , physical layer techniques (such as MU-MIMO or power control) are employed to optimize performance, under the constraint that users are provided with rates proportional to the ru values given by MORA.
+
+C. Properties of MORA Resource Allocation
+
+Next, we show that the MORA criterion satisﬁes some
+
+desirable properties both in the way base stations’ resources
+
+are allocated to associated users, and the way users are
+
+associated with base stations.
+
+1) Per-Base Station Resource Allocation: Let us ﬁrst con-
+
+sider a general setting, where user associations to base sta-
+
+tions are ﬁxed, to see how MORA allocates base station resources. Let x∗ be the ﬁxed (not necessarily optimal)
+
+user to base station association. If we optimize the resource allocation f for this user association, i.e., maxf W (x∗, f )
+subject to (2b) and (2c), it can be seen from [8, Lemma 5.1]
+
+that the resulting resource allocation is unique and given by f M (x∗) = (fuMb (x∗) : u ∈ U , b ∈ B), where
+
+fuMb (x∗) =
+
+wu
+v∈U
+
+x∗ub wv x∗vb
+
+.
+
+(3)
+
+Further if x∗ = xMORA, then f M (x∗) = f MORA, i.e., we have MORA optimal allocation of network resources.
+The above result is fairly intuitive. Users associated with a given base station are allocated resources proportionally to their weights wu. This can be viewed as follows. The share of an operator represents the total budget of the operator. When assigning a weight wu = so/|Uo| to users, this share is distributed among the operator’s users, and hence the user’s weight represents the budget of a user. As the resources allocated to a user are inversely proportional to the sum of weights at her base station, the sum of weights can be viewed as the cost of a unit of resource at the base station. Thus, operators with users associated with heavily loaded base stations will have to pay a higher cost (e.g, increase their network share or limit their overall number of users) or receive fewer resources.
+The above shows that the number of active users that operators have on the network and their spatial distribution will impact the resources allocated under MORA. Indeed, allocations across base stations are coupled together through |Uo|, i.e., an operator with a large number of active users will have lower weights and likely lower per-user allocations. At the same time, the resources obtained by an operator heavily depend on the load at base stations to which its users will be associated with.
+2) User Association: Next we study the MORA user associations. Building on the optimality of our formulation, we can show that the resource allocation resulting from MORA is Pareto-optimal, which means that for
+
+any alternative allocation (x , f ) for which ru(x , f ) > ru(xMORA, f MORA) for some u, we necessarily have rv(x , f ) < rv(xMORA, f MORA) for some v = u. Indeed, if this was not the case then W (x , f ) would be larger than W (xMORA, f MORA), which contradicts the fact that the optimal MORA allocation (xMORA, f MORA) maximizes W (x, f ).
+Thus, Pareto optimality in this context means that if under
+some other user association choice, a user sees a higher
+throughput than that under MORA then there must be another
+user which sees a lower throughput allocation. Note that
+this need not always be the case. Consider, for instance, a network with |U| users, such that the largest cub of each user corresponds to a different base station. While the optimal
+allocation would associate each user to the base station with
+largest cub, a criterion based on local decisions that looks at users one by one may lead to a different association. The above
+result guarantees that this will not happen under MORA.
+
+D. Gains and Savings
+In the following we evaluate the beneﬁts of MORA. To that
+end, we introduce a simple baseline – static slicing (SS), a proxy for not sharing resources at all.6
+1) Static Slicing (SS) Baseline: Suppose each operator
+contracts for a ﬁxed slice/fraction so of the network resources at each base station for its exclusive use. The operator can of course still optimize its users associations, xo = (xub : u ∈ Uo, b ∈ B), and allocation of resources f o = (fub : u ∈ Uo, b ∈ B), so as to maximize its utility. Speciﬁcally each operator o ∈ O can determine its user association and resource allocations based on:
+
+max
+xo,f o
+
+Uo(xo, f o)
+
+subject to ru(xo, f o) = xubfubcub, ∀u ∈ Uo,
+b∈B
+
+xub = 1, ∀u ∈ Uo,
+b∈B
+
+fubxub ≤ so, ∀b ∈ B,
+u∈Uo
+xub ∈ {0, 1}, fub ≥ 0, ∀b ∈ B, ∀u ∈ Uo. (4)
+
+This is similar to MORA except limited to the operator o’s current users Uo and the resource constraint corresponds only to the ﬁxed slice so allocated to the operator at each base station. Although the user associations and resource allocations
+under static slicing are independently optimized by each operator, we shall let xSS, f SS be a (possibly not unique) optimal choice across all operators under static slicing. Also
+paralleling our discussion of MORA, it is easy to show that if one ﬁxes a feasible user association x∗, (4) is convex and yields resource allocations given by
+
+f S(x∗) := (fu∗b(x∗) : ∀u ∈ U , ∀b ∈ B),
+
+6By slicing we refer to the way resources are shared (or sliced) among operators (while resource allocation refers to the allocation of resources to speciﬁc users). In contrast to the dynamic nature of MORA-based slicing, static slicing divides the infrastructure in ﬁxed fractions.
+
+This article has been accepted for inclusion in a future issue of this journal. Content is final as presented, with the exception of pagination.
+
+CABALLERO et al.: MULTI-TENANT RAN SLICING: STATISTICAL MULTIPLEXING OF SPATIAL LOADS
+
+5
+
+where
+
+fu∗b(x∗) =
+
+x∗ub so v∈Uo x∗vb
+
+1{u
+
+∈
+
+Uo},
+
+(5)
+
+i.e., this is again a weighted proportionally fair allocation of the operators’ slice of the base station resources.
+2) Operator Utility Gains and Protection: The overall network utility under MORA is clearly larger than that under the more constrained allocations possible under SS. This however does not guarantee that a given operator’s utility under MORA is greater than that under SS. Below we show that for the same user association an operator utility under MORA exceeds that under SS, indicating that beyond the overall network utility, we have that each operator is indeed better off. This shows that MORA effectively protects operators when sharing their resources with other operators, which is very important to ensure that operators accept this criterion. Note that the result is completely general and holds for any possible scenario.7
+Theorem 1: For a given user association x, MORA’s resource allocation f M (x) (see Eq. 3) achieves a higher utility than that of SS given by f S(x) (see Eq. 5), i.e., for all o ∈ O
+
+Uo(x, f M (x)) ≥ Uo(x, f S (x)).
+
+3) Capacity Savings: Next we consider the capacity savings
+
+resulting from operators sharing infrastructure. Speciﬁcally we
+
+compare the spectrum capacities, i.e., total amount of resource,
+
+required to achieve the same average utility per operator under
+
+MORA and SS. The aim is to give some intuition on the typical
+
+savings one might expect and its dependence on the network
+
+load, number of operators and their shares. For tractability we
+
+will examine a scenario where trafﬁc is spatially homogenous
+
+and operators’ network shares are proportional to their load.
+
+We consider a network model in which there is a ﬁxed total
+
+number of users |U| of which each operator contributes a ﬁxed
+
+number of users proportional its network share so, i.e., no = so|U| which are assumed to be integer valued. Each operator’s users are randomly (uniformly) distributed amongst the |B|
+
+base stations, so the number of users of operator o associated
+
+with base station b, is given by a random variable No,b,
+
+such
+
+that
+
+No,b
+
+∼
+
+Binomial(no,
+
+1 |B|
+
+).
+
+The
+
+total
+
+number
+
+of
+
+users at base station b is denoted by a random variable
+
+Nb =
+
+o∈O No,b
+
+∼
+
+Binomial(|U |,
+
+1 |B|
+
+).
+
+We
+
+also
+
+assume
+
+for simplicity that users have the same capacity cub = c
+
+to the base stations with which they associate.
+
+Note that under the above trafﬁc model all users u have
+
+the
+
+same
+
+weight wu
+
+=
+
+so no
+
+=
+
+1/|U|. Thus expected overall
+
+network utility under MORA is given by:
+
+W¯ = E
+
+Nobwu log
+
+o∈O b∈B
+
+c Nb
+
+=E
+
+Nob log |U |
+
+b∈B o∈O
+
+c Nb
+
+=E
+
+Nb log |U |
+
+b∈B
+
+c Nb
+
+=
+
+|B| |U |
+
+E
+
+Nb log
+
+c Nb
+
+,
+
+7The proofs of the theorems are provided in the Appendix.
+
+where the last equality follows by using the uniformity of
+trafﬁc across base stations. Moreover, under our model the network utility W¯ is the average utility across all users,
+which by symmetry is equal to the expected utility of a given operator o under MORA, i.e., U¯oMORA = W¯ .
+Now applying Taylor’s approximation to the function x log(c/x) at E[Nb] we obtain
+
+Nb log
+
+c Nb
+
+≈ E[Nb] log
+
+c E[Nb]
+
++ log
+
+c E[Nb]
+
+−1
+
+·
+
+(Nb
+
+−
+
+E[Nb])
+
+−
+
+1 2E[Nb] (Nb
+
+−
+
+E[Nb])2,
+
+which in turn gives
+
+E Nb log
+
+c Nb
+
+≈ E[Nb] log
+
+c E[Nb]
+
+−
+
+1 2E[Nb
+
+]
+
+Var(Nb).
+
+Since
+
+Nb
+
+∼
+
+Binomial(|U
+
+|,
+
+1 |B|
+
+)
+
+we
+
+have
+
+that
+
+Var(Nb)
+
+=
+
+|U | |B|
+
+(1
+
+−
+
+1 |B|
+
+)
+
+≈
+
+|U | |B|
+
+,
+
+and
+
+so
+
+U¯oMORA ≈ log
+
+c E[Nb]
+
+−
+
+|B| 2|U| .
+
+(6)
+
+Let Δo denote the extra capacity that operator o would require under SS to achieve the above utility. The expected utility experienced by operator o under SS is given by
+
+U¯oSS = E
+
+No,b log b∈B no
+
+soc(1 + Δo) No,b
+
+=
+
+|B| E no
+
+No,b log
+
+soc No,b
+
++ log(1 + Δo).
+
+Again using a Taylor expansion this can be approximated as
+
+U¯oSS ≈ log
+
+soc E[No,b]
+
+−
+
+|B| no
+
+Var(No,b) 2E[No,b]
+
++
+
+log(1
+
++
+
+Δo).
+
+Noting
+
+that
+
+Var(No,b)
+
+≈
+
+so
+
+|U | |B|
+
+=
+
+no |B|
+
+we
+
+have
+
+that
+
+U¯oSS ≈ log
+
+c E[Nb]
+
+−
+
+|B| 2no
+
++
+
+log(1
+
++
+
+Δo).
+
+(7)
+
+Finally equating the expected utilities, i.e., (6) and (7), we obtain the following estimate of the necessary extra capacity Δo required when static slicing rather than MORA is used:
+
+log(1 + Δo)
+
+≈
+
+|B| 2no
+
+× (1
+
+− so).
+
+(8)
+
+where under our trafﬁc load model no = so|U|. This result gives a clear intuition on the possible savings
+resulting from sharing the infrastructure with MORA dynamic
+
+slicing. In particular, the savings increase exponentially in the
+
+product of two terms. The ﬁrst is inversely proportional to the average number of users operator o has per base station, i.e., no/|B|; indeed, if the operator has a large number of users, its multiplexing gain is already high without sharing
+
+the infrastructure, and hence there is little gain from sharing. The second term is large when the operator has a small network share: if its share is high, the operator is using most
+
+of the network resources and there is little sharing.
+
+This article has been accepted for inclusion in a future issue of this journal. Content is final as presented, with the exception of pagination.
+
+6
+
+IEEE/ACM TRANSACTIONS ON NETWORKING
+
+In summary, capacity savings will be highest when infrastructure is shared by a large number of operators each with a small number of users per base station. With current trends towards small cells, the number of users per base station is expected to be small, suggesting that infrastructure sharing may be particularly beneﬁcial.
+III. APPROXIMATION ALGORITHM FOR MORA
+The analysis in previous section and simulations to be presented in the sequel suggest that MORA resource allocation across operators not only has desirable characteristics but will make efﬁcient use of resources while protecting operators from one another. Unfortunately, as we show below, the complexity and information overheads associated with doing so for are already high for a static system, and excessive when operators’ mobile users and associated channels are subject to constant change. In this section we further discuss the state-of-the-art algorithms to tackle MORA, and then propose an approximation algorithm based on a sequence of theoretical results and insights that support the design.
+A. Complexity and State-of-the-Art Algorithms
+The optimization problem underlying MORA is a nonlinear integer programming problem, which can be shown to be NP-hard and hence there is no polynomial time algorithm unless P = N P .
+Theorem 2: The MORA problem is NP-hard. There have been a number of works in the literature devoted to solving problems similar to MORA. In particular, [8] proposes an approximation algorithm for the single operator case with guaranteed performance bounds. However, their approach is still computationally demanding; indeed, the results in Section IV-D, show that for a network with only 100 users, the algorithm takes 20 seconds on a dualcore 2.8GHz processor. Given that this would need to be executed every time cub values change or new users enter/leave the network,this seems computationally impractical. Moreover the proposed approach is centralized, so there would be a substantial information overhead to gather the cub of each user to each potential base stations, given the amount of data and dynamic nature of mobile users. In the multi-operator setting, [22] proposes an approach based on using a standard non-linear solver to address a problem similar to MORA. Unfortunately the approach is also very complex and centralized. Indeed, our evaluation of this proposal in Section IV-D, shows that the time required to execute this algorithm increases sharply with the number of users, making it impractical at about 50 users. Moreover, [22] does not provide any analytical performance bounds. In summary, to make dynamic multi-operator resource sharing possible, a new radically simpliﬁed approach is required. It should have low computational complexity and be based on distributed operation requiring only local information, to allow near real-time operation.
+B. Algorithm Design
+In the following, we devise an algorithm for MORA that can be used in practical deployments. In contrast to previous
+
+approaches, our algorithm involves a low computational complexity and relies on data that can be gathered from neighboring base stations, allowing for a distributed implementation.8
+Given the user dynamics, i.e., joining, moving and leaving the network, an ofﬂine algorithm that computes an optimal resource allocation for a ﬁxed set of users is impractical. Instead, we will pursue an approach that tracks users dynamics, and occasionally adjusts resource allocations by modifying current or new users’ associations. Since reassociations of current users correspond to handoffs, their number should be kept to a minimum. To design such an algorithm, we need to answer
+• Do we really need to reassociate users? • Where should users be (re)associated to? • In which order should users be reassociated? • How many reassociations do we need?
+For each of these questions, in the following we provide some theoretical analysis that eventually leads to our proposed algorithm. In all cases, once a user association x is set, resources at each base station are allocated according MORA’s resource allocation f M (x).
+1) Need for Reassociations: Following the standard terminology of online algorithms, we say that an algorithm is online if, upon a user joining the network, it only decides how to associate the new user, without triggering any reassociations of existing users. We say the algorithm is semi-online if it can further trigger reassociations of a limited number of users. Thus our ﬁrst question is whether an online algorithm would sufﬁce. The following theorem suggests that the performance of an online algorithm can be arbitrarily bad, motivating us to consider semi-online approaches.
+Theorem 3: Consider an online algorithm that triggers no reassociations of existing users. Let (x , f ) denote the solution resulting from this algorithm and (xMORA, f MORA) a MORA optimal solution. Then, W (xMORA, f MORA)−W (x , f ) cannot be bounded.
+2) Criterion for (Re)associations: Next we address the question regarding how to associate, or reassociate, users to base stations. In particular, consider a Distributed Greedy algorithm wherein we iteratively examine (in arbitrary order) if there is a user which could change her association to increase her rate, and if this is the case, she chooses to re-associate with the base station providing the largest rate. The following result characterizes the performance of this algorithm if an equilibrium is reached.
+Theorem 4: Let (x , f ) be an equilibrium allocation for the Distributed Greedy algorithm, and (xMORA, f MORA) a MORA optimal solution, then9
+W (x , f ) ≥ W (xMORA, f MORA) − log(e).
+There exists an instance of the problem for which it holds that W (x , f ) = W (xMORA, f MORA) − log (2).
+8Note that, while the algorithm implementation is distributed, the logic is centralized: i.e., we assume that the algorithm is run centrally by a single entity, without the intervention of the different operators.
+9To gain some intuition on this bound, we note that a log(e) gap is equivalent to reducing the throughput of each user by a factor of e.
+
+This article has been accepted for inclusion in a future issue of this journal. Content is final as presented, with the exception of pagination.
+
+CABALLERO et al.: MULTI-TENANT RAN SLICING: STATISTICAL MULTIPLEXING OF SPATIAL LOADS
+
+7
+
+Note that the above bound of log(e) is fairly close to the log(2) bound provided by [8]. This is quite remarkable, considering that the algorithm proposed in [8] is centralized and much more complex. Furthermore, the theorem shows that the bound is rather tight, as there exists a problem instance that provides a gap of log(2), which is quite close to the log(e) bound.
+While the above theorem bounds network utility in equilibrium, we have not established the convergence of this algorithm to an equilibrium. The convergence of this type of algorithms has received substantial attention in the literature [12], [28], [29]. Indeed, since the throughput of user u is an increasing function of cub/ v∈U wvxvb, the Distributed Greedy algorithm can be viewed as a congestion game in which the load at a base station is given by the sum of weights of the users at the base station, lb = v∈U wvxvb, and a user seeks to minimize aublb, where aub = 1/cub. This game falls in the category of a singleton weighted congestion game with player-speciﬁc multiplicative constants and linear variable cost. Based on the lack of a counter-example and the existence of polynomial-time algorithms for special cases, [28] conjectures that this type of games have an equilibrium (see [28, Conjecture 3.7]). Based on the simulations we have run for numerous instances of the game, we further conjecture that the Distributed Greedy algorithm (which implements a best response dynamics) converges to this equilibrium.
+In particular, Distributed Greedy satisﬁes W (x , f ) ≥ W (xMORA, f MORA) − log(e), while [8] proposes an algorithm that provides a throughput larger than ru(xMORA, f MORA)/(2 + ) to all users, which translates into W (x , f ) ≥ W (xMORA, f MORA) − log (2 + ); hence, the algorithm of [8] provides only a slightly tighter bound than Distributed Greedy.
+3) Order of Reassociations: While our analysis of the Distributed Greedy algorithm suggests a user should (re)associate to maximize her rate, it does not indicate in which order user reassociations should be considered to speed up convergence. To address this, we consider the Greedy Largest Gain algorithm, which operates as the Distributed Greedy algorithm but at each iteration updates the association of the user achieving the highest gain, i.e., the one achieving the largest runew/ruold, where ruold is the user’s current throughput and runew is the throughput she would receive under the improved association.
+The following theorem shows that the Greedy Largest Gain algorithm exhibits a desirable convergence property. In particular, one can guarantee that at each iteration the network utility increases until it reaches W (xMORA, f MORA) − 2 log(e), and from then on it never decreases below W (xMORA, f MORA)− (2 + maxu wu) log(e). Note that Distributed Greedy does not exhibit this kind of behavior: if we select users in an arbitrary order, the network utility may decrease at any iteration (as the increase in utility of the reassociated user may be smaller than the decrease experienced by the other users).
+Theorem 5: Let (xi, f i) be the solution at the ith iteration of the Greedy Largest Gain algorithm and (xMORA, f MORA) a MORA optimal solution. Then W (xi, f i)
+
+increases at each iteration until W (xi, f i) ≥ W (xMORA, f MORA) − 2 log(e), and thereafter it never decreases below W (xMORA, f MORA)−(2+maxu wu) log(e).
+4) Proposed Algorithm: Greedy Local Largest Gain. Based on the above considerations we now propose our algorithm for MORA, the Greedy Local Largest Gain algorithm. We shall ﬁrst describe how it operates at a high level, and then provide a more detailed algorithmic description. When a user joins the network, she greedily joins the base station providing the largest throughput. However, as we have seen, we may need to consider triggering user reassociations. To limit their number and associated handoffs overheads we constrain these to at most m. For the ﬁrst m − 1 reassociations, users choose the base station that provides the largest throughput, but in the mth the user chooses the base station so as to maximize the network utility W (x, f ). In each of these steps, we select which user to reassociate (if any) based on Greedy Largest Gain criterion, but instead of considering all users in the network, involving possibly a high overhead, we restrict the selection locally to users associated with only two base stations (see below).
+In a dynamic and time-varying setting, the algorithm needs to consider the following cases: (i) a user joins the network, (ii) leaves, or (iii) changes her location. The algorithm for a joining user is detailed in the pseudocode of Algorithm 1. The rationale is as follows. In the optimal allocation, users are somehow balanced among base stations, users’ weights playing a role in this balance. When a new user joins the network, the balance is broken and the base station with which the user associates may have too many users. Hence, in the ﬁrst step we reassociate one of the users of this base station. In the next step, the base station that received the reassociated user may have too many users; however, depending on the weights of the joining and reassociated users, the original base station may still have too many users as well. Hence, we consider the users from the two base stations as candidates for reassociation. We repeat this, considering users from two base stations, in the subsequent steps. Finally, in the last step, to avoid that the reassociation of a user harms the overall performance, we select the base station association that maximizes the overall network utility rather than the throughput of the reassociated user.
+When a user leaves the network, the algorithm is quite similar (pseudocode omitted for space reasons). When she moves, her cub values to the neighboring base stations may change; if, as a result of these changes, at some point the user would receive a larger throughput in a new base station, we reassociate her to this base station. Then, the old base station executes the same algorithm as when a user leaves the network while the new base station executes the algorithm corresponding to a joining user.
+5) Controlling the Number of Reassociations: The remaining question is how to set the limit on the number of reassociations m, which determines the trade-off between the performance of the algorithm and reassociation overhead. Such trade-offs have been analyzed for a similar setting in [30], which aims to distribute tasks among servers (where each task can only be associated to a restricted set of servers)
+
+This article has been accepted for inclusion in a future issue of this journal. Content is final as presented, with the exception of pagination.
+
+8
+
+IEEE/ACM TRANSACTIONS ON NETWORKING
+
+Algorithm 1 GLLG User Joining
+
+Deﬁnitions:
+rv,b : throughput of user v if she associates to b; rv : current throughput of user v; Ub : set of users associated to b, (u ∈ U s.t. xu,b = 1); U{c∪p} : set of users associated to c or p; Wu,q : network utility if user u associates to q; Input: x
+
+User v joins the network:
+
+b = arg max rv,b;
+
+b∈B
+
+xv,b = 1 ← Associate user v with base station b ;
+
+[u∗, p∗]
+
+=
+
+arg max
+(u,p)∈Ub ×B
+
+ru,p ru
+
+;
+
+if ru∗,p∗ /ru > 1 then
+
+Associate user u∗ with base station p∗, xu∗p∗ = 1;
+
+else
+
+stop
+
+c = p∗ (current base station);
+
+p = b (previous base station);
+
+for m − 1 times do
+
+[u∗,
+
+q∗]
+
+=
+
+arg max
+(u,q)∈U{c∪p}×B
+
+ru,q ru
+
+;
+
+if ru∗,q∗ /ru > 1 then
+
+Associate user u∗ with base station q∗, xu∗q∗ = 1;
+
+c ← q∗; p ← previous base station of user u∗;
+
+else
+
+stop
+
+W ← current network utility;
+
+[u∗, q∗] =
+
+arg max
+
+; Wu,q
+W
+
+(u,q)∈U{c∪p}×B
+
+if Wu∗,q∗ /W > 1 then Associate user u∗ with base station q∗, xu∗q∗ = 1;
+
+in such a way that the maximum load across all servers is
+
+minimized. This problem is similar to ours, with tasks and
+
+servers corresponding to users and base stations respectively,
+
+in the particular case where all users have the same wu and cub. Not unlike their setting, the performance in this case is opti-
+
+mized when base station loads are as balanced as possible (i.e.,
+
+the highest load is minimized). According to the analysis
+
+of [30], the performance in terms of the highest load with
+
+our algorithm (which has a limit of m reassociations) over the
+
+highest load with the optimal algorithm (with no constraint m)
+
+is
+
+given
+
+by
+
+O(e1−
+
+m ln|B|
+
+).
+
+This
+
+shows
+
+that
+
+algorithm’s
+
+perfor-
+
+mance improves rapidly (exponentially) in m, and suggests a
+
+small m sufﬁces to achieve near-optimal network utility.
+
+To further explore the impact of m on network utility,
+
+we present the following simulation results (see Section IV
+
+for a description of the simulation setup). Here, W (m) is the
+
+network utility achieved for a given m value, W (∞) is the
+
+utility with unconstrained overhead, W (0) is the utility with
+
+no
+
+reassociations,
+
+and
+
+GW (m)
+
+=.
+
+1
+
+−
+
+W (m)−W (∞) W (0)−W (∞)
+
+represents
+
+the normalized utility gain with m reassociations, showing
+
+how close we get to the unconstrained overhead utility.
+
+Fig. 1 depicts this gain as a function of m for different
+
+Fig. 1. Normalized utility gain as a function of m.
+scenarios. As can be seen, utility gains increase very sharply. Furthermore, for m = 3 the gains are already very close to their maximum value; based on this, we set m equal to 3 (this is indeed the value used in the experiments of Section IV). With this setting, the proposed algorithm only introduces a small overhead, since our approach may trigger up to three handovers for every handover performed by a “traditional” solution [31].
+IV. PERFORMANCE EVALUATION
+Next, we evaluate the performance of our proposed approach. The mobile network scenario considered is based on the IMT Advanced evaluation guidelines for dense ‘small cell’ deployments [32]. It consists of base stations with an intersite distance of 200 meters in a hexagonal cell layout with 3 sector antennas (thus in this setting users will associate with sectors rather than the base stations we used in our algorithm description). The Signal Interference to Noise Ratio (SINR) is computed as in [25], SINRub = Pbgub/( k∈B,k=b Pkguk + σ2), where Pb is the transmit power and gub denotes the channel gain between user u and base station b, which includes path loss, shadowing, fast fading and antenna gain. Following [32], we set Pb = 41 dBm, σ2 = −104dB, path loss equal to 36.7 log10(dist) + 22.7 + 26 log10(fc) for carrier frequency fc = 2.5GHz, and antenna gain of 17 dBi. The shadowing factor is given by a log-normal function with a standard deviation of 8dB (as in [25]) updated every second, and fast fading follows a Rayleigh distribution dependent of the user speed and the angle of incidence (as in [33]). Achievable rates are then computed with the Shannon formula, BW log2(1 + SINRub), for the average SINRub given by fading and shadowing [24] and a channel bandwidth of BW = 10MHz [24]. Finally, the modulation-coding scheme is selected according to the SINRub thresholds reported in [34]. Unless otherwise stated (i) users move according to the Random Waypoint Model (RWP) with speeds uniformly distributed between 0.2 and 4 m/s and pause intervals between 0 and 10 seconds, (ii) network size |B| is 57 sectors, (iii) all operators have the same share, and (iv) the number of users of each operator is proportional to so, i.e., |Uo| = |U| · so. Conﬁdence intervals are below 1%.
+
+This article has been accepted for inclusion in a future issue of this journal. Content is final as presented, with the exception of pagination.
+
+CABALLERO et al.: MULTI-TENANT RAN SLICING: STATISTICAL MULTIPLEXING OF SPATIAL LOADS
+
+9
+
+Fig. 3. Capacity savings for different scenarios as a function of the number Fig. 2. Utility gains for different approaches as a function of the network size. of operators.
+
+A. Utility Gains
+
+We start by evaluating the gains in terms of the overall network utility. We consider a scenario with a user density of 10 users/sector and 3 operators, and plot W (x, f ) as a function of the network size |B|. In this setting, we compare the performance of our algorithm for dynamic sharing, Greedy Local Largest Gain (‘GLLG’), against the following approaches:
+i) SINR-based Static Slicing (‘SINR SS’): the resources of each sector are statically divided among operators and users associate with the based station with highest SINR;
+ii) Distributed Greedy Static Slicing (‘DG SS’): resources are also sliced statically and user associations follow the Distributed Greedy algorithm discussed in Section III-B.2;
+iii) Distributed Greedy (‘DG’): this is the algorithm for dynamic sharing presented in Section III-B.2;
+iv) Centralized (‘Centralized’): this is the centralized algorithm proposed in [8].
+The results are exhibited in Fig. 2. We draw the following conclusions: (i) signiﬁcant gains result from both improving user association (DG SS vs. SINR SS) and sharing resources dynamically (DG vs. DG SS); (ii) the Distributed Greedy approach of Section III-B.2 performs almost at the same level of the baseline approach of [8] (DG vs. Centralized); and (iii) the proposed approach performs closely to these two approaches, although it pays a small price for reducing the handoff overheads (GLLG vs. DG).
+In addition to the overall network gain, it is also interesting to look at the gains of the individual operators. Theorem 1 showed that the difference in operator’s utility under MORA and SS is positive as long as we have the same user association in both approaches; however, we would expect this to hold in general, i.e., even when we have different user associations. To this end, we have evaluated the difference between the operator’s utility under MORA and SS over a large number of different scenarios and settings. We have observed that in all cases, MORA always provides better performance than SS to all individual operators, which conﬁrms that MORA effectively protects all operators, ensuring gains to all of them.
+
+Fig. 4. Validation of the theoretical results on capacity savings.
+B. Capacity Savings
+We next evaluate the beneﬁts of our approach to operators based on the capacity savings they would achieve. Speciﬁcally, consider a network operated under our algorithm for dynamic sharing, where the capacity (i.e., total amount of resource) of each base station is given by CGLLG, and let Cbaseline be the base stations’ capacity required to achieve the same network utility under two baselines: (a) static slicing with SINR-based user association, and (b) static slicing with enhanced user association (i.e., using our algorithm for user association). These two baselines allow us to study the potential gains earned due to a smarter user association and the gains achieved by dynamic resource sharing. Fig. 3 illustrates the corresponding capacity savings, computed as Δ = (Cbaseline − CGLLG)/CGLLG, for different numbers of operators, |O| ∈ {2, . . . , 6}, and three different user densities, |U|/|B| = 5 (low density), |U|/|B| = 10 (medium) and |U|/|B| = 15 (high). The results show that substantial gains can be realized, and that gains increase with the number of operators and decrease with per-sector user load. The latter is indeed rather intuitive, since under light user loads static slicing performs poorly while MORA obtains substantial beneﬁts from statistical multiplexing.
+In order to gain additional insight into the impact of the various factors, Fig. 4 displays the inﬂuence of the share of the operator (so) and the average load per base station
+
+This article has been accepted for inclusion in a future issue of this journal. Content is final as presented, with the exception of pagination.
+
+10
+
+IEEE/ACM TRANSACTIONS ON NETWORKING
+
+Fig. 5. Improvement on the user throughput.
+
+Fig. 6. Improvement on the ﬁle download time for different ﬁle sizes.
+
+sector |U|/|B| in the percent of extra capacity required to achieve the same utility (Δ) with the static slicing with
+enhanced user association baseline. Results are also compared
+with the analytical result of Section II-D.3, conﬁrming that the
+theoretical analysis result holds in real conditions.
+Note that in the above experiments all operators always
+have the same share so. To illustrate the behavior of MORA under heterogeneous shares, we evaluated the performance of a scenario with |U|/|B| = 5 and 2 operators under the following share settings: (i) s1 = s2 = 1/2 and (ii) s1 = 2/3 and s2 = 1/3. The gains obtained for operators 1 and 2 in the former case are G1 = G2 = 11.1%, while in the latter case they are G1 = 5.3% and G2 = 21.6%, respectively. Thus, this result shows that overall performance remains similar under
+heterogeneous shares, but gains are unevenly distributed.
+
+Fig. 7. Computational complexity of our approaches and state-of-the-art algorithms.
+
+C. User Performance
+To illustrate the gains from a user perspective, we compare the per-user throughput achieved by our approach against the two baselines: static slicing with SINR-based user association (‘Baseline 1’), and static slicing with enhanced user association (‘Baseline 2’). The resulting box-and-whisker plots are shown in Fig. 5 for different user densities and numbers of operators. We observe that our approach provides substantial gains both in terms of the median values as well as the various percentiles. Furthermore, as expected, gains increase with the number of operators but decrease with per-sector user load.
+To complement the previous results, we compare the ﬁle download times achieved by our approach against a baseline scenario (static slicing with enhanced user association), when base stations have the same capacity in both cases and users are constantly downloading ﬁles. Let us deﬁne the ﬁle download time gain as GD = (DSS − DGLLG)/DSS, where DSS is the average ﬁle download time with the static slicing approach and DGLLG with ours. The gains achieved are shown in Fig. 6 as a function of the ﬁle download size, for different user densities and numbers of operators. We observe the gains are substantial, and fairly independent of the ﬁle size.
+D. Computational Complexity As mentioned in Section III-A, one of the key advantages of
+the proposed approach over the state-of-the-art is its reduced
+
+computational complexity. To quantify this, we have measured the time required to execute the following algorithms in a dual-core 2.8GHz processor: (i) our algorithm for dynamic sharing (‘GLLG’); (ii) the Distributed Greedy approach of Section III-B.2, which has unconstrained overhead (‘DG’); (iii) the centralized algorithm of [8] (‘Centralized’); and (iv) the non-linear solver used by [22] (‘Non-linear Solver’). Fig. 7 shows the resulting execution times (in seconds) as a function of the number of users for a ﬁxed network size |B| = 57 and |O| = 4 operators. The results conﬁrm that the algorithms of [8] and [22] are impractical, especially if we take into account that they have to be triggered every time the channel quality of a user changes. By contrast, the execution time of our Distributed Greedy algorithm remains very low, and it remains even lower for our GLLG approach (due to the constraint that GLLG imposes on the number of handovers).
+E. Impact of Non-Uniform Load Distributions
+All the results shown so far have been based on the RWP mobility model, which is known to distribute load uniformly across space. To understand the impact of nonuniform load distributions, we have evaluated the capacity savings over a baseline (static slicing with enhanced user association) under the SLAW model [35], which is a nonuniform human walk mobility model. To show different levels of non-uniformity, we have parameterized the SLAW model with ﬁve conﬁgurations of increasing non-uniformity,
+
+This article has been accepted for inclusion in a future issue of this journal. Content is final as presented, with the exception of pagination.
+
+CABALLERO et al.: MULTI-TENANT RAN SLICING: STATISTICAL MULTIPLEXING OF SPATIAL LOADS
+
+11
+
+The design of algorithms for dynamic resource sharing across slices is challenging as it involves user association decisions (a difﬁcult problem in itself) as well as multi-operator sharing policies. Our main contribution has been to show that, despite its complexity, it is possible to design practical solutions that scale to large networks and can track network load dynamics. Indeed, our analytical results provide strong evidence that the resulting allocations are near-optimal, and our simulations conﬁrm robust beneﬁts to operators (in terms of capacity savings) as well as to users (in terms of improved performance).
+
+Fig. 8. Capacity savings for different levels of non-uniformity under the SLAW mobility model.
+Fig. 9. Capacity savings for different levels of non-uniformity when operators follow different patterns.
+from C1 to C5, whose parameters {waypoints, clustering range, alpha distance, inverse self-similarity} are set as follows: C1 = {100, 20, 5, 0.95}, C2 = {85, 40, 4.5, 0.85}, C3 = {75, 60, 4, 0.75}, C4 = {65, 80, 3.5, 0.65} and C5 = {50, 100, 3, 0.55}. The results, given in Fig. 8, show that (as expected) capacity savings decrease if loads are nonuniform, since when users concentrate around some areas the expected number of users per sector in those areas increases and thus multiplexing gains are reduced. However, the decrease is very gradual, which shows that non-uniformity has a limited impact.
+The above experiment assumes that all operators follow the same mobility pattern. Alternatively, we may assume different patterns for different operators, which may be the case for instance if we consider services of different nature. To evaluate the performance under such case, we have run additional simulations in which each operator follows a different instance of the SLAW model, with different waypoints. The results, given in Figs. 9, show that in this case gains increase (rather than decrease) with non-uniformity, as each operator may have its users concentrated in different areas, thereby maximizing the beneﬁt from resource sharing.
+V. CONCLUSIONS In this paper we have addressed the problem of multitenant resource slicing. While there has been substantial work towards addressing this problem, most has focused on architectural issues, leaving algorithmic aspects open to consideration.
+
+APPENDIX
+
+Proof of Theorem 1
+For a given user association x the utility of operator o under SS is maximized when the resource blocks of each operator at each base station are equally distributed among the operator’s users. This yields
+
+Uo(x, f S(x))
+
+1 = b∈B u∈Uo |Uo| xub log
+
+1 b∈B v∈Uo xvb
+
+so o ∈O so
+
+cub
+
+1
+
+=
+
+so
+
+wuxub log
+b∈B u∈Uo
+
+1 b∈B v∈Uo xvb
+
+so o ∈O so
+
+cub
+
+where
+
+the
+
+weights
+
+are
+
+wu
+
+=
+
+so |Uo
+
+|
+
+,
+
+u
+
+∈
+
+Uo.
+
+If we multiply the numerator and denominator inside the
+
+log() by wu, and take into account that wu = wv for u, v ∈ Uo
+
+and o ∈O so = 1, the above can be rewritten as
+
+Uo(x, f S (x))
+
+=
+
+1 so
+
+wuxub log(wucub)
+b∈B u∈Uo
+
+1 − so b∈B u∈Uo wuxub log
+
+b∈B v∈Uo wv xvb . so
+
+The utility of operator o with MORA allocation is given by
+
+Uo(x, f M (x))
+
+=
+
+1 so
+
+wuxub log
+b∈B u∈Uo
+
+wu cub
+
+,
+
+v∈U wv xvb
+
+which can be rewritten as
+
+Uo(x, f M (x))
+
+=
+
+1 so
+
+wuxub log(wucub)
+b∈B u∈Uo
+
+1
+
+− so b∈B u∈Uo wuxub log
+
+wv xvb
+v∈U
+
+.
+
+From the above, if we can show that
+
+wuxub log
+b∈B u∈Uo
+
+b∈B v∈Uo wv xvb so
+
+≥
+
+wuxub log
+
+wvxvb , (9)
+
+b∈B u∈Uo
+
+v∈U
+
+the theorem is proved.
+To show the above, we consider the maximization of function b∈B yb log(xb) over xb subject to b∈B xb = 1. By applying Lagrange multipliers, it can be easily seen that
+
+This article has been accepted for inclusion in a future issue of this journal. Content is final as presented, with the exception of pagination.
+
+12
+
+IEEE/ACM TRANSACTIONS ON NETWORKING
+
+this function is maximized for xb = yb/ b ∈B yb . Since both the left and right-hand sides of (9) conform to this constrained optimization problem, and the left-hand side of (9)
+corresponds to its optimal solution, the inequality of (9)
+follows.
+
+the distribution of fu values that maximizes W . According to the above result, this imples that we obtain a smaller W value. Therefore, a matching exists if and only if MORA gives W = (n/m) log(R/2) + ((m − n)/m) log(R), which proves the theorem.
+
+Proof of Theorem 2
+The reduction is via the 3-dimensional matching prob-
+lem which is known to be NP-complete. Recall that the
+3-dimensional matching problem is stated as follows. Let us consider disjoint sets C = {c1, . . . , cn}, D = {d1, . . . , dn} and E = {e1, . . . , en}, and a family T = {T1, . . . , Tm} of triples with |Ti ∩ C| = |Ti ∩ D| = |Ti ∩ E| = 1 for i = 1, . . . , m, with m ≥ n. The question is whether T contains a matching, i.e., a subfamily T for which |T | = n and ∪Ti∈T Ti = C ∪ D ∪ E.
+Our reduction is as follows. We call the triples that contain
+cj triples of type j. Let tj be the number of triples of type j for j = 1, . . . , n. Base station i corresponds to the triples Ti for i = 1, . . . , m. We create two types of users, element users and dummy users. We have 2n element users, u ∈ {1, . . . , 2n}, corresponding to the 2n elements of D ∪ E. There are tj − 1 dummy users of type j for j = 1, . . . , n. Note that the total number of dummy users is m − n, u ∈ {2n + 1, . . . , m + n}. Element users can connect to the base stations that correspond
+to a triple that contains this element, with a transmission rate
+of R. Dummy users of type j can connect (also with a trans-
+mission of R) to the base stations that correspond to triples of type j. Element users have a weight wu = 1/(2m) and dummy users have a weight wu = 1/m. We claim that a matching exists if and only if the network utility with the MORA criterion is W = (n/m) log(R/2) + ((m − n)/m) log(R).
+The value of the objective function is bounded above by the
+following optimization problem:
+
+2n 1
+
+m+n 1
+
+max
+f
+
+u=1 2m log(fuR) + u=2n+1 m log(fuR),
+
+subject to
+
+2n u=1
+
+fu
+
++
+
+m+n u=2n+1
+
+fu
+
+=
+
+m,
+
+where
+
+fu
+
+is
+
+the
+
+fraction of resources assigned to user u (the ﬁrst term of the
+
+summation corresponds to the element users and the second
+
+term to the dummy users).
+
+By applying the Lagrange multiplier method, it can be easily
+
+seen that the above optimization problem is solved when fu = 1/2 for the element users and fu = 1 for the dummy users. This gives an upper bound on W equal to (n/m) log(R/2) +
+
+((m − n)/m) log(R). This corresponds to a global maximum,
+
+and thus any other set of fu values yields a smaller W . Assume that there is a matching. For each Ti = (cj, dk, el)
+in the matching, we associate element users dk and el with base station i. For each j, this leaves tj − 1 idle base stations corresponding to tripes of type j that are not in the matching.
+
+We associate the tj − 1 dummy users of type j to these tj − 1 base stations. This assignment has an objective function of
+
+W = (n/m) log(R/2) + ((m − n)/m) log(R), which is equal
+
+to the upper bound given above. In case there is no matching,
+
+it is not possible to have the 2n element users sharing n base
+
+stations with fu = 1/2 each, and therefore we cannot achieve
+
+Proof of Theorem 3
+
+We prove the theorem by means of the following exam-
+ple. Let us consider a scenario with |B| base stations in which |B|2 users join the network. All users have the same weight and can associate with any of the |B| base stations with cub = 1. Independently of the criterion followed to associate new users, after all users have joined there must
+be a base station with at least |B| users. Now, suppose all users but these |B| leave the network. For this sce-
+
+nario, the network utility provided by the online algorithm
+
+is W (x , f ) =
+
+|U | i=1
+
+1 |B|
+
+log(
+
+1 |B|
+
+)
+
+=
+
+− log(|B|).
+
+The
+
+opti-
+
+mal solution is that each user associates with a different
+
+base station, which yields W (xMORA, f MORA) = log(1).
+
+Thus, we have W (xMORA, f MORA) − W (x , f ) = log(1) +
+
+log(|B|), which grows to ∞ as |B| → ∞.
+
+Proof of Theorem 4
+
+Since in an equilibrium of the Distributed Greedy algorithm, each user is associated with the base station that maximizes ru, the following holds for all u:
+
+xubwu log
+b∈B
+
+wu cub v∈U xvbwv
+
+≥ x∗ubwu log
+b∈B
+
+wucub v∈U xvbwv + wu
+
+,
+
+(10)
+
+where the base station for which xub = 1 is the one with which user u is associated under Distributed Greedy, and the base station for which x∗ub = 1 is the one with which it is associated under the optimal allocation (i.e., x∗ = xMORA).
+At the base station for which x∗ub = 1 we have v∈U x∗vbwv ≥ wu, so the following also holds:
+
+xubwu log
+b∈B
+
+wu cub v∈U xvbwv
+
+≥ x∗ubwu log
+b∈B
+
+wu cub v∈U xvbwv + v∈U x∗vbwv
+
+.
+
+Let us deﬁne the load at a base station as the sum of weights
+of the users at the base station, lb = v∈U wvxvb. Then, the above can be rewritten as
+
+xubwu log
+b∈B
+
+wu cub lb
+
+≥ x∗ubwu log
+b∈B
+
+wu cub lb + lb∗
+
+,
+
+where lb and lb∗ are the load at base station b with the Distributed Greedy algorithm and the optimal allocation, respectively.
+From the above it follows that
+
+wu log(ru (x∗, f ∗)) − wu log(ru(x , f ))
+
+≤ x∗ubwu log
+b∈B
+
+wu cub lb∗
+
+− x∗ubwu log
+b∈B
+
+wu cub lb + lb∗
+
+,
+
+This article has been accepted for inclusion in a future issue of this journal. Content is final as presented, with the exception of pagination.
+
+CABALLERO et al.: MULTI-TENANT RAN SLICING: STATISTICAL MULTIPLEXING OF SPATIAL LOADS
+
+13
+
+where f ∗ = f M (f ∗). The above can be expressed as
+
+wu log(ru(x∗, f ∗)) − wu log(ru (x , f ))
+
+≤ − x∗ubwu log
+b∈B
+
+lb∗ lb + lb∗
+
+.
+
+Summing the above over all users yields
+
+W (x∗, f ∗) − W (x , f ) ≤ −
+
+x∗ubwu log
+
+u∈U b∈B
+
+lb∗ lb + lb∗
+
+.
+
+From the above,
+
+W (x∗, f ∗) − W (x , f )
+
+≤ − log
+b∈B
+
+lb∗ lb + lb∗
+
+Èu∈U x∗ubwu
+
+=−
+
+xubwu log
+
+b∈B u∈U
+
+=−
+
+xubwu log
+
+b∈B u∈U
+
+lb∗/lb 1 + lb∗/lb
+lb∗/lb 1 + lb∗/lb
+
+ÈÈv∈U x∗vbwv v∈U xvbwv
+l∗b /lb
+.
+
+Given that (x/(1 + x))x > 1/e for x ≥ 0, we obtain the following bound:
+
+W (x∗, f ∗) − W (x , f ) ≤
+
+xubwu log(e) = log(e).
+
+b∈B u∈U
+
+Since x∗ = xMORA and f ∗ = f MORA, this proves the ﬁrst part of the theorem.
+To ﬁnd an instance for which the network utility difference between MORA and Distributed Greedy Algorithm is log(2), consider the following scenario. Consider a network with 2 base stations B = {1, 2} and 2 operators O = {1, 2} with equal shares, s1 = s2 = 0.5. Each operator has one user: User 1 belongs to Operator 1 and User 2 to Operator 2. Let the achievable rates be c1,1 = c2,2 = R and c1,2 = c2,1 = R/2, i.e, user 1 sees a higher rate with base station 1 and user 2
+with base station 2. Clearly, the optimal MORA solution is
+to associate user 1 with base station 1 and User 2 with base station 2, i.e., xM 1,1 = 1 and xM 2,2 = 1,. This leads to a network utility W (xM, f M) = 0.5 log(c1,1) + 0.5 log(c2,2) = log(R).
+Distributed Greedy Algorithm only reassociates a user if this increases her rate. Let user 1 be associated with base
+station 2 and user 2 with base station 2. Since none of
+the two users can increase her rate by reassociating, they will not reassociate with the Distributed Greedy Algorithm,
+and hence this algorithm will result in a user association decision x such that x1,2 = 1 and x2,1 = 1. This yields a network utility W (x , f ) = 0.5 log(c1,2) + 0.5 log(c2,1) = log(R/2) = log(R) − log(2) = W (xM, f M) − log(2), which proves the second part of the theorem.
+
+Proof of Theorem 5
+The proof of the theorem is based on the following steps: Step 1: we ﬁrst show that while there is some user for which runew ≥ e · ruold, W (xi, f i) increases at each iteration until we converge to a region that satisﬁes runew ≤ e · ruold for all u.
+
+Step 2: we then show that if runew ≤ e · ruold ∀u, it follows that W (xi, f i) ≥ W (xMORA, xMORA) − 2 log(e).
+Step 3: we further prove that if a subsequent iteration i yields runew ≥ e · ruold for some user u, then it must be that W (xi, f i) ≥ W (xMORA, xMORA) − (2 + maxu wu) log(e).
+Step 4: ﬁnally, we prove that after an iteration such as the above, in the subsequent iterations W (xi, f i) increases, until we converge once again to a region where runew ≤ e · ruold ∀u.
+We next prove each of the above steps. Step 1: While there is some user for which runew ≥ e · ruold, W (xi, f i) increases at each iteration until we converge to a region that satisﬁes runew ≤ e · ruold for all u. To prove the above, we consider a variation of the Greedy
+Largest Gain in which a user only moves to a new location if runew ≥ e · ruold, and show that this algorithm is guaranteed to converge. To show this, we prove that the network utility
+function W (x, f ) is a generalized ordinal potential for the algorithm variation. Consider the ith iteration in the algorithm corresponding to a reassociation of user u, and let (xi−1, f i−1) denote the conﬁguration before this iteration and (xi, f i)
+the conﬁguration after the iteration. By construction of the
+algorithm, the following is satisﬁed:
+
+ru(xi, f i) ≥ e · ru(xi−1, f i−1).
+
+Let b be the new base station user u associates with, and a her previous base station. Then,
+
+W (xi, f i) − W (xi−1, f i−1)
+
+=
+
+xivawv log
+
+v∈U
+
+y∈U xiyawy + wu y∈U xiyawy
+
++
+
+xivbwv log
+
+v∈U \{u}
+
+y∈U \{u} xiybwy y∈U\{u} xiybwy + wu
+
++wu log(ru(xi, f i)) − wu log (ru(xi−1, f i−1))
+
+= lai log
+
+lai + wu lai
+
++ lbi−1 log
+
+lbi−1 lbi−1 + wu
+
++ wu log(ru(xi, f i)) − wu log (ru(xi−1, f i−1)).
+
+Since lai log
+
+lia +wu lia
+
+≥ 0, we have
+
+W (xi, f i) − W (xi−1, f i−1)
+
+≥ wu log
+
+lbi−1/wu 1 + lbi−1/wu
+
+lib−1 wu
++ wu log
+
+> wu log(1/e) + wu log(e) = 0,
+
+ru(xi, f i) ru(xi−1, f i−1)
+(11)
+
+so that W (x, f ) is a generalized ordinal potential. This implies that the potential game corresponding to the algorithm varia-
+tion has the ﬁnite improvement property; therefore, the algo-
+rithm variation converges in a ﬁnite number of iterations to a solution that satisﬁes runew ≤ e · ruold ∀u. Also, from (11) it follows that W (xi, f i) > W (xi−1, f i−1), i.e., the network utility increases at each iteration.
+As the Greedy Largest Gain algorithm always selects the user with the largest runew/ruold, it will select a user for which runew ≥ e · ruold, as long as there is one that satisﬁes this condition, and hence will follow the same steps as the algorithm
+
+This article has been accepted for inclusion in a future issue of this journal. Content is final as presented, with the exception of pagination.
+
+14
+
+IEEE/ACM TRANSACTIONS ON NETWORKING
+
+variation that we have considered above. This implies that
+there will be some iteration i in which the Greedy Largest Gain algorithm will reach a solution (xi, f i) that satisﬁes runew ≤ e · ruold ∀u and, until reaching this solution, W (xi, f i) will increase at each iteration.
+Step 2: If runew ≤ e · ruold ∀u, it follows that W (xi, f i) ≥ W (xMORA, xMORA) − 2 log(e).
+Let (xi, f i) be the solution at the ith iteration which satisﬁes runew ≤ e · ruold ∀u. Equation (10) for this solution can be rewritten as
+
+xiubwu log
+b∈B
+
+wu cub v∈U xivbwv
+
+≥ xM ubORAwu log
+b∈B
+
+wu cub v∈U xivbwv + wu
+
+− wu log(e).
+
+Starting from the above equation and applying the same reasoning as in the proof of Theorem 4 yields W (xi, f i) ≥ W (xMORA, f MORA) − 2 log(e).
+Step 3: If a subsequent iteration i yields runew ≥ e · ruold for some user u, then it must be that W (xi, f i) ≥ W (xMORA, xMORA) − (2 + maxu wu) log(e).
+Let us that for some iteration i of the algorithm such that it holds runew ≤ e · ruold ∀u for the solution before this iteration, and runew ≤ e · ruold, for some u, for the solution after the iteration. Let (xi−1, f i−1) be the solution before iteration i and (xi, f i) the solution after the iteration. As we have seen above, for the former it holds W (xi−1, f i−1) ≥ W (xMORA, f MORA) − 2 log(e). Let us consider that at iter-
+ation i user u moves to base station b. Then,
+
+W (xi, f i) − W (xi−1, f i−1)
+
+≥
+
+xiv−b 1wv log
+
+v∈U
+
+t∈U xit−b 1wt
+È t∈U xit−b 1wt + wu t∈U xit− b 1wt
+
+= wu log
+
+t∈U xit−b 1wt/wu 1 + t∈U xit−b 1wt/wu
+
+wu
+
+≥
+
+−wulog(e)
+
+≥
+
+−
+
+max
+u
+
+wulog(e).
+
+Thus,
+
+W
+
+(xi,
+
+f
+
+i)
+
+≥
+
+W
+
+(xM ORA ,
+
+f
+
+M ORA )
+
+−
+
+(2
+
++
+
+max
+u
+
+wu)
+
+log(e).
+
+Step 4: After an iteration such as the above, in the subsequent iterations W (xi, f i) increases, until we converge once again to a region where runew ≤ e · ruold ∀u.
+Let us consider that before iteration i there is some u for which runew ≥ e · ruold. Then,
+
+W (xi, f i) − W (xi−1, f i−1)
+
+≥ wu log(rnew) − wu log(rold)
+
++ xiv−b 1wv log
+v∈U
+
+t∈U xit−b 1wt t∈U xit−b 1wt + wu
+
+> wu log(e) − wu log(e) ≥ 0.
+
+Therefore, if at some iteration we get runew ≥ e · ruold for some u, then for that iteration it will hold W (xi, f i) ≥ W (xMORA, f MORA) − (2 + maxu wu) log(e), and from this
+
+point on W (xi, f i) is going to increase until we reach W (xi, f i) ≥ W (xMORA, f MORA) − 2 log(e) again.
+REFERENCES
+[1] Coleago Consulting. (Sep. 2015). Mobile Network Sharing Report. [Online]. Available: http://www.coleago.com/mobile-network-sharingmanaged-services/mobile-network-sharing/
+[2] Telecommunication Management; Network Sharing; Concepts and Requirements v12.0.0, document TS 32.130, 3GPP, Dec. 2014.
+[3] 5G White Paper, NGMN Alliance, Frankfurt, Germany, Feb. 2015. [4] F. Kelly, “Charging and rate control for elastic trafﬁc,” Eur. Trans.
+Telecommun., vol. 8, no. 1, pp. 33–37, Feb. 1997. [5] F. P. Kelly, A. K. Maulloo, and D. K. H. Tan, “Rate control for
+communication networks: Shadow prices, proportional fairness and stability,” J. Oper. Res. Soc., vol. 49, no. 3, pp. 237–252, Mar. 1998. [6] R. J. Gibbens and F. P. Kelly, “Resource pricing and the evolution of congestion control,” Automatica, vol. 35, no. 12, pp. 1969–1985, 1999. [7] T. Bu, L. Li, and R. Ramjee, “Generalized Proportional Fair Scheduling in Third Generation Wireless Data Networks,” in Proc. IEEE INFOCOM, Apr. 2006, pp. 1–12. [8] L. Li, M. Pal, and Y. R. Yang, “Proportional fairness in multi-rate wireless LANs,” in Proc. IEEE INFOCOM, Apr. 2008, pp. 1–2. [9] E. Aryafar, A. Keshavarz-Haddad, M. Wang, and M. Chiang, “RAT selection games in HetNets,” in Proc. IEEE INFOCOM, Apr. 2013, pp. 998–1006. [10] J. W. Lee, R. R. Mazumdar, and N. B. Shroff, “Joint resource allocation and base-station assignment for the downlink in CDMA networks,” IEEE/ACM Trans. Netw., vol. 14, no. 1, pp. 1–14, Feb. 2006. [11] K. Son, S. Chong, and G. Veciana, “Dynamic association for load balancing and interference avoidance in multi-cell networks,” IEEE Trans. Wireless Commun., vol. 8, no. 7, pp. 3566–3576, Jul. 2009. [12] M. Mavronicolas, I. Milchtaich, B. Monien, and K. Tiemann, “Congestion games with player-speciﬁc constants,” in Mathematical Foundations of Computer Science. Berlin, Germany: Springer, Aug. 2007, pp. 633–644. [13] T. Zhou, Y. Huang, W. Huang, S. Li, Y. Sun, and L. Yang, “QoS-aware user association for load balancing in heterogeneous cellular networks,” in Proc. IEEE VTC Fall, Sep. 2014, pp. 1–5. [14] I.-H. Hou and C. S. Chen, “Self-organized resource allocation in LTE systems with weighted proportional fairness,” in Proc. IEEE ICC, May 2012, pp. 5348–5353. [15] I.-H. Hou and P. Gupta, “Proportionally fair distributed resource allocation in multiband wireless systems,” IEEE/ACM Trans. Netw., vol. 22, no. 6, pp. 1819–1830, Dec. 2014. [16] P. D. Francesco, F. Malandrino, T. K. Forde, and L. A. DaSilva, “A sharing- and competition-aware framework for cellular network evolution planning,” IEEE Trans. Cognit. Commun. Netw., vol. 1, no. 2, pp. 230–243, Jun. 2015. [17] B. Leng, P. Mansourifard, and B. Krishnamachari, “Microeconomic analysis of base-station sharing in green cellular networks,” in Proc. IEEE INFOCOM, Apr. 2014, pp. 1132–1140. [18] J. S. Panchal, R. D. Yates, and M. M. Buddhikot, “Mobile network resource sharing options: Performance comparisons,” IEEE Trans. Wireless Commun., vol. 12, no. 9, pp. 4470–4482, Sep. 2013. [19] A. Gudipati, L. E. Li, and S. Katti, “RadioVisor: A slicing plane for radio access networks,” in Proc. HotSDN, Aug. 2014, pp. 237–238. [20] P. Caballero, X. Costa-Perez, K. Samdanis, and A. Banchs, “RMSC: A cell slicing controller for virtualized multi-tenant mobile networks,” in Proc. IEEE VTC, May 2015, pp. 1–6. [21] I. Malanchini, S. Valentin, and O. Aydin, “Generalized resource sharing for multiple operators in cellular wireless networks,” in Proc. IWCMC, Aug. 2014, pp. 803–808. [22] R. Mahindra, M. Khojastepour, H. Zhang, and S. Rangarajan, “Radio access network sharing in cellular networks,” in Proc. IEEE ICNP, Oct. 2013, pp. 1–10. [23] P. Caballero, A. Banchs, G. de Veciana, and X. Costa-Perez, “Network slicing games: Enabling customization in multi-tenant networks,” in Proc. IEEE INFOCOM, May 2017, pp. 1–3. [24] V. Sciancalepore, V. Mancuso, A. Banchs, S. Zaks, and A. Capone, “Interference coordination strategies for content update dissemination in LTE-A,” in Proc. IEEE INFOCOM, 2014, pp. 1797–1805. [25] Q. Ye, B. Rong, Y. Chen, M. Al-Shalash, C. Caramanis, and J. G. Andrews, “User association for load balancing in heterogeneous cellular networks,” IEEE Trans. Wireless Commun., vol. 12, no. 6, pp. 2706–2716, Jun. 2013.
+
+This article has been accepted for inclusion in a future issue of this journal. Content is final as presented, with the exception of pagination.
+
+CABALLERO et al.: MULTI-TENANT RAN SLICING: STATISTICAL MULTIPLEXING OF SPATIAL LOADS
+
+15
+
+[26] D. Yuhuan and G. de Veciana, “‘Wireless networks without edges’: Dynamic radio resource clustering and user scheduling,” in Proc. IEEE INFOCOM, Apr. 2014, pp. 1321–1329.
+[27] A. Banchs, “User fair queuing: Fair allocation of bandwidth for users,” in Proc. IEEE INFOCOM, Jun. 2002, pp. 1668–1677.
+[28] C. Georgiou, T. Pavlides, and A. Philippou, “Network uncertainty in selﬁsh routing,” in Proc. IEEE IPDPS, Apr. 2006, p. 10.
+[29] M. Gairing, B. Monien, and K. Tiemann, “Routing (un-) splittable ﬂow in games with player-speciﬁc linear latency functions,” Lect. Notes Comput. Sci., vol. 7, no. 3, pp. 501–512, 2006.
+[30] J. Westbrook, “Load balancing for response time,” in Proc. 3rd Annu. Eur. Symp. Algorithms, Sep. 1995, pp. 1–6.
+[31] Evolved Universal Terrestrial Radio Access Network (E-UTRAN); SelfConﬁguring and Self-Optimizing Network (SON) Use Cases and Solutions, document TS 36.902 v9.3.0, 3GPP, Mar. 2011.
+[32] Guidelines for Evaluation of Radio Interface Technologies for IMTAdvanced, standard Report ITU-R M.2135-1, 2009.
+[33] H. S. Dhillon, R. K. Ganti, F. Baccelli, and J. G. Andrews, “Modeling and analysis of K-tier downlink heterogeneous cellular networks,” IEEE J. Sel. Areas Commun., vol. 30, no. 3, pp. 550–560, Apr. 2012.
+[34] Evolved Universal Terrestrial Radio Access (E-UTRA); Physical Layer Procedures v12.5.0, document TS 36.213, 3GPP, Mar. 2015.
+[35] K. Lee et al., “SLAW: Self-similar least-action human walk,” IEEE/ACM Trans. Netw., vol. 20, no. 2, pp. 515–529, Apr. 2012.
+
+Albert Banchs (M’04–SM’12) received the M.Sc. and Ph.D. degrees from the Polytechnic University of Catalonia (UPC-Barcelona Tech) in 1997 and 2002, respectively. He was with ICSI Berkeley in 1997, Telefonica I + D in 1998, and NEC Europe Ltd., from 1998 to 2003. He is currently a Full Professor with the University Carlos III of Madrid, and has a double afﬁliation as the Deputy Director of the IMDEA Networks Institute. He is an Editor of the IEEE TRANSACTIONS ON WIRELESS COMMUNICATIONS and the IEEE/ACM TRANSACTIONS ON NETWORKING. His research interests include the performance evaluation and algorithm design in wireless and wired networks.
+Gustavo de Veciana (S’88–M’94–SM’01–F’09) received the B.S., M.S, and Ph.D. degrees in electrical engineering from the University of California at Berkeley in 1987, 1990, and 1993, respectively. He joined the Department of Electrical and Computer Engineering, The University of Texas at Austin, where he is currently a Cullen Trust Professor of Engineering. His research focuses on the analysis and design of communication and computing networks, data-driven decision-making in man-machine systems, and applied probability and queueing theory. He served as an Editor and is currently serving as an Editorat-Large for the IEEE/ACM TRANSACTIONS ON NETWORKING. In 2009, he was designated an IEEE fellow for his contributions to the analysis and design of communication networks. He currently serves on the board of trustees of IMDEA Networks Madrid.
+
+Pablo Caballero received the B.S. and M.S. degrees in telecommunications and telematics engineering from the University Carlos III of Madrid in 2013 and 2015, respectively. He is currently pursuing the Ph.D. degree with the Wireless Networking and Communications Group, The University of Texas at Austin, under the supervision of Prof. G. de Veciana and Prof. A. Banchs. Previously, he was a Research Assistant at the IMDEA Networks Institute and was a Research Intern at the NEC Laboratories Europe. His research interests lie in the design and performance evaluation of communication networks, game theory, and algorithm analysis.
+
+Xavier Costa-Pérez (M’01) received the M.Sc. and Ph.D. degrees in telecommunications from the Polytechnic University of Catalonia (UPC-Barcelona Tech). He is currently the Head of 5G Networks R&D, NEC Laboratories Europe, where he manages several projects focused on 5G mobile core, backhaul/fronthaul, and access networks. His team contributes to NEC projects for products roadmap evolution, to European Commission R&D collaborative projects as well as to open source projects and related standardization bodies, and has received several Research and Development Awards for successful technology transfers. He served on the Program Committees of several conferences and holds multiple patents. He was a recipient of the National Award for his Ph.D. thesis.
+
