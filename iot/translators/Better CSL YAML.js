@@ -10,13 +10,13 @@
 	"inRepository": false,
 	"configOptions": {
 		"getCollections": true,
-		"hash": "860d06b6423ff9e59533c96659dde4f0-a00ab1c076b80b7bb50d6735dc1635f4"
+		"hash": "f00f72f9ff60973af3f91aad696fd893-a247a463ec8490c340dc22e2f025913a"
 	},
 	"displayOptions": {
 		"keepUpdated": false
 	},
 	"browserSupport": "gcsv",
-	"lastUpdated": "2019-10-03 11:51:11"
+	"lastUpdated": "2019-10-27 20:31:52"
 }
 
 var Translator = {
@@ -26,7 +26,7 @@ var Translator = {
   BetterCSL: true,
   header: ZOTERO_TRANSLATOR_INFO,
   // header: < %- JSON.stringify(header) % >,
-  preferences: {"DOIandURL":"both","ascii":"","asciiBibLaTeX":false,"asciiBibTeX":true,"autoAbbrev":false,"autoAbbrevStyle":"","autoExport":"immediate","autoExportDelay":1,"autoExportIdleWait":10,"autoExportPrimeExportCacheBatch":4,"autoExportPrimeExportCacheDelay":100,"autoExportPrimeExportCacheThreshold":0,"autoExportTooLong":10,"autoPin":false,"automaticTags":true,"auxImport":false,"biblatexExtendedDateFormat":true,"biblatexExtendedNameFormat":false,"bibtexParticleNoOp":false,"bibtexURL":"off","cacheFlushInterval":5,"citeCommand":"cite","citekeyFold":true,"citekeyFormat":"​[auth:lower][shorttitle3_3][year]","citeprocNoteCitekey":false,"csquotes":"","exportBibTeXStrings":"off","git":"config","importBibTeXStrings":true,"itemObserverDelay":100,"jabrefFormat":0,"keyConflictPolicy":"keep","keyScope":"library","kuroshiro":false,"lockedInit":false,"mapMath":"","mapText":"","mapUnicode":"conservative","parseParticles":true,"postscript":"","qualityReport":false,"quickCopyMode":"latex","quickCopyPandocBrackets":false,"rawLaTag":"#LaTeX","relativeFilePaths":false,"scrubDatabase":false,"skipFields":"","skipWords":"a,ab,aboard,about,above,across,after,against,al,along,amid,among,an,and,anti,around,as,at,before,behind,below,beneath,beside,besides,between,beyond,but,by,d,da,das,de,del,dell,dello,dei,degli,della,dell,delle,dem,den,der,des,despite,die,do,down,du,during,ein,eine,einem,einen,einer,eines,el,en,et,except,for,from,gli,i,il,in,inside,into,is,l,la,las,le,les,like,lo,los,near,nor,of,off,on,onto,or,over,past,per,plus,round,save,since,so,some,sur,than,the,through,to,toward,towards,un,una,unas,under,underneath,une,unlike,uno,unos,until,up,upon,versus,via,von,while,with,within,without,yet,zu,zum","sorted":false,"strings":"","suppressBraceProtection":false,"suppressNoCase":false,"suppressSentenceCase":false,"suppressTitleCase":false,"verbatimFields":"url,doi,file,eprint,verba,verbb,verbc","warnBulkModify":10},
+  preferences: {"DOIandURL":"both","ascii":"","asciiBibLaTeX":false,"asciiBibTeX":true,"autoAbbrev":false,"autoAbbrevStyle":"","autoExport":"immediate","autoExportDelay":1,"autoExportIdleWait":10,"autoExportPrimeExportCacheBatch":4,"autoExportPrimeExportCacheDelay":100,"autoExportPrimeExportCacheThreshold":0,"autoExportTooLong":10,"autoPin":false,"automaticTags":true,"auxImport":false,"biblatexExtendedDateFormat":true,"biblatexExtendedNameFormat":false,"bibtexParticleNoOp":false,"bibtexURL":"off","cacheFlushInterval":5,"citeCommand":"cite","citekeyFold":true,"citekeyFormat":"​[auth:lower][shorttitle3_3][year]","citeprocNoteCitekey":false,"csquotes":"","exportBibTeXStrings":"off","git":"config","importBibTeXStrings":true,"itemObserverDelay":100,"jabrefFormat":0,"keyConflictPolicy":"keep","keyScope":"library","kuroshiro":false,"lockedInit":false,"mapMath":"","mapText":"","mapUnicode":"conservative","newTranslatorsAskRestart":true,"parseParticles":true,"postscript":"","qualityReport":false,"quickCopyMode":"latex","quickCopyPandocBrackets":false,"rawLaTag":"#LaTeX","relativeFilePaths":false,"scrubDatabase":false,"skipFields":"","skipWords":"a,ab,aboard,about,above,across,after,against,al,along,amid,among,an,and,anti,around,as,at,before,behind,below,beneath,beside,besides,between,beyond,but,by,d,da,das,de,del,dell,dello,dei,degli,della,dell,delle,dem,den,der,des,despite,die,do,down,du,during,ein,eine,einem,einen,einer,eines,el,en,et,except,for,from,gli,i,il,in,inside,into,is,l,la,las,le,les,like,lo,los,near,nor,of,off,on,onto,or,over,past,per,plus,round,save,since,so,some,sur,than,the,through,to,toward,towards,un,una,unas,under,underneath,une,unlike,uno,unos,until,up,upon,versus,via,von,while,with,within,without,yet,zu,zum","sorted":false,"strings":"","suppressBraceProtection":false,"suppressNoCase":false,"suppressSentenceCase":false,"suppressTitleCase":false,"verbatimFields":"url,doi,file,eprint,verba,verbb,verbc","warnBulkModify":10},
   options: {"keepUpdated":false},
 
   stringCompare: (new Intl.Collator('en')).compare,
@@ -256,11 +256,10 @@ function doExport() {
   \****************************/
 /*! no static exports found */
 /*! all exports used */
-/***/ (function(module, exports) {
+/***/ (function(module, exports, __webpack_require__) {
 
+"use strict";
 
-    Zotero.debug('zotero-better-bibtex: loading gen/itemfields.ts')
-  ; try { "use strict";
 // tslint:disable:one-line
 Object.defineProperty(exports, "__esModule", { value: true });
 // don't take this from Translator.isZotero because that initializes after library load
@@ -1790,21 +1789,16 @@ function simplifyForImport(item) {
                 delete creator.firstName;
                 delete creator.name;
             }
+            if (!jurism)
+                delete creator.multi;
         }
     }
+    if (!jurism)
+        delete item.multi;
     return item;
 }
 exports.simplifyForImport = simplifyForImport;
-; 
-    Zotero.debug('zotero-better-bibtex: loaded gen/itemfields.ts')
-  ; } catch ($wrap_loader_catcher_gen_itemfields_ts) { 
-    var $wrap_loader_message_gen_itemfields_ts = 'Error: zotero-better-bibtex: load of gen/itemfields.ts failed:' + $wrap_loader_catcher_gen_itemfields_ts + '::' + $wrap_loader_catcher_gen_itemfields_ts.stack;
-    if (typeof Zotero.logError === 'function') {
-      Zotero.logError($wrap_loader_message_gen_itemfields_ts)
-    } else {
-      Zotero.debug($wrap_loader_message_gen_itemfields_ts)
-    }
-   };
+
 
 /***/ }),
 
@@ -14917,9 +14911,8 @@ module.exports = g;
 /*! all exports used */
 /***/ (function(module, exports, __webpack_require__) {
 
+"use strict";
 
-    Zotero.debug('zotero-better-bibtex: loading translators/Better CSL YAML.ts')
-  ; try { "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 const YAML = __webpack_require__(/*! js-yaml */ "../node_modules/js-yaml/index.js");
 const debug_1 = __webpack_require__(/*! ./lib/debug */ "./lib/debug.ts");
@@ -15056,16 +15049,7 @@ csl_1.CSLExporter.serialize = csl => {
 csl_1.CSLExporter.flush = items => `---\nreferences:\n${items.join('\n')}...\n`;
 Translator.initialize = () => csl_1.CSLExporter.initialize();
 Translator.doExport = () => csl_1.CSLExporter.doExport();
-; 
-    Zotero.debug('zotero-better-bibtex: loaded translators/Better CSL YAML.ts')
-  ; } catch ($wrap_loader_catcher_translators_Better_CSL_YAML_ts) { 
-    var $wrap_loader_message_translators_Better_CSL_YAML_ts = 'Error: zotero-better-bibtex: load of translators/Better CSL YAML.ts failed:' + $wrap_loader_catcher_translators_Better_CSL_YAML_ts + '::' + $wrap_loader_catcher_translators_Better_CSL_YAML_ts.stack;
-    if (typeof Zotero.logError === 'function') {
-      Zotero.logError($wrap_loader_message_translators_Better_CSL_YAML_ts)
-    } else {
-      Zotero.debug($wrap_loader_message_translators_Better_CSL_YAML_ts)
-    }
-   };
+
 
 /***/ }),
 
@@ -15077,9 +15061,8 @@ Translator.doExport = () => csl_1.CSLExporter.doExport();
 /*! all exports used */
 /***/ (function(module, exports, __webpack_require__) {
 
+"use strict";
 
-    Zotero.debug('zotero-better-bibtex: loading translators/csl/csl.ts')
-  ; try { "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 const debug_1 = __webpack_require__(/*! ../lib/debug */ "./lib/debug.ts");
 const itemfields = __webpack_require__(/*! ../../gen/itemfields */ "../gen/itemfields.ts");
@@ -15273,16 +15256,7 @@ exports.CSLExporter = new class {
         Zotero.write(this.flush(items));
     }
 };
-; 
-    Zotero.debug('zotero-better-bibtex: loaded translators/csl/csl.ts')
-  ; } catch ($wrap_loader_catcher_translators_csl_csl_ts) { 
-    var $wrap_loader_message_translators_csl_csl_ts = 'Error: zotero-better-bibtex: load of translators/csl/csl.ts failed:' + $wrap_loader_catcher_translators_csl_csl_ts + '::' + $wrap_loader_catcher_translators_csl_csl_ts.stack;
-    if (typeof Zotero.logError === 'function') {
-      Zotero.logError($wrap_loader_message_translators_csl_csl_ts)
-    } else {
-      Zotero.debug($wrap_loader_message_translators_csl_csl_ts)
-    }
-   };
+
 
 /***/ }),
 
@@ -15292,11 +15266,10 @@ exports.CSLExporter = new class {
   \**********************/
 /*! no static exports found */
 /*! all exports used */
-/***/ (function(module, exports) {
+/***/ (function(module, exports, __webpack_require__) {
 
+"use strict";
 
-    Zotero.debug('zotero-better-bibtex: loading translators/lib/debug.ts')
-  ; try { "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 // import { format } from '../../content/debug-formatter'
 function debug(...msg) {
@@ -15305,16 +15278,7 @@ function debug(...msg) {
     Zotero.BetterBibTeX.debug(Translator.header.label, ...msg);
 }
 exports.debug = debug;
-; 
-    Zotero.debug('zotero-better-bibtex: loaded translators/lib/debug.ts')
-  ; } catch ($wrap_loader_catcher_translators_lib_debug_ts) { 
-    var $wrap_loader_message_translators_lib_debug_ts = 'Error: zotero-better-bibtex: load of translators/lib/debug.ts failed:' + $wrap_loader_catcher_translators_lib_debug_ts + '::' + $wrap_loader_catcher_translators_lib_debug_ts.stack;
-    if (typeof Zotero.logError === 'function') {
-      Zotero.logError($wrap_loader_message_translators_lib_debug_ts)
-    } else {
-      Zotero.debug($wrap_loader_message_translators_lib_debug_ts)
-    }
-   };
+
 
 /***/ })
 
