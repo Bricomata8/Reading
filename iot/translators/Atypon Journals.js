@@ -1,15 +1,15 @@
 {
 	"translatorID": "5af42734-7cd5-4c69-97fc-bc406999bdba",
-	"translatorType": 4,
 	"label": "Atypon Journals",
 	"creator": "Sebastian Karcher",
 	"target": "^https?://[^?#]+(/doi/((abs|abstract|full|figure|ref|citedby|book)/)?10\\.|/action/doSearch\\?)|^https?://[^/]+/toc/",
 	"minVersion": "3.0",
-	"maxVersion": null,
+	"maxVersion": "",
 	"priority": 270,
 	"inRepository": true,
+	"translatorType": 4,
 	"browserSupport": "gcsibv",
-	"lastUpdated": "2018-04-21 06:20:00"
+	"lastUpdated": "2018-04-18 18:19:06"
 }
 
 /*

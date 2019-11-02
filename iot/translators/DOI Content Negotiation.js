@@ -1,15 +1,15 @@
 {
 	"translatorID": "b28d0d42-8549-4c6d-83fc-8382874a5cb9",
-	"translatorType": 8,
 	"label": "DOI Content Negotiation",
 	"creator": "Sebastian Karcher",
-	"target": null,
+	"target": "",
 	"minVersion": "4.0.29.11",
-	"maxVersion": null,
+	"maxVersion": "",
 	"priority": 100,
 	"inRepository": true,
+	"translatorType": 8,
 	"browserSupport": "gcs",
-	"lastUpdated": "2019-04-07 02:15:00"
+	"lastUpdated": "2019-01-26 18:00:00"
 }
 
 /*

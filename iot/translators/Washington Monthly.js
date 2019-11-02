@@ -1,15 +1,15 @@
 {
 	"translatorID": "e623eec7-ad54-4201-b709-654bf3fd7f70",
-	"translatorType": 4,
 	"label": "Washington Monthly",
 	"creator": "Philipp Zumstein",
 	"target": "^https?://(www\\.)?washingtonmonthly\\.com",
 	"minVersion": "3.0",
-	"maxVersion": null,
+	"maxVersion": "",
 	"priority": 100,
 	"inRepository": true,
+	"translatorType": 4,
 	"browserSupport": "gcsibv",
-	"lastUpdated": "2019-06-11 20:25:00"
+	"lastUpdated": "2019-06-10 22:51:06"
 }
 
 /*

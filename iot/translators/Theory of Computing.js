@@ -1,15 +1,15 @@
 {
 	"translatorID": "558babe7-5fca-47ea-af0f-2d9bb5bc5e53",
-	"translatorType": 4,
 	"label": "Theory of Computing",
 	"creator": "Piyush Srivastava",
 	"target": "^https?://(theoryofcomputing\\.org|toc\\.cse\\.iitk\\.ac\\.in|www\\.cims\\.nyu\\.edu/~regev/toc|toc\\.ilab\\.sztaki\\.hu|toc\\.nada\\.kth\\.se|tocmirror\\.cs\\.tau\\.ac\\.il)/articles/[vg].*(/|html?)$",
 	"minVersion": "1.0",
-	"maxVersion": null,
+	"maxVersion": "",
 	"priority": 100,
 	"inRepository": true,
+	"translatorType": 4,
 	"browserSupport": "gcv",
-	"lastUpdated": "2019-06-16 20:30:00"
+	"lastUpdated": "2019-06-10 22:52:50"
 }
 
 /*

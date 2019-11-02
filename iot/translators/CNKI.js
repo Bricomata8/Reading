@@ -1,15 +1,15 @@
 {
 	"translatorID": "5c95b67b-41c5-4f55-b71a-48d5d7183063",
-	"translatorType": 4,
 	"label": "CNKI",
 	"creator": "Aurimas Vinckevicius",
 	"target": "^https?://([^/]+\\.)?cnki\\.net",
 	"minVersion": "3.0",
-	"maxVersion": null,
+	"maxVersion": "",
 	"priority": 100,
 	"inRepository": true,
+	"translatorType": 4,
 	"browserSupport": "gcs",
-	"lastUpdated": "2018-09-09 19:40:00"
+	"lastUpdated": "2018-09-08 22:09:39"
 }
 
 /*

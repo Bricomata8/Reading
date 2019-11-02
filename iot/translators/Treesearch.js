@@ -1,15 +1,15 @@
 {
 	"translatorID": "4ee9dc8f-66d3-4c18-984b-6335408a24af",
-	"translatorType": 4,
 	"label": "Treesearch",
 	"creator": "Aurimas Vinckevicius",
 	"target": "^https?://([^/]+\\.)?treesearch\\.fs\\.fed\\.us/(pubs/\\d+$|search\\.php)",
 	"minVersion": "3.0",
-	"maxVersion": null,
+	"maxVersion": "",
 	"priority": 100,
 	"inRepository": true,
+	"translatorType": 4,
 	"browserSupport": "gcsibv",
-	"lastUpdated": "2019-06-16 07:15:00"
+	"lastUpdated": "2019-06-10 23:05:56"
 }
 
 /**

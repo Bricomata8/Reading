@@ -12,7 +12,7 @@
 		"hash": "2fd3cb1b48b359636ac314607a7405d2-cc9336ea2d60387c3a94949c42586ef4"
 	},
 	"browserSupport": "gcsv",
-	"lastUpdated": "2019-10-27 20:31:52"
+	"lastUpdated": "2019-10-29 18:10:12"
 }
 
 var Translator = {

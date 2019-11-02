@@ -1,15 +1,15 @@
 {
 	"translatorID": "bc2ec385-e60a-4899-96ae-d4f0d6574ad7",
-	"translatorType": 4,
 	"label": "Juris",
 	"creator": "Reto Mantz",
 	"target": "^https?://(www\\.|testsystem\\.)?juris\\.de/",
 	"minVersion": "3.0",
-	"maxVersion": null,
+	"maxVersion": "",
 	"priority": 100,
 	"inRepository": true,
+	"translatorType": 4,
 	"browserSupport": "gcsibv",
-	"lastUpdated": "2019-07-14 08:30:00"
+	"lastUpdated": "2018-08-27 10:42:50"
 }
 
 /*

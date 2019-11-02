@@ -1,15 +1,15 @@
 {
 	"translatorID": "4c6d887e-341d-4edb-b651-ea702a8918d7",
-	"translatorType": 4,
 	"label": "SVT Nyheter",
 	"creator": "Sebastian Berlin",
 	"target": "^https?://www\\.svt\\.se/nyheter/",
 	"minVersion": "3.0",
-	"maxVersion": null,
+	"maxVersion": "",
 	"priority": 100,
 	"inRepository": true,
+	"translatorType": 4,
 	"browserSupport": "gcisbv",
-	"lastUpdated": "2018-09-15 00:40:00"
+	"lastUpdated": "2018-08-13 09:15:36"
 }
 
 /*

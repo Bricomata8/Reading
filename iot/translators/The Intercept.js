@@ -1,15 +1,15 @@
 {
 	"translatorID": "455fe24a-f7e8-4546-81d2-ad4f9aa10487",
-	"translatorType": 4,
 	"label": "The Intercept",
 	"creator": "czar",
 	"target": "^https?://(www\\.)?theintercept\\.com",
 	"minVersion": "3.0",
-	"maxVersion": null,
+	"maxVersion": "",
 	"priority": 100,
 	"inRepository": true,
+	"translatorType": 4,
 	"browserSupport": "gcsibv",
-	"lastUpdated": "2018-04-15 17:15:00"
+	"lastUpdated": "2018-04-15 16:59:35"
 }
 
 /*

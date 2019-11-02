@@ -1,15 +1,15 @@
 {
 	"translatorID": "53f8d182-4edc-4eab-b5a1-141698a1303b",
-	"translatorType": 4,
 	"label": "Wall Street Journal",
 	"creator": "Philipp Zumstein",
 	"target": "^https?://(online|blogs|www)?\\.wsj\\.com/",
 	"minVersion": "3.0",
-	"maxVersion": null,
+	"maxVersion": "",
 	"priority": 100,
 	"inRepository": true,
+	"translatorType": 4,
 	"browserSupport": "gcsibv",
-	"lastUpdated": "2019-06-29 09:15:00"
+	"lastUpdated": "2019-06-23 22:38:11"
 }
 
 /*

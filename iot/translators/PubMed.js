@@ -1,18 +1,18 @@
 {
 	"translatorID": "3d0231ce-fd4b-478c-b1d3-840389e5b68c",
-	"translatorType": 12,
 	"label": "PubMed",
 	"creator": "Philipp Zumstein",
 	"target": "^https?://([^/]+\\.)?(www|preview)\\.ncbi\\.nlm\\.nih\\.gov[^/]*/(m/)?(books|pubmed|labs/pubmed|sites/pubmed|sites/entrez|entrez/query\\.fcgi\\?.*db=PubMed|myncbi/browse/collection/?|myncbi/collections/)",
 	"minVersion": "3.0",
-	"maxVersion": null,
+	"maxVersion": "",
 	"priority": 100,
 	"inRepository": true,
+	"translatorType": 12,
 	"browserSupport": "gcsibv",
-	"lastUpdated": "2019-02-04 06:45:00"
+	"lastUpdated": "2019-02-03 18:23:15"
 }
 
-/*
+ /*
  	***** BEGIN LICENSE BLOCK *****
  	
  	Copyright © 2015 Philipp Zumstein

@@ -1,22 +1,23 @@
 {
 	"translatorID": "0e2235e7-babf-413c-9acf-f27cce5f059c",
-	"translatorType": 3,
 	"label": "MODS",
 	"creator": "Simon Kornblith and Richard Karnesky",
 	"target": "xml",
 	"minVersion": "2.1.9",
-	"maxVersion": null,
+	"maxVersion": "",
 	"priority": 50,
-	"inRepository": true,
-	"browserSupport": "gcsibv",
 	"configOptions": {
 		"dataMode": "xml/dom"
 	},
 	"displayOptions": {
 		"exportNotes": true
 	},
-	"lastUpdated": "2019-05-21 02:05:00"
+	"inRepository": true,
+	"translatorType": 3,
+	"browserSupport": "gcsibv",
+	"lastUpdated": "2019-05-20 09:05:38"
 }
+
 
 /*
 	***** BEGIN LICENSE BLOCK *****

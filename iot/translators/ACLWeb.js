@@ -1,15 +1,15 @@
 {
 	"translatorID": "f4a5876a-3e53-40e2-9032-d99a30d7a6fc",
-	"translatorType": 4,
 	"label": "ACLWeb",
 	"creator": "Guy Aglionby",
 	"target": "^https?://(www\\.)?aclweb\\.org/anthology/[^#]+",
 	"minVersion": "3.0",
-	"maxVersion": null,
+	"maxVersion": "",
 	"priority": 100,
 	"inRepository": true,
+	"translatorType": 4,
 	"browserSupport": "gcsibv",
-	"lastUpdated": "2019-09-01 15:30:00"
+	"lastUpdated": "2019-08-31 18:53:37"
 }
 
 /*

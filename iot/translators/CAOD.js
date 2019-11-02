@@ -1,15 +1,15 @@
 {
 	"translatorID": "d2a9e388-5b79-403a-b4ec-e7099ca1bb7f",
-	"translatorType": 4,
 	"label": "CAOD",
 	"creator": "Guy Aglionby",
 	"target": "^https?://caod\\.oriprobe\\.com/articles/",
 	"minVersion": "3.0",
-	"maxVersion": null,
+	"maxVersion": "",
 	"priority": 100,
 	"inRepository": true,
+	"translatorType": 4,
 	"browserSupport": "gcsibv",
-	"lastUpdated": "2018-09-09 01:45:00"
+	"lastUpdated": "2018-09-08 13:38:50"
 }
 
 /*

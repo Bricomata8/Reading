@@ -1,15 +1,15 @@
 {
 	"translatorID": "94a8328a-ec87-4ba0-82b6-cf3000ea1dee",
-	"translatorType": 4,
 	"label": "PyPI",
 	"creator": "Philipp Zumstein",
 	"target": "^https?://pypi\\.org/(project|search)",
 	"minVersion": "3.0",
-	"maxVersion": null,
+	"maxVersion": "",
 	"priority": 100,
 	"inRepository": true,
+	"translatorType": 4,
 	"browserSupport": "gcsibv",
-	"lastUpdated": "2018-11-04 20:00:00"
+	"lastUpdated": "2018-11-03 08:21:27"
 }
 
 /*

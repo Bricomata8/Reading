@@ -1,15 +1,15 @@
 {
 	"translatorID": "c54d1932-73ce-dfd4-a943-109380e06574",
-	"translatorType": 4,
 	"label": "Project MUSE",
 	"creator": "Sebastian Karcher",
 	"target": "^https?://[^/]*muse\\.jhu\\.edu/(book/|article/|issue/|results\\?)",
 	"minVersion": "3.0",
-	"maxVersion": null,
+	"maxVersion": "",
 	"priority": 100,
 	"inRepository": true,
+	"translatorType": 4,
 	"browserSupport": "gcsibv",
-	"lastUpdated": "2019-06-09 02:55:00"
+	"lastUpdated": "2019-04-19 19:38:19"
 }
 
 /*

@@ -1,15 +1,15 @@
 {
 	"translatorID": "7feb4b6c-05d6-4d61-bf0d-5e7f70c1ef0b",
-	"translatorType": 4,
 	"label": "Frieze",
 	"creator": "czar",
 	"target": "^https?://(www\\.)?frieze\\.com",
 	"minVersion": "3.0",
-	"maxVersion": null,
+	"maxVersion": "",
 	"priority": 100,
 	"inRepository": true,
+	"translatorType": 4,
 	"browserSupport": "gcsibv",
-	"lastUpdated": "2019-02-02 00:35:00"
+	"lastUpdated": "2019-02-01 01:28:00"
 }
 
 /*

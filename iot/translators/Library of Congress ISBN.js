@@ -1,16 +1,17 @@
 {
 	"translatorID": "c070e5a2-4bfd-44bb-9b3c-4be20c50d0d9",
-	"translatorType": 8,
 	"label": "Library of Congress ISBN",
 	"creator": "Sebastian Karcher",
-	"target": null,
+	"target": "",
 	"minVersion": "3.0.9",
-	"maxVersion": null,
+	"maxVersion": "",
 	"priority": 98,
 	"inRepository": true,
+	"translatorType": 8,
 	"browserSupport": "gcsibv",
-	"lastUpdated": "2018-04-18 05:55:00"
+	"lastUpdated": "2018-04-13 13:41:00"
 }
+
 
 function detectSearch(item) {
 	//re-enable once 

@@ -1,15 +1,15 @@
 {
 	"translatorID": "a7747ba7-42c6-4a22-9415-1dafae6262a9",
-	"translatorType": 4,
 	"label": "GitHub",
 	"creator": "Martin Fenner, Philipp Zumstein",
 	"target": "^https?://(www\\.)?github\\.com/[^/]+/[^/]+/?$",
 	"minVersion": "3.0",
-	"maxVersion": null,
+	"maxVersion": "",
 	"priority": 100,
 	"inRepository": true,
+	"translatorType": 4,
 	"browserSupport": "gcsibv",
-	"lastUpdated": "2019-09-01 15:35:00"
+	"lastUpdated": "2019-08-29 10:16:28"
 }
 
 /**

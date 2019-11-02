@@ -1,15 +1,15 @@
 {
 	"translatorID": "6614a99-479a-4524-8e30-686e4d66663e",
-	"translatorType": 4,
 	"label": "Nature Publishing Group",
 	"creator": "Aurimas Vinckevicius",
 	"target": "^https?://(www\\.)?nature\\.com/([^?/]+/)?(journal|archive|research|topten|search|full|abs|current_issue\\.htm|most\\.htm|articles/)",
 	"minVersion": "3.0",
-	"maxVersion": null,
+	"maxVersion": "",
 	"priority": 100,
 	"inRepository": true,
+	"translatorType": 4,
 	"browserSupport": "gcsibv",
-	"lastUpdated": "2018-10-13 08:35:00"
+	"lastUpdated": "2018-10-12 15:27:55"
 }
 
 /**

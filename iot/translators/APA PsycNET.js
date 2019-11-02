@@ -1,15 +1,15 @@
 {
 	"translatorID": "1e1e35be-6264-45a0-ad2e-7212040eb984",
-	"translatorType": 4,
 	"label": "APA PsycNET",
 	"creator": "Philipp Zumstein",
 	"target": "^https?://psycnet\\.apa\\.org/",
 	"minVersion": "3.0",
-	"maxVersion": null,
+	"maxVersion": "",
 	"priority": 100,
 	"inRepository": true,
+	"translatorType": 4,
 	"browserSupport": "gcsibv",
-	"lastUpdated": "2018-05-10 20:35:00"
+	"lastUpdated": "2018-05-08 19:12:21"
 }
 
 /*
@@ -234,7 +234,7 @@ function getIds(doc, url) {
 	 * we can fetch the id from the url
 	 * alternatively, the id is in a javascript section (this is messy)
 	 */
-	if(url.includes('/buy/')) {
+	if (url.includes('/buy/')) {
 		let m = url.match(/\/buy\/([\d\-]*)/);
 		if (m) {
 			return m[1];

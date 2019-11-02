@@ -3,13 +3,13 @@
 	"translatorType": 8,
 	"label": "Crossref REST",
 	"creator": "Martynas Bagdonas",
-	"target": null,
+	"target": "",
 	"minVersion": "5.0.0",
 	"maxVersion": null,
 	"priority": 90,
 	"inRepository": true,
 	"browserSupport": "gcsibv",
-	"lastUpdated": "2018-08-16 19:50:00"
+	"lastUpdated": "2018-06-16 12:00:00"
 }
 
 /*
@@ -305,7 +305,7 @@ function doSearch(item) {
 	let query = null;
 	
 	if (item.DOI) {
-		if(Array.isArray(item.DOI)) {
+		if (Array.isArray(item.DOI)) {
 			query = '?filter=doi:' + item.DOI.map(x => ZU.cleanDOI(x)).filter(x => x).join(',doi:');
 		} else {
 			query = '?filter=doi:' + ZU.cleanDOI(item.DOI);
@@ -318,7 +318,7 @@ function doSearch(item) {
 	
 	query += '&select=' + selectedFields.join(',');
 	
-	if(Z.getHiddenPref('CrossrefREST.email')) {
+	if (Z.getHiddenPref('CrossrefREST.email')) {
 		query += '&mailto=' + Z.getHiddenPref('CrossrefREST.email');
 	}
 	

@@ -5,9 +5,8 @@
 	"creator": "Simon Kornblith",
 	"target": "rdf",
 	"minVersion": "1.0.0b4.r1",
-	"maxVersion": null,
+	"maxVersion": "",
 	"priority": 25,
-	"inRepository": true,
 	"configOptions": {
 		"getCollections": "true",
 		"dataMode": "rdf/xml"
@@ -16,7 +15,8 @@
 		"exportNotes": true,
 		"exportFileData": false
 	},
-	"lastUpdated": "2019-09-09 05:25:00"
+	"inRepository": true,
+	"lastUpdated": "2019-08-11 12:58:13"
 }
 
 var item;

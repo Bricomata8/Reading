@@ -14,7 +14,7 @@
 		"quickCopyMode": ""
 	},
 	"browserSupport": "gcsv",
-	"lastUpdated": "2019-10-27 20:31:52"
+	"lastUpdated": "2019-10-29 18:10:12"
 }
 
 var Translator = {

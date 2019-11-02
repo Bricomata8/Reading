@@ -1,15 +1,15 @@
 {
 	"translatorID": "a326fc49-60c2-405b-8f44-607e5d18b9ad",
-	"translatorType": 4,
 	"label": "Code4Lib Journal",
 	"creator": "Michael Berkowitz",
 	"target": "^https?://journal\\.code4lib\\.org/",
 	"minVersion": "3.0",
-	"maxVersion": null,
+	"maxVersion": "",
 	"priority": 100,
 	"inRepository": true,
+	"translatorType": 4,
 	"browserSupport": "gcsibv",
-	"lastUpdated": "2018-08-24 10:00:00"
+	"lastUpdated": "2018-08-23 11:15:21"
 }
 
 // attr()/text() v2

@@ -1,15 +1,15 @@
 {
 	"translatorID": "d3b1d34c-f8a1-43bb-9dd6-27aa6403b217",
-	"translatorType": 4,
 	"label": "YouTube",
 	"creator": "Sean Takats, Michael Berkowitz, Matt Burton and Rintze Zelle",
 	"target": "^https?://([^/]+\\.)?youtube\\.com/",
 	"minVersion": "3.0",
-	"maxVersion": null,
+	"maxVersion": "",
 	"priority": 100,
 	"inRepository": true,
+	"translatorType": 4,
 	"browserSupport": "gcsbv",
-	"lastUpdated": "2019-08-14 19:50:00"
+	"lastUpdated": "2019-08-11 18:43:54"
 }
 
 /*

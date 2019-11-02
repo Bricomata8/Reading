@@ -5,13 +5,13 @@
 	"creator": "Simon Kornblith",
 	"target": "rdf",
 	"minVersion": "1.0.0b3.r1",
-	"maxVersion": null,
+	"maxVersion": "",
 	"priority": 100,
-	"inRepository": true,
 	"configOptions": {
 		"dataMode": "rdf/xml"
 	},
-	"lastUpdated": "2019-06-15 11:15:00"
+	"inRepository": true,
+	"lastUpdated": "2019-06-11 13:33:25"
 }
 
 /*

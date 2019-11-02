@@ -1,15 +1,15 @@
 {
 	"translatorID": "5c11e3bd-caf5-4da6-95d8-e67c57929098",
-	"translatorType": 4,
 	"label": "Ubiquity Journals",
 	"creator": "Sebastian Karcher",
 	"target": "^https?://[^/]+(/articles/10\\.\\d{4,9}/[-._;()/:a-z0-9A-Z]+|/articles/?$|/\\d+/volume/\\d+/issue/\\d+)",
 	"minVersion": "3.0",
-	"maxVersion": null,
+	"maxVersion": "",
 	"priority": 250,
 	"inRepository": true,
+	"translatorType": 4,
 	"browserSupport": "gcsibv",
-	"lastUpdated": "2019-06-15 11:35:00"
+	"lastUpdated": "2019-06-10 23:10:24"
 }
 
 /*

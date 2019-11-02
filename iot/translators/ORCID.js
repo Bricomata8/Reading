@@ -1,15 +1,15 @@
 {
 	"translatorID": "e83248bb-caa4-4dd2-a470-11f4cd164083",
-	"translatorType": 4,
 	"label": "ORCID",
 	"creator": "Philipp Zumstein",
 	"target": "^https?://orcid\\.org/",
 	"minVersion": "4.0.29.11",
-	"maxVersion": null,
+	"maxVersion": "",
 	"priority": 100,
 	"inRepository": true,
+	"translatorType": 4,
 	"browserSupport": "gcsibv",
-	"lastUpdated": "2018-10-12 22:40:00"
+	"lastUpdated": "2018-10-12 18:52:49"
 }
 
 /*

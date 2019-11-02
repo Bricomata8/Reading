@@ -1,15 +1,15 @@
 {
 	"translatorID": "8efcb7cb-4180-4555-969a-08e8b34066c4",
-	"translatorType": 4,
 	"label": "Trove",
 	"creator": "Tim Sherratt",
 	"target": "^https?://trove\\.nla\\.gov\\.au/(?:newspaper|gazette|work|book|article|picture|music|map|collection)/",
 	"minVersion": "3.0",
-	"maxVersion": null,
+	"maxVersion": "",
 	"priority": 100,
 	"inRepository": true,
+	"translatorType": 4,
 	"browserSupport": "gcsibv",
-	"lastUpdated": "2019-06-16 09:05:00"
+	"lastUpdated": "2019-06-10 23:08:00"
 }
 
 /*

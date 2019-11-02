@@ -1,15 +1,15 @@
 {
 	"translatorID": "938ccabb-e297-4092-aa15-22b6511bbd0f",
-	"translatorType": 4,
 	"label": "Dialnet",
 	"creator": "Philipp Zumstein",
 	"target": "^https?://dialnet\\.unirioja\\.es/",
 	"minVersion": "3.0",
-	"maxVersion": null,
+	"maxVersion": "",
 	"priority": 100,
 	"inRepository": true,
+	"translatorType": 4,
 	"browserSupport": "gcsibv",
-	"lastUpdated": "2018-05-07 12:35:00"
+	"lastUpdated": "2018-03-28 21:36:40"
 }
 
 /*

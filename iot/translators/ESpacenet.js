@@ -1,15 +1,15 @@
 {
 	"translatorID": "176948f7-9df8-4afc-ace7-4c1c7318d426",
-	"translatorType": 4,
 	"label": "ESpacenet",
 	"creator": "Sebastian Karcher and Aurimas Vinckevicius",
 	"target": "^https?://worldwide\\.espacenet\\.com/",
 	"minVersion": "4.0",
-	"maxVersion": null,
+	"maxVersion": "",
 	"priority": 100,
 	"inRepository": true,
+	"translatorType": 4,
 	"browserSupport": "gcsibv",
-	"lastUpdated": "2018-11-12 03:20:00"
+	"lastUpdated": "2018-10-07 20:15:16"
 }
 
 /*

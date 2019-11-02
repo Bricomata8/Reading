@@ -1,0 +1,775 @@
+QoS-Aware Resource Allocation for Mobile IoT Pub/Sub Systems
+Raphael Gomes, Georgios Bouloukakis, Fabio Costa, Nikolaos Georgantas, Ricardo Da Rocha
+To cite this version:
+Raphael Gomes, Georgios Bouloukakis, Fabio Costa, Nikolaos Georgantas, Ricardo Da Rocha. QoSAware Resource Allocation for Mobile IoT Pub/Sub Systems. 2018 International Conference on Internet of Things (ICIOT), Jun 2018, Seattle, United States. <hal-01797933>
+
+HAL Id: hal-01797933 https://hal.inria.fr/hal-01797933
+Submitted on 23 May 2018
+
+HAL is a multi-disciplinary open access archive for the deposit and dissemination of scientific research documents, whether they are published or not. The documents may come from teaching and research institutions in France or abroad, or from public or private research centers.
+
+L’archive ouverte pluridisciplinaire HAL, est destinée au dépôt et à la diffusion de documents scientifiques de niveau recherche, publiés ou non, émanant des établissements d’enseignement et de recherche français ou étrangers, des laboratoires publics ou privés.
+
+QoS-Aware Resource Allocation for Mobile IoT Pub/Sub Systems
+Raphael Gomes1, Georgios Bouloukakis2,3, Fábio Costa4, Nikolaos Georgantas2, and Ricardo da Rocha5
+1 Instituto Federal de Goiás - Câmpus Goiânia, Brazil raphael.gomes@ifg.edu.br 2 Inria Paris, France
+firstname.lastname@inria.fr 3 Donald Bren School of Information and Computer Sciences, University of
+California, Irvine, USA gboulouk@ics.uci.edu 4 Instituto de Informática, Universidade Federal de Goiás, Brazil
+fmc@inf.ufg.br 5 Instituto de Biotecnologia, Universidade Federal de Goiás, Catalão, Brazil
+rcarocha@acm.org
+Abstract. IoT applications are usually characterized by large-scale demand and the widespread use of mobile devices. Similarly, performing interaction among application and system components in a decoupled and elastic way, and enforcing Quality of Service (QoS) usually also become issues. Hence, paradigms such as pub/sub on top of cloud resources represent a suitable strategy for application development. However, management of QoS-aware resource allocation for pub/sub systems remains challenging, especially when system peers connect in an intermittent way. In this paper, we propose a new approach for resource allocation focusing on end-to-end performance in face of peers’ disconnections. We evaluate and demonstrate the beneﬁts of our approach using simulations. QoS enforcement was achieved in almost all scenarios, and we have shown that our approach can help reasoning about eﬃcient resource allocation.
+Keywords: Publish/Subscribe Middleware, Resource Allocation, Mobile Connectivity, Quality of Service
+1 Introduction
+The widespread use of smart mobile devices paved the way for the development of smartphone applications that can be accessed anywhere anytime. Additionally, such applications access embedded sensors/actuators for providing environmental-related information, opening new business and market opportunities in the so-called Internet of Things (IoT) [4]. However, mobile devices may connect and disconnect intermittently for energy saving purposes, and may be forcefully disconnected due to connectivity issues in underlying wireless network. Accordingly, asynchronous messaging patterns, such as the Publish/Subscribe
+
+2
+(pub/sub) paradigm, enable event-buﬀering during disconnected periods and event-delivery during connected periods. In particular, pub/sub provides loosely coupled interaction in both time and space among publishing data sources and subscribing data sinks [15]. As a result, several industry standards have adopted pub/sub as part of their interfaces.
+Existing middleware protocols such as MQTT [6] and AMQP [30], as well as tools and technologies such as RabbitMQ [27], Kafka [3] and JMS [26] follow the pub/sub paradigm. To support the development of eﬀective applications under the constraints found in the IoT (i.e., intermittent connectivity, obsolete data feeds, etc), pub/sub protocols provide several Quality of Service (QoS) features [10]. These features aim to enable application developers to tune an application by conﬁguring its QoS metrics at diﬀerent levels such as end-to-end response times and delivery success rates.
+Despite the fact that the QoS features of pub/sub may enable timely data delivery, this can be aﬀected (as well as other QoS metrics) by the the hardware resources used to deploy software components such as message brokers [19]. Besides, although mobile devices have increasing processing, storage, and communication capabilities, they are not able to handle all sorts of tasks in a proper way [8], making imperative the use of external resources. The use of Cloud computing is the most promising solution to enable the deployment of scalable and reliable software components. This further enhances the loosely coupled interaction between publishers and subscribers, also improving reliability as deployed message brokers in the cloud are always connected to receive/forward events.
+Diﬀerent solutions have been proposed for the problem of resource allocation under speciﬁc QoS constraints in order to support the development of message brokers in the Cloud [16,25,28]. However, these solutions mainly focus on the satisfaction of local QoS requirements (e.g., employing load balancing strategies for individual jobs) lacking support for end-to-end non-functional properties. Proposed strategies for end-to-end QoS enforcement in pub/sub systems [7,12,19] have limited scope (e.g., changing on transport protocols) or present limitations such as incompatibility with existing middleware protocols. Additionally, in pub/sub systems, the subscribers’ intermittent connectivity aﬀects the existing resource allocation algorithms. For instance, message brokers with local subscribers that disconnect for long periods, demand additional processing and buﬀer resources. Thus, the design of QoS-aware resource allocation algorithm for mobile IoT applications remains an important challenge as it is necessary to satisfy elastic demands while keeping costs under control.
+To deal with the above limitations, in this paper we present a QoS-aware approach for the allocation of resources for IoT applications. We consider IoT applications that run over a pub/sub system with mobile publishers/subscribers, along with message brokers that are deployed in the cloud. We formalize the resource allocation problem and estimate response times by relying on Queueing Network Models [20]. Our approach provides system designers with resource allocation estimates at design time enabling the achievement of accurate end-toend runtime behavior. We evaluate and demonstrate the beneﬁts of our approach
+
+3
+using simulations based on both probability distributions and parameters derived from real-world workload traces. The core contributions of the paper are: 1. Formalization of the resource allocation problem in mobile pub/sub systems. 2. A model for the response time from publishers to subscribers, which is ob-
+tained by connecting queuing models that represent cloud resources and peers’ disconnections. 3. A cost-eﬀective resource allocation strategy based on the splitting of end-toend QoS thresholds and on resource selection in a multi-cloud environment. 4. A simulation environment for the evaluation of QoS properties in pub/sub systems with awareness of the connectivity status of communicating peers.
+The rest of this paper is organized as follows: Section 2 introduces the pub/sub system model and the problem of allocating resources for message brokers. In Section 3, a formalization of this problem is presented. Our resource allocation approach is provided in Section 4, which takes into account the peers’ connectivity. Finally, the validation and evaluation of our approach is considered in Section 5, followed by conclusions and future work in Section 6.
+2 System Model
+Mobile IoT applications are typically deployed on resource-constrained devices with intermittent network connectivity. To support the deployment of such applications, the pub/sub interaction paradigm is often employed, as it decouples mobile peers in both time and space. In a pub/sub system, multiple peers interact via an intermediate broker entity – publishers produce events characterized by a speciﬁc ﬁlter to the broker. Subscribers subscribe their interest for speciﬁc ﬁlters to the broker, who maintains an up-to-date list of subscriptions.
+To support distributed applications spanning a wide-area, the pub/sub system has to be implemented as a set of independent, communicating brokers, forming the broker overlay. As depicted in Fig. 1, in such architectures [5,9], peers can access the system through any broker that becomes their home broker. Then, based on the peers’ input the pub/sub system performs several processes: i) subscriptions are spread to a subset of existing brokers through a subscription partitioning process; ii) published events correspond to subsets of subscribers determined through a matching process; iii) the produced events are delivered to all the matched subscribers through an event routing process. Regardless of the event routing algorithm in use, produced events pass through a speciﬁc path of brokers towards the subscribers. For example, in Fig. 1 the produced events pass through brokers b2, b5 and, ﬁnally, b7, which is s1’s home broker.
+Building an IoT application over a pub/sub infrastructure, requires the selection of an appropriate protocol (e.g., MQTT). Such a protocol enables peers to access the broker overlay and push/receive events. Additionally, to create the pub/sub broker overlay, it is essential to select the corresponding message broker implementation (e.g., ActiveMQ, VerneMQ, HiveMQ, etc). Every message broker has diﬀerent capabilities, such as: compatibility with diﬀerent protocols, support for clustering (i.e., forming a broker network), provision of performance
+
+4
+
+ƐƵďƐĐƌŝƉƚŝŽŶƐ ƉĂƌƚŝƚŝŽŶŝŶŐ
+
+‫݌‬1
+
+ܾ1
+
+ܾ4
+
+ܾ7
+
+‫ݏ‬1
+
+‫݌‬2
+
+ܾ2
+
+ܾ5
+
+ܾ8
+
+‫ݏ‬2
+
+‫݌‬3 ܾ3
+ƉƵďůŝƐŚĞƌƐ ďƌŽŬĞƌƐ
+
+ܾ6
+
+ܾ9
+
+ĞǀĞŶƚ ŵĂƚĐŚŝŶŐ
+
+‫ݏ‬3 ƐƵďƐĐƌŝďĞƌƐ
+
+Fig. 1. Pub/Sub System.
+
+features, etc. Finally, an important design-time decision is the deployment of each broker to an appropriate machine. A common tactic of pub/sub developers is to deploy or assume the deployment of brokers in the cloud.
+To perform cloud resource allocation, diﬀerent technologies (e.g., Virtual Machines - VMs [28] and containers [25]) can be used, each with its strengths and weaknesses. In this paper, we use VMs as the unit of allocation, although we keep the solution as generic as possible to admit other alternatives. Terms such as resource and VM are used interchangeably in the text. For simplicity, we assume that each resource is used by a single broker via on-demand resource instantiation. Accordingly, the pricing of resource allocation is estimated taking the one-hour utilization of an instance of the given resource type.
+In IoT scenarios, system deployment usually aims to achieve co-location of things and allocated resources. This strategy is used to decrease the communication demand on devices with hardware and power limitations. Another motivation is that whilst data-processing speeds have increased rapidly, the bandwidth to carry data to and from datacenters has not increased at the same speed [29]. For these reasons, in our approach resource allocation is limited to resources found inside a single region. For cloud vendors such as Amazon [2], which splits a region into multiple availability zones, we adopt a single availability zone. Hence, we neglect data propagation delays inside pub/sub system when evaluating QoS.
+Based on the above, several questions arise: i) what is the amount of resources that a developer should allocate for an IoT application that runs over a pub/sub system? ii) Can we ensure speciﬁc end-to-end response times between publishers and subscribers by relying on the resulting resource allocation? iii) What is the cost to achieve such end-to-end QoS? iv) Does the intermittent connectivity of peers aﬀect the cost of resource allocation?
+In the next section, we delineate our approach using a formal notation for the problem with respect to the questions raised above.
+
+3 QoS-aware Resource Allocation for Pub/Sub Systems
+The lack of a direct producer/consumer relationship in pub/sub interactions makes the deﬁnition and enforcement of any end-to-end QoS policy very hard [14]. Additionally, the peers’ intermittent connectivity makes the design of a fully
+
+5
+decoupled QoS-driven pub/sub system that can scale to diﬀerent dimensions without under- or over-provisioning of resources even more challenging.
+Resource allocation is carried out by translating QoS constraints into infrastructure level parameters, which are then mapped to a number of predeﬁned resource types, described in terms of hardware capacity, cost, and location. We call the joint execution of these tasks resource synthesis. It is not a straightforward task due to the large number of resource type options and intersections among them. Yet, even considering a single region of any given cloud provider, a possibly large number of resource types may need to be inspected and the best cloud vendor must be selected. To elucidate the main elements of the resource synthesis problem and precisely outline its scope, we ﬁrst formalize it.
+3.1 Problem Formalization
+Given a pub/sub system with intermittently disconnected peers, the Resource Allocation Problem (RAP) consists in selecting the proper resource type and the number of resource instances, in order to deploy a network of brokers aiming at QoS enforcement and cost savings. To mathematically represent event streams, we use a topic-based subscription model, since it is eﬃcient and simple in terms of event classiﬁcation. Nevertheless, our approach can be used for any model where several classiﬁcation techniques are applied. We model the parameters concerning the RAP as follows:
+R = {rj : j ∈ [1..|R|]} is the set of event topics that correspond to IoT sensor data, device commands, etc.
+S = {si : i ∈ [1..|S|]} is the set of subscribers: devices or persons interested in event notiﬁcations. They subscribe to any number of event topics in R. We denote the set of topics that si subscribes as Rsi ⊆ R. Let λssiu,brj be the delivery rates of events to each subscriber si for publications to topic rj ∈ Rsi .
+P = {pi : i ∈ [1..|P|]} is the set of publishers: devices/persons that publish events on some set of topics. We denote the set of topics that pi publishes as Rpi ⊆ R. Let λppui,brj be the publication rate of events published to to topic rj by publisher pi ∈ P. We assume that each pi publishes events according to a Poisson process at each topic rj.
+We model the connectivity of pub/sub peers as follows: let ON and OFF be the states where the peer is connected and disconnected, respectively. A given peer, is connected (ON state) for an exponentially distributed time period with parameter θON (θON = 1/T ON ). Upon the expiration of this time, the peer disconnects (OFF state) and stops sending or receiving relevant events for an exponentially distributed time period with parameter θOFF (θOFF = 1/T OFF ). Accordingly, let TpOiN, TpOiFF be the connection/disconnection average periods for pi and TsOi N, TsOi FF for si.
+B = {bk : k ∈ [1..|B|]} is the set of pub/sub brokers. A broker forwards events from publishers to interested subscribers or to other brokers in the broker network for eventual consumption by a subscriber. We assume that each publisher/subscriber connects with a single broker that we refer to as its home
+
+6
+
+broker : bpi is the broker that publisher pi publishes to and bsi is the broker that subscriber si receives events from. Furthermore, we deﬁne the set of publishers and subscribers connected with bk as Pbk = {pi ∈ P : bk = bpi } and Sbk = {si ∈ S : bk = bsi } respectively.
+V = {vj : j ∈ [1..|V|]} is the set of resource types (e.g., VMs).
+ζ[]vj is a vector used to describe a resource type. It contains information about hardware capacity (e.g., CPU cores and clock speed, bandwidth, etc.).
+
+cvj is the allocation cost of an instance created using the resource type vj. ∆si is the end-to-end response time of events matching subscriber’s topics Rsi from the moment they are published until si receives them. ∆pi,si is the end-to-end response time of events matching the common subscriber’s and publisher’s topics (i.e., Rpi ∩ Rsi ) from the moment they are published by pi until si receives them.
+The above delays include event processing times and network delays inside
+
+the broker network. Note that in this paper we do not model processing delays of
+
+publishers/subscribers. Our main purpose is to estimate delays inside the broker
+
+network in order to allocate their resources accordingly.
+
+∆pi ,si
+bk ,vj
+
+is
+
+the
+
+response
+
+time
+
+contribution
+
+from
+
+broker
+
+bk
+
+on
+
+the
+
+end-to-end
+
+path between pi and si. This contribution depends on the resource vj selected
+
+for broker deployment.
+
+∆thr is the response time threshold inside the pub/sub system for any end-
+
+to-end path between pi and si. When setting this parameter, resource allocation
+should be performed in such a way that the end-to-end response time (∆pi,si ) of all events between any pi and si does not exceed this limit.
+xi is an integer variable that indicates if ∆thr has been satisﬁed for a given
+end-to-end path, as follows:
+
+xi =
+
+1, 0,
+
+if ∆si ≤ ∆thr; otherwise.
+
+(1)
+
+F = {fk : k ∈ [1..|F |]} is the set of mappings (result of RAP), where each fk is a pair (bk, vj) representing the mapping of a broker to an allocated resource type (which includes the number of deployed resource instances).
+
+ϕvj is an objective function depicting the proﬁt in allocating resource vj. It is used to distinguish the best option among feasible solutions.
+
+ϕ(F ) is the composed proﬁt of all resources in F . In this way, the optimal
+
+solution satisﬁes the QoS threshold for all subscribers and gives the best ϕ(F ).
+
+RAP can be more formally expressed as an optimization problem as follows:
+
+Maximize ϕ(F ) =
+
+ϕvj ykj ;
+
+bk∈B vj ∈V
+
+subject to
+
+xi = |S|;
+
+si ∈S
+
+ykj = 1,
+vj ∈V
+ykj ∈ {0, 1},
+
+k ∈ [1..|B|];
+k ∈ [1..|B|], j ∈ [1..|V|].
+
+7
+The variable ykj is either 1, implying bk is mapped to vj, or 0 otherwise. As RAP is clearly an optimization problem, we argue that it is not possible ﬁnd an optimal solution for an instance of this problem in polynomial time. Nevertheless, in the next section, we provide a feasible approach based on a reduction to a version of the knapsack problem and on an analytical model for QoS estimation for solving this problem.
+4 Resource Synthesis with Intermittent Connectivity
+Our approach focuses on the QoS-aware allocation of resources for deploying message brokers at design time. Initially, a system designer provides the topology and characteristics of the pub/sub system (brokers, peers’ intermittent connectivity, etc), its routing algorithm [5] (e.g., rendezvous nodes) and the end-to-end response time threshold (∆thr). Then, our approach provides a speciﬁcation of the corresponding resources, in terms of types and quantity. After deploying brokers based on the speciﬁcation, end-to-end response times must be below the speciﬁed ∆thr at runtime. In this paper, we are agnostic with respect to the algorithm used to route events. Hence, we assume that the end-to-end paths between publishers and subscribers (i.e., the broker paths) are estimated somehow using the provided routing algorithm. Additionally, we acknowledge that the resulting resource allocation may be invalidated if diﬀerent routing paths are used at runtime. However, we argue that complementary solutions may beneﬁt from cloud elasticity to perform adaptation of the resource allocation.
+To provide an eﬃcient solution for the above-described problem without the costs associated with an exhaustive search strategy, we rely on well-known solutions to the Multiple-choice Multi-dimension Knapsack Problem (MMKP) [24]. MMKP is a NP-Complete problem deﬁned as follows: given a set H of items divided in h categories Qq, where each category Qq : q ∈ [1..h], has κq = |Qq| items such as ∀ 1 ≤ i, j ≤ h and i = j, Qi ∩ Qj = ∅ and ∪hi=1Qi = H. Each item o ∈ [1..κq], from category Qq has a non-negative proﬁt qo, and has dimensions given by a weight vector Wqo = {wqao : a ∈ [1.. ]}, where each element wqao is also a non-negative value. The knapsack dimensions are given by the vector A = {Aa : a ∈ [1.. ]}. The goal in MMKP is to pick exactly one item from each category in order to maximize the total proﬁt, subject to knapsack dimensions.
+In the provided approach, we construct an MMKP instance from a RAP instance. To do so, we rely on results related to solving MMKP. We use the WS-HEU heuristic [31] to eﬃciently select the resource types in order to reach the thresholds for each constraint. We chose this heuristic because it solves the MMKP problem with an accuracy of 96% compared to the optimal value, and can provide worst-case complexity of O(|S| × |B|2 × (|V| − 1)2). The construction of an MMKP instance from a RAP instance is carried out as follows. Let n be the number of categories (h). We map each bk ∈ B as a category Qq with same number of items (generated from resource types, i.e., each vj ∈ V is mapped as a diﬀerent item o for each category). In this way, we remove the property of empty set in the items intersection of categories, but this change does not aﬀect the
+
+8
+
+problem since constraints are evaluated separately for each category. We generate
+
+the weight vector Wqo for each item by using the average delays of each routing
+
+path
+
+in
+
+which
+
+the
+
+corresponding
+
+broker
+
+participates,
+
+so
+
+that
+
+[∆bpk1
+
+,s1 ,vj
+
+..∆bpk|S,v| ,js|S
+
+|
+
+]
+
+is mapped to [wq1o..wqo], and ϕvj is mapped to qo. Finally, the response time
+
+threshold is multiply mapped as knapsack dimensions A = {Aa : a ∈ [1.. ]}.
+
+End-to-end QoS evaluation is carried out in our approach by separately ad-
+
+dressing each possible routing path in the pub/sub system. Although this may
+
+sound ineﬃcient, we argue that by using the chosen heuristic we can reach the
+
+resource synthesis result in admissible time. Additionally, this task is performed
+
+at design time, when low overhead is not a major concern. We discuss this fur-
+
+ther in Section 5 when presenting the experimental evaluation. By using the
+
+WS-HEU heuristic, an initial solution is pursued using a greedy strategy based
+
+on the ratio between resource cost and QoS oﬀering. In cases where even consid-
+
+ering all resource types no feasible solution is found, an event of unaccomplished
+
+resource synthesis is triggered. We deal with this problem through the inclusion
+
+of new broker instances. To this end, we assume a round-robin load balancer
+
+with negligible overhead. The selection of the broker to be replicated is carried
+
+out by taking the broker with the worst QoS, which is most likely one of the
+
+edge brokers due to the eﬀects of peers’ disconnections. Additional broker in-
+
+stances are added until a feasible solution is found. When this happens, there is
+
+an attempt to improve the solution by performing simulated annealing [1]. The
+
+entire procedure is performed for the resource types from each cloud provider.
+
+The resource synthesis output is a mapping of each broker (and its additional
+
+instances) to a selected resource type, taking the less costly result. By using this
+
+strategy, resource allocation is performed through the balancing of the contri-
+
+bution to the end-to-end constraints among all participating brokers. As can
+
+be seen, a key aspect of this approach is QoS estimation. For this purpose, we
+
+propose the performance model described next.
+
+4.1 Pub/Sub QoS Estimation
+
+In this subsection, we present our queueing network model which is used as input to the resource allocation algorithm. By relying on our previous work [9], we model the performance inside a pub/sub broker network by relying on queueing theory. In particular, each queue processes events through a dedicated server. Each server supports a speciﬁc service rate (λ) which is exponentially distributed. All queueing centers apply a ﬁrst-come-ﬁrst-served (FCFS) queueing policy. We model the network transmission delay between brokers (bk → bi) using an M /M /1 queue and between bsi (si’s home broker) → si (subscriber) using an ON /OF F queue. With regard to [9], in this paper we slightly modify our formal model and queueing models. More speciﬁcally, in order to process incoming events at a broker node bk we use the M /M /c queueing model: c is the number of servers of the queue and each server has an independently and identically distributed exponential service-time distribution with mean 1/µ. We correspond c to the number of VM cores in which the broker is deployed.
+
+9
+
+ƌŽŬĞƌ ŶŽĚĞ ;ܾ௞ Ϳ
+
+ߣ݂‫ ݀ݓ‬DͬDͬϭ YƵĞƵĞ
+
+ܾ௞, ܾ݅
+
+ߤ‫ݐݑ݋‬ ܾ݇, ܾ௜
+
+ܾ݅
+
+‫݅݌‬
+
+ߣ݅݊ DͬDͬĐ YƵĞƵĞ ܾ௞
+
+ߤ݅݊ ܾ௞
+
+ܾ݅
+
+ߣܾ݊௞‫ܾݑݏ݋‬
+
+ߣ݊‫ݕ݂݅ݐ݋‬ ܾ௞, ‫ݏ‬1
+
+KEͬK&& YƵĞƵĞ
+
+ߤ‫ݐݑ݋‬ ܾ݇, ‫ݏ‬ଵ
+
+͙͘͘
+
+ܵ ܾ௞
+KEͬK&& YƵĞƵĞ
+ߣ݊‫ݕ݂݅ݐ݋‬ ܾ௞, ‫݅ݏ‬
+
+ߤ‫ݐݑ݋‬ ܾ݇, ‫ݏ‬௜
+
+ǆ ‫ݏ‬1 ‫݅ݏ‬
+
+Fig. 2. Queneing Network for Pub/Sub Broker Node.
+
+As depicted in Fig. 2, we model each broker bk using a single inbound queue
+qbink (M/M/c) and multiple outbound queues qbokut (M/M/1 and ON/OFF). Let λibnk be the arrival rate of events at qbink , represented as the sum of all event publication/forwarding rates over all publishers/brokers. Forwarding, replication, or
+
+dropping of events based on current subscriptions occurs at the exit of qbink . Let µibnk be qbink ’s service rate for analyzing an incoming event and determining where to forward it (e.g. based on a topic routing tree). We assume that the service
+
+rate is exponentially distributed across all topics with parameter µibnk . Events that do not match bk’s subscriptions are dropped with rate λnbkosub.
+Broker bk forwards events matching subscriptions served by other brokers with rate λfbkw,bdi through an outbound M/M/1 queue qboku,tbi . These events are sent from bk to any bi ∈ B, bi = bk. Let µobku,tbi be qboku,tbi ’s service rate for transmitting an event to bi. For each of bk’s local subscribers, si ∈ Sbk & bsi = bk, bk forwards events matching subscriptions to qboku,tsi with rate λnbko,tsiify for transmission to si. We model each qboku,tsi using an ON/OFF queue for transmitting events based on si’s intermittent connectivity (i.e., TsOi N, TsOi FF). Let µobku,tsi be qboku,tsi ’s service rate for transmitting an event to si. Note that µobku,tsi and µobku,tbi rates model the transmission delay of events inside the network.
+
+To build the broker model of Fig. 2, we use three diﬀerent types of queueing
+
+models. Based on standard solutions, each queueing type evaluates several per-
+
+formance metrics (e.g., response time) through analytical models. Particularly,
+
+with regard to response time in M/M/1 queues [20], the time that an event re-
+
+mains in the system (corresponding to queueing time + service time, also called
+
+average delay) is given by:
+
+1
+
+∆qmm1 (µ, λ) = (µ − λ)
+
+(2)
+
+Regarding the M/M/c queue, the time that an event is remain in the system
+
+is given by [18]:
+
+1
+
+rc
+
+∆qmmc (µ, λ, c)
+
+=
+
++ µ
+
+c!(cµ)(1 − ρ)2
+
+p0
+
+(3)
+
+where c is the number of servers, r = λ/µ, ρ = r/c and the steady-state probability p0 can be found in [18]. Finally, regarding the ON/OFF queue, the time that an event is remain in the system is given by [9]:
+
+10
+
+Fig. 3. Queneing network for the end-to-end interaction: p2 to s1.
+
+∆qonoff (µ, λ, T ON, T OFF) =
+
++ T OFF2
+T ON+T OFF
+
+T ON+T OFF µT ON
+
+1 − λ T ON+T OFF
+µT ON
+
+(4)
+
+In the next subsection, we show how these analytical models can be used to estimate end-to-end response times.
+
+End-to-end Response Time. We propose a strategy to allocate resources for deploying pub/sub brokers based on the response time threshold (∆thr) applied
+inside the pub/sub system. Hence, in order to allocate resources it is essential
+to calculate the expected delay between pi and si (∆pi,si ) inside the broker network by considering the intermittent connectivity of peers. Based on the
+broker’s queueing model (see Fig.2), si’s connectivity aﬀects the resulting delay – i.e., during TsOi FF, bk buﬀers events. Furthermore, events may pass through a subset of brokers, until they arrive to si’s home broker (bsi ). Therefore, for a given si, the average delay inside a broker node bk can be estimated as follows:
+
+∆bk =
+
+∆ + ∆ , qbink
+
+qboku,tbi
+
+∆ + ∆ , qbink
+
+qboku,tsi
+
+if bk = bsi if bk = bsi
+
+(5)
+
+Subsequently, for a given interaction between pi and si, events pass through
+a subset of intermediate brokers (bi) and si’s home broker (bsi ). Let λpi,si be the rate of events from pi to si. To estimate ∆pi,si , it is essential to apply the so called eﬀective service rate (µibnk/−oeuftf ) at each inbound/outbound queue of bk. Such a service rate is calculated only for the λpi,si rate but by taking into account other rates of events λibnk/out−oth (lack of subscriptions, forwarding rates to other brokers, etc) [9].
+To demonstrate our approach, we provide the following example: to ∆p2,s1 , the resulting queueing network is depicted in Fig.3. Hence, ∆p2,s1 is given by:
+
+∆p2,s1 = ∆b2 + ∆b5 + ∆b7
+
+Based on Fig.3, b2, b5 are intermediate brokers and b7 is s1’s home broker
+(b7 = bs1 ). Hence, by relying on (5), we estimate the end-to-end delay using the corresponding queues. As already pointed out, qbink is an M/M/c queue, qboku,tbi is an M/M/1 queue and qboku,tsi is an ON/OFF queue. Hence, by relying on (2), (3) and (4) the average delay of an intermediate broker, e.g., b2 is given by:
+
+∆b2 = ∆qmmc (µibn2−ef f , λp2,s1 , cb2 ) + ∆qmm1 (µob2u−t ef f , λp2,s1 )
+
+And the average delay of bs1 is given by: ∆bs1 = ∆qmmc (µibn7−ef f , λp2,s1 , cb7 ) + ∆qonoff (µob7u−t ef f , λp2,s1 , TsO1N, TsO1FF)
+
+Response Time (sec)
+
+300 250 200 150 100
+50
+
+Analytical: TON = TOFF = 10 sec Cloud Sim: TON = TOFF = 10 sec Sim: TON = TOFF = 10 sec Analytical: TON = TOFF = 20 sec Cloud Sim: TON = TOFF = 20 sec Sim: TON = TOFF = 20 sec Analytical: TON = TOFF = 40 sec Cloud Sim: TON = TOFF = 40 sec Sim: TON = TOFF = 40 sec Analytical: TON = TOFF = 60 sec Cloud Sim: TON = TOFF = 60 sec Sim: TON = TOFF = 60 sec
+
+11
+
+0
+
+0
+
+0.5
+
+1
+
+1.5
+
+2
+
+2.5
+
+3
+
+3.5
+
+4
+
+Arrival rate ( )
+
+Fig. 4. Comparison of results from M-CloudSim, Analytical Model and MobileJINQS.
+
+5 Experimental Evaluation
+The goal of our experiments is to study the eﬀects of our approach on QoS enforcement, on the reduction of the resource allocation cost, and on performance. In this section, we ﬁrst introduce a simulation environment developed to enable this evaluation and then discuss the experiments and achieved results.
+
+5.1 Simulating Intermittent Connectivity over Pub/Sub Systems
+Experimental evaluation requires tools that facilitate the design of experiments while making them repeatable and precise. Simulators are useful tools to build such evaluation environments in the cloud context [32]. However, to the best of our knowledge, there is no simulation environment for cloud-based pub/sub systems enabling the modeling of the peers’ connectivity. For this reason, we developed our own simulator, called Mobile CloudSim (M-CloudSim)6, as an extension of the CloudSim simulation toolkit [11] with the following features.
+1) Application model: Simulations in CloudSim are implemented by modeling a set of cloudlets (application tasks) and VMs. On top of it, a cloud mediator is deﬁned to schedule cloudlets according to the available VMs in a discrete-event simulation dynamics. Although this model is feasible to represent the main aspects of cloud applications, it does not allow indirect communication modeling as well as routing in message brokers. To solve this limitation, in our extension we have distinguished two cloudlet categories: event processing and event transmission. We explicitly represent the events routing paths, creating and submitting cloudlets from both categories to simulate event forwarding.
+2) Modeling intermittent peer connectivity: one of the main goals in our evaluation is to evaluate the eﬀects of peer disconnection. We handle this by simulating changes on peer connection state. On the simulation, peer connection is checked before the processing, transmission, and delivery of events on home brokers. We only simulate changes of connectivity states for subscribers since during the publishers’ disconnections there is no event-transmission to brokers and, therefore, no relation with resource allocation.
+We kept the M-CloudSim functionalities limited to the scope of this paper. As a way of demonstrating the validity of the results provided, we have performed
+6 https://github.com/raphaeldeaquino/mcloudsim
+
+12
+
+QoS parameters
+...
+Resource parameters
+Legend : Input Output Load Balancer VM
+
+publishers
+
+publishers brokers
+
+subscribers
+
+Pub/sub system parameters
+
+Simulated Environment
+
+subscribers
+
+RReessoouurrccee SSyynntthheessiiss
+
+Synthesis result
+
+MM--CClloouuddSSiimm
+
+Fig. 5. Resource synthesis validation methodology.
+an experimental comparison with two other tools: using the analytical model presented in this paper and using MobileJINQS [9], an open-source library for building simulations encompassing the constraints of mobile systems (but lacking resource simulation). In this evaluation, we have computed the response time in a speciﬁc path of a pub/sub system. In the simulated environment the subscriber remains in the ON and OFF states for exponentially distributed time periods T ON = T OFF = 10/20/40/60 sec. For the analytical model and the MobileJINQS simulation, processing and transmission of events are served with a mean service demand of 0.0625 sec and 0.125 sec, respectively. Accordingly, in the M-CloudSim simulation we set CPU and bandwidth characteristics in the simulated VMs to provide the same timing. We assume suﬃcient buﬀer capacities so that no events are dropped. Also events are generated by the publisher with a mean rate varying from 0.05 to 4 events per sec. By applying λ rates greater than 4 events/sec, the system saturates both in the analytical model and in the MobileJINQS simulation. Diﬀerently, M-CloudSim can simulate any number of input rates since it works for a predeﬁned time slice by using waiting queues with “inﬁnite” size. The mean response time of 100 independent executions (for each scenario) is depicted in Fig. 4. Conﬁdence intervals of the simulation results are found to be very small and are not presented in the ﬁgure.
+By comparing the curves for the three strategies response times, we notice that results match with high accuracy for arrival rates below to 3.5 events/sec. Diﬀerences are noticed for rates equal to or higher than 3.5 events/sec. This is acceptable since the system is close to saturation at these rates.
+
+5.2 Resource Synthesis Validation
+In this experiment, we check whether QoS enforcement is achieved as a result of the resource synthesis approach. We also evaluate the resulting proﬁt by using the resource allocation cost as a parameter. On top of it, we check whether the peer’s intermittent connectivity aﬀects the resource allocation cost. For this purpose, we carry out the resource synthesis in diﬀerent scenarios and use MCloudSim to examine the achieved response times. We compare the following scenarios: i) with always-connected pub/sub peers; and ii) with intermittently
+
+Response Time (sec)
+
+0.3 0.25
+0.2 0.15
+0.1 0
+1
+0.5
+
+thr = 0.275 sec
+thr = 0.2 sec
+thr = 0.125 sec
+5
+thr = 0.125 sec thr = 0.2 sec thr = 0.275 sec
+
+Sim p ,s for thr = 0.125 sec 21
+Sim p ,s for thr = 0.2 sec 21
+Sim p ,s for thr = 0.275 sec 21
+
+13
+
+10
+
+15
+
+20
+
+Cost ($)
+
+0
+
+0
+
+5
+
+10
+
+15
+
+20
+
+Arrival rate ( )
+
+Fig. 6. Results of synthesis validation for always connected subscriber.
+
+connected peers due to network issues. In both cases, we apply the methodology illustrated in Fig. 5: we ﬁrst perform resource synthesis by using as input an end-to-end response time threshold (∆thr), the pub/sub system topology (i.e., publishers, subscribers), the ﬂow of events, the end-to-end routing path of events, the peers intermittent connectivity and the available resource types.
+For all scenarios, we applied as input the VM types provided by the marketleading vendors according to Gartner’s latest report on cloud Infrastructure as a Service [21] – Amazon [2], Microsoft Azure [23], and Google Cloud Platform [17]. In this experiment, we use the available VM conﬁgurations in the São Paulo, Brazil, region on Jan-2018, with a total of 94 resource types. For the pub/sub system we use the same topology of Fig. 1 by taking only events on path p2 → s1. We isolate other ﬂows of this path by estimating the corresponding eﬀective service rate (µeff ) for p2 → s1. Larger scale scenarios (with more paths) are used to evaluate the scalability of the approach in the next section. We assume that the broker network is reliable, with no broker overload. In addition, all events have the same size, which is equal to 200 bytes (approximately 200 characters of application payload). Also event processing requires 33.2 CPU instructions (average number of instructions in the method body of general Java programs [13]). We vary the arrival rate of events from 0.5 to 23 events per second. We set ∆thr with an initial value of 0.025 sec. Then, we increase ∆thr with increments of 0.025 sec. We perform evaluations until the synthesis result is the same for at least 5 consecutive arrival rate variations (half of the analyzed scenarios). We present the results for the two scenarios next.
+Always Connected
+As already pointed out, in this scenario we assume that a subscriber is always connected (TsOi FF = 0). We use this case to analyze what is the minimum achieved response time in the given scenario and to generate a comparison baseline for the next case. Fig. 6 presents the results of simulated response times and resource allocation cost for selected thresholds. Although we have analyzed several thresholds, for better readability we present only three cases: i) the minimum achieved response time (∆thr = 0.125); ii) the upper threshold analyzed (∆thr = 0.275), i.e., when synthesis result is stable for at least half of the arrival
+
+Cost ($)
+
+Response time (sec)
+
+14
+26 25 24 23 22
+0
+20
+10
+0 0
+
+thr = 25 sec
+thr = 22.95, 23 sec
+5
+thr = 22.95 sec thr = 23 sec thr = 25 sec
+5
+
+Sim p ,s for thr = 22.95 sec
+
+21
+
+Sim
+
+p
+
+10
+,s
+
+for
+
+thr = 23 sec
+
+21
+
+Sim p ,s for thr = 25 sec 21
+
+10 Arrival rate ( )
+
+15
+0.22 0.03
+5
+15
+
+20
+
+15
+
+22
+
+20
+
+Fig. 7. Results of synthesis validation for subscriber’s intermittent connectivity.
+
+rates; and iii) an intermediary value between them (∆thr = 0.2). We discuss only these thresholds because it is not possible to achieve smaller values with the available resource types (even with multiple instances). On the other hand, higher thresholds do not aﬀect the synthesis result when using the considered arrival rates. As the main result, QoS enforcement was achieved in all scenarios. It is worth noting that the simulated response times are, on average, 30% better than the set of thresholds, while the resource allocation cost was, on average, $0.40, $0.12, and $0.09, respectively for each threshold. As expected, the allocation cost increases for higher arrival rates. As a remark, the resource types on Amazon provided the best results in all scenarios for the São Paulo region.
+
+Network Issues
+The actual connectivity of mobile peers depends on the network coverage and capacity, as well as the type of peer mobility. In this scenario, we evaluate the case of subway passengers in order to analyze the eﬀects of the intermittent connectivity of peers on resource allocation. For this purpose, we use our dataset7 of mobile connectivity for the subway system in Paris. The used data show that subway travelers loose and recover network connection for periods that range from several seconds to 5 minutes, maximum. On average, connected periods are 1.5 times larger than the disconnected periods. We randomly select the path Dugommier → Cité Universitaire for this study of subscriber mobility. By analyzing the complementary cumulative distribution functions of connections and disconnections in the above subway path, we conclude that our traces ﬁt best with an exponential distribution, such as TsOi N = 155.8 sec and TsOi FF = 96 sec. Fig. 7 presents the results for selected thresholds.
+QoS enforcement is more challenging with intermittent connectivity. For the given parameters it is not possible to achieve response times lower than 22.95 sec due to the overhead in the processing of buﬀered events. For this threshold, there is QoS violation in some cases but the values were on average only 3.11% diﬀerent from the thresholds. The resource allocation cost was, on average, $10.03, $0.14, and $0.03, respectively. This result enforces the need for such a solution for resource allocation tunning since a small change in response time threshold (an
+
+7 https://github.com/boulouk/mobile-jinqs/tree/master/experiments/metro
+
+Table 1. Resource synthesis processing time (in sec)
+
+15
+
+Total number
+
+Number of brokers in each routing path
+
+of brokers
+
+1
+
+2
+
+3
+
+4
+
+5
+
+6
+
+1
+
+0.03
+
+2
+
+0.04 0.09
+
+3
+
+0.06 0.12 0.16
+
+4
+
+0.08 0.21 0.68
+
+0.99
+
+5
+
+0.07 0.37 2.14 10.04 14.69
+
+6
+
+0.10 0.55 5.91 62.41 346.03 489.36
+
+increasing of 8.95% on tolerated response time on this case) can result in a substantial decrease in resource allocation cost (a saving of 99.7% on cost).
+
+5.3 Performance Evaluation
+
+In the previous experiments, we demonstrated the eﬀectiveness of the resource
+
+synthesis approach on QoS enforcement. However, we performed this evaluation
+
+using a single event routing path. In order to extend this analysis, we measured
+
+the approach performance for higher scale scenarios. For this purpose, we an-
+
+alyzed the processing time to get results when taking many routing paths as
+
+input. We do this evaluation using the scenario from the previous experiment
+
+with always-connected subscribers, and a publishing rate of 23 events/sec. We
+
+set ∆thr = 10 sec to make QoS fulﬁllment possible as the scale increases.
+
+In this experiment, we create synthetic pub/sub topologies by varying |B| =
+
+[1..6]. By taking paths of diﬀerent scales (i.e., number of participating brokers) we
+
+generate all possible options in the pub/sub system. In the context of our future
+
+work, we intend to use speciﬁc event routing algorithms (e.g., selective routing
+
+or event gossiping [5]) in order to scale our approach (the set of possible end-
+
+to-end paths will be reduced). For each scenario, we generate all routing paths
+
+with same number of communicating message brokers as follows: we generate all
+
+combinations without repetition taking l = [1..|B|] message brokers per path. For
+
+each resulting set we then create all possible permutations. Using this strategy,
+
+each scenario has a topology with
+
+|B | l
+
+l!
+
+=
+
+|B |! (|B |−l)!
+
+routing
+
+paths
+
+what
+
+allow
+
+us
+
+to evaluate the scalability of the approach.
+
+We run the synthesis approach for the same input 100 times and collect the
+
+average processing time and conﬁdence interval. All executions were performed
+
+on a machine with the following conﬁguration: Intel CPU R CoreTM i5 2.67GHz,
+
+4GB RAM, Ubuntu 14.04. The average processing time for each scenario is
+
+presented in Table 1. Resource synthesis processing time varies from 0.03 sec
+
+to 8.16 min. The high processing time in the worst case scenario is due to a
+
+high number of routing paths. In order to evaluate the feasibility of the solution,
+
+the processing time must be compared with the duration of the other tasks in
+
+the pub/sub system deployment. Regarding this, since we do not use previously
+
+instantiated VMs, VM startup is the main bottleneck. The reason for this is that
+
+VMs have to be instantiated and conﬁgured, which includes communication with
+
+the cloud provider, VM loading, and installation of software components. Even
+
+though we have not conducted any experiments in this regard, there are a number
+
+of results in the literature that indicate an overhead from 44.2 sec to 13.5 min
+
+16
+on VM startup in public clouds [22]. We argue that the overhead imposed by the resource synthesis is acceptable, especially if we consider the achieved beneﬁts.
+6 Conclusions and Future Work
+In this paper, we propose a new approach for resource allocation for IoT applications in the Cloud. Such applications run over pub/sub systems and their things can be intermittently disconnected. Our approach can be used as a tool by pub/sub system designers to allocate resources for QoS enforcement. We have evaluated the proposed solution using scenarios based on probability distributions of the events, as well as scenarios based on connectivity parameters derived from real traces. QoS enforcement was achieved in almost all scenarios, which showed only 3.11% of QoS violation in some cases. We conclude that resource demand increases with higher arrival rates but also due to peer disconnections. Consequently, the cost of deploying the system is also aﬀected by these parameters. However, we have shown that our approach can help reasoning about eﬃcient resource allocation in a variety of scenarios, saving up to 99.7% on resource allocation cost. Finally, our approach has a feasibly processing time, as corroborated by the experiments.
+As future work, we intend to identify the limits for system saturation, given the available resources. We also aim to carry out a more comprehensive performance evaluation using real pub/sub protocols. As further unfolding of the work, we aim to extend this proposal with support for QoS enforcement when using multiple regions.
+References
+1. Aarts, E., Korst, J.: Simulated annealing and Boltzmann machines. New York, NY; John Wiley and Sons Inc. (1988)
+2. Amazon: Amazon Web Services - Broad & Deep Core Cloud Infrastructure Services (2018), http://aws.amazon.com, [Accessed: 28-Mar-2018]
+3. Apache Kafka: (2018), http://kafka.apache.org/, [Accessed: 28-Mar-2018] 4. Atzori, L., Iera, A., Morabito, G.: The internet of things: A survey. Computer
+networks pp. 2787–2805 (2010) 5. B., R., Q., L., V., A.: Distributed Event Routing in Publish/Subscribe Communi-
+cation Systems: a Survey. Tech. rep., Universita di Roma La Sapienza (2005) 6. Banks, A., Gupta, R.: MQTT Version 3.1. 1. OASIS standard (2014) 7. Barazzutti, R., Heinze, T., Martin, A., Onica, E., Felber, P., Fetzer, C., Jerzak,
+Z., Pasin, M., Rivière, E.: Elastic scaling of a high-throughput content-based publish/subscribe engine. In: IEEE 34th ICDCS. pp. 567–576. IEEE (2014) 8. Botta, A., De Donato, W., Persico, V., Pescapé, A.: Integration of Cloud Computing and IoT: a Survey. Future Generation Computer Systems 56, 684–700 (2016) 9. Bouloukakis, G., Georgantas, N., Kattepur, A., Issarny, V.: Timeliness evaluation of intermittent mobile connectivity over pub/sub systems. In: Proc. of the 8th ACM/SPEC on Int. Conf. on Performance Engineering. pp. 275–286. ACM (2017)
+
+17
+10. Bouloukakis, G., Moscholios, I., Georgantas, N., Issarny, V.: Performance modeling of the middleware overlay infrastructure of mobile things. In: Communications (ICC), 2017 IEEE International Conference on. pp. 1–6. IEEE (2017)
+11. Calheiros, R.N., Ranjan, R., Beloglazov, A., De Rose, C.A., Buyya, R.: CloudSim: a toolkit for modeling and simulation of cloud computing environments and evaluation of resource provisioning algorithms. Software: Practice and experience (2011)
+12. Carvalho, N., Araujo, F., Rodrigues, L.: Scalable qos-based event routing in publish-subscribe systems. In: Network Computing and Applications, Fourth IEEE International Symposium on. pp. 101–108. IEEE (2005)
+13. Collberg, C., Myles, G., Stepp, M.: An empirical study of java bytecode programs. Software: Practice and Experience pp. 581–641 (2007)
+14. Corsaro, A., Querzoni, L., Scipioni, S., Piergiovanni, S.T., Virgillito, A.: Quality of service in publish/subscribe middleware. Global Data Management (2006)
+15. Eugster, P.T., Felber, P.A., Guerraoui, R., Kermarrec, A.: The many faces of publish/subscribe. ACM Computing Surveys pp. 114–131 (2003)
+16. Gascon-Samson, J., Garcia, F., Kemme, B., Kienzle, J.: Dynamoth: A scalable pub/sub middleware for latency-constrained applications in the cloud. In: IEEE ICDCS. pp. 486–496 (2015)
+17. Google: Compute Engine (2018), https://cloud.google.com/compute, [Accessed: 28-Mar-2018]
+18. Gross, D., Shortle, J., Thompson, J., Harris, C.: Fundamentals of queueing theory. John Wiley & Sons (2008)
+19. Hoﬀert, J., Schmidt, D.C., Gokhale, A.: Adapting distributed real-time and embedded pub/sub middleware for cloud computing environments. In: IFIP Int. Conf. on Distributed Systems Platforms and Open Distributed Processing. Springer (2010)
+20. Lazowska, E.D., Zahorjan, J., Graham, G.S., Sevcik, K.C.: Quantitative system performance: computer system analysis using queueing network models. PrenticeHall, Inc. (1984)
+21. Lydia, L., Raj, B., Craig, L., Dennis, S.: Magic Quadrant for Cloud Infrastructure as a Service, Worldwide (2017), https://www.gartner.com/doc/reprints? id=1-2G2O5FC&ct=150519, [Accessed: 28-Mar-2018]
+22. Mao, M., Humphrey, M.: A Performance Study on the VM Startup Time in the Cloud. In: IEEE CLOUD. pp. 423–430 (2012)
+23. Microsoft: Microsoft Azure (2018), https://azure.microsoft.com, [Accessed: 28Mar-2018]
+24. Moser, M., Jokanovic, D.P., Shiratori, N.: An algorithm for the multidimensional multiple-choice knapsack problem. IEICE 80(3), 582–589 (1997)
+25. Nguyen, P., Nahrstedt, K.: Resource management for elastic publish subscribe systems: A performance modeling-based approach. In: IEEE CLOUD (2016)
+26. Oracle: JMS Speciﬁcations (2018), http://www.oracle.com/technetwork/java/ jms/index.html, [Accessed: 28-Mar-2018]
+27. Pivotal: RabbitMQ (2018), https://www.rabbitmq.com/, [Accessed: 28-Mar-2018] 28. Setty, V., Vitenberg, R., Kreitz, G., Urdaneta, G., van Steen, M.: Cost-eﬀective
+resource allocation for deploying pub/sub on cloud. In: IEEE ICDCS (2014) 29. Shi, W., Dustdar, S.: The promise of edge computing. Computer pp. 78–81 (2016) 30. Standard, O.: Oasis advanced message queuing protocol (amqp) version 1.0. 31. Yu, T., Zhang, Y., Lin, K.J.: Eﬃcient algorithms for Web services selection with
+end-to-end QoS constraints. ACM TWEB (2007) 32. Zhao, W., Peng, Y., Xie, F., Dai, Z.: Modeling and simulation of cloud computing:
+A review. In: IEEE APCloudCC. pp. 20–24 (2012)
+

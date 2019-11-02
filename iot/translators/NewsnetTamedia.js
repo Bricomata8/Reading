@@ -1,15 +1,15 @@
 {
 	"translatorID": "caecaea0-5d06-11df-a08a-0800200c9a66",
-	"translatorType": 4,
 	"label": "Newsnet/Tamedia",
 	"creator": "Philipp Zumstein",
 	"target": "^https?://((www\\.)?(tagesanzeiger|(bo\\.)?bernerzeitung|bazonline|derbund|lematin|24heures|landbote|zuonline|zsz|tdg|letemps)\\.ch/.)",
 	"minVersion": "3.0",
-	"maxVersion": null,
+	"maxVersion": "",
 	"priority": 100,
 	"inRepository": true,
+	"translatorType": 4,
 	"browserSupport": "gcsibv",
-	"lastUpdated": "2018-04-29 11:20:00"
+	"lastUpdated": "2018-04-29 11:03:04"
 }
 
 /*

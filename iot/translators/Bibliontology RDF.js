@@ -1,14 +1,11 @@
 {
 	"translatorID": "14763d25-8ba0-45df-8f52-b8d1108e7ac9",
-	"translatorType": 3,
 	"label": "Bibliontology RDF",
 	"creator": "Simon Kornblith",
 	"target": "rdf",
 	"minVersion": "2.0",
-	"maxVersion": null,
+	"maxVersion": "",
 	"priority": 50,
-	"inRepository": true,
-	"browserSupport": "gcsibv",
 	"configOptions": {
 		"getCollections": "true",
 		"dataMode": "rdf/xml"
@@ -16,7 +13,10 @@
 	"displayOptions": {
 		"exportNotes": true
 	},
-	"lastUpdated": "2019-09-09 05:25:00"
+	"inRepository": true,
+	"translatorType": 3,
+	"browserSupport": "gcsibv",
+	"lastUpdated": "2019-09-01 13:38:00"
 }
 
 var n = {

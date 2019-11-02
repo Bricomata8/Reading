@@ -1,15 +1,15 @@
 {
 	"translatorID": "f46cc903-c447-47d6-a2cf-c75ed22dc96b",
-	"translatorType": 4,
 	"label": "Cairn.info",
 	"creator": "Sebastian Karcher, Sylvain Machefert and Nicolas Chachereau",
 	"target": "^https?://www\\.cairn\\.info/",
 	"minVersion": "3.0",
-	"maxVersion": null,
+	"maxVersion": "",
 	"priority": 100,
 	"inRepository": true,
+	"translatorType": 4,
 	"browserSupport": "gcsibv",
-	"lastUpdated": "2018-10-09 03:15:00"
+	"lastUpdated": "2018-03-17 13:48:44"
 }
 
 /*

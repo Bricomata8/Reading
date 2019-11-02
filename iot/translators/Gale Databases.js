@@ -1,15 +1,15 @@
 {
 	"translatorID": "e3748cf3-36dc-4816-bf86-95a0b63feb03",
-	"translatorType": 4,
 	"label": "Gale Databases",
 	"creator": "Sebastian Karcher",
 	"target": "^https?://go\\.galegroup\\.com/",
 	"minVersion": "3.0",
-	"maxVersion": null,
+	"maxVersion": "",
 	"priority": 100,
 	"inRepository": true,
+	"translatorType": 4,
 	"browserSupport": "gcsibv",
-	"lastUpdated": "2018-10-08 18:05:00"
+	"lastUpdated": "2018-10-07 15:50:14"
 }
 
 /*

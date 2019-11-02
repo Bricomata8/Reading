@@ -1,15 +1,15 @@
 {
 	"translatorID": "e570f517-83f2-4735-97d2-44499aee0b21",
-	"translatorType": 4,
 	"label": "Eurogamer/USgamer",
 	"creator": "czar",
 	"target": "^https?://(www\\.)?(eurogamer|usgamer)\\.(net|cz|de|es|it|nl|pl|pt)",
 	"minVersion": "3.0",
-	"maxVersion": null,
+	"maxVersion": "",
 	"priority": 100,
 	"inRepository": true,
+	"translatorType": 4,
 	"browserSupport": "gcsibv",
-	"lastUpdated": "2018-08-09 00:45:00"
+	"lastUpdated": "2018-07-14 19:42:21"
 }
 
 /*

@@ -1,15 +1,15 @@
 {
 	"translatorID": "e8544423-1515-4daf-bb5d-3202bf422b58",
-	"translatorType": 4,
 	"label": "beck-online",
 	"creator": "Philipp Zumstein",
 	"target": "^https?://beck-online\\.beck\\.de/",
 	"minVersion": "3.0",
-	"maxVersion": null,
+	"maxVersion": "",
 	"priority": 100,
 	"inRepository": true,
+	"translatorType": 4,
 	"browserSupport": "gcs",
-	"lastUpdated": "2019-06-10 00:10:00"
+	"lastUpdated": "2019-06-03 15:12:35"
 }
 
 /*

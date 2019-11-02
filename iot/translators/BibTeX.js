@@ -1,13 +1,11 @@
 {
 	"translatorID": "9cb70025-a888-4a29-a210-93ec52da40d4",
-	"translatorType": 3,
 	"label": "BibTeX",
 	"creator": "Simon Kornblith, Richard Karnesky and Emiliano heyns",
 	"target": "bib",
 	"minVersion": "2.1.9",
-	"maxVersion": null,
+	"maxVersion": "",
 	"priority": 200,
-	"inRepository": true,
 	"configOptions": {
 		"async": true,
 		"getCollections": true
@@ -18,7 +16,9 @@
 		"exportFileData": false,
 		"useJournalAbbreviation": false
 	},
-	"lastUpdated": "2019-10-07 20:55:00"
+	"inRepository": true,
+	"translatorType": 3,
+	"lastUpdated": "2019-09-17 15:09:07"
 }
 
 /*

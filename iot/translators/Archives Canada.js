@@ -1,16 +1,17 @@
 {
 	"translatorID": "18bc329c-51af-497e-a7cf-aa572fae363d",
-	"translatorType": 4,
 	"label": "Archives Canada",
 	"creator": "Adam Crymble",
 	"target": "^https?://(www\\.)?archivescanada\\.ca",
 	"minVersion": "3.0",
-	"maxVersion": null,
+	"maxVersion": "",
 	"priority": 100,
 	"inRepository": true,
+	"translatorType": 4,
 	"browserSupport": "gcsb",
-	"lastUpdated": "2019-06-18 02:25:00"
+	"lastUpdated": "2019-06-13 23:00:25"
 }
+
 
 /*
 	***** BEGIN LICENSE BLOCK *****

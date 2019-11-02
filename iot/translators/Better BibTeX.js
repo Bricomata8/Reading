@@ -11,7 +11,7 @@
 	"configOptions": {
 		"async": true,
 		"getCollections": true,
-		"hash": "ff578efd229ebb667eff73a3ab7b3cb3-c6b5ca1e63ade5dddd83f9bc4fe899cb"
+		"hash": "ff578efd229ebb667eff73a3ab7b3cb3-549bedda1ab220179068df77a45c081d"
 	},
 	"displayOptions": {
 		"exportNotes": false,
@@ -20,7 +20,7 @@
 		"keepUpdated": false
 	},
 	"browserSupport": "gcsv",
-	"lastUpdated": "2019-10-27 20:31:52"
+	"lastUpdated": "2019-10-29 18:10:12"
 }
 
 var Translator = {
@@ -10707,7 +10707,7 @@ class ZoteroItem {
     $address(value) { return this.set('place', value); }
     $location(value) {
         if (this.type === 'conferencePaper') {
-            this.hackyFields.push(`event-place: ${value}`);
+            this.hackyFields.push(`event-place: ${value.replace(/\n+/g, '')}`);
             return true;
         }
         return this.$address(value);
@@ -10909,12 +10909,7 @@ class ZoteroItem {
     $review(value) { return this.$annotation(value); }
     $notes(value) { return this.$annotation(value); }
     $note(value) {
-        if (value.includes('<')) {
-            this.item.notes.push(Zotero.Utilities.text2html(value, false));
-        }
-        else {
-            this.addToExtra(value);
-        }
+        this.item.notes.push(Zotero.Utilities.text2html(value, false));
         return true;
     }
     $series(value) { return this.set('series', value); }
@@ -11023,7 +11018,12 @@ class ZoteroItem {
                         this.hackyFields.push(`ISSN: ${value}`);
                         break;
                     default:
-                        this.hackyFields.push(`tex.${field.toLowerCase()}: ${value}`);
+                        if (value.indexOf('\n') >= 0) {
+                            this.item.notes.push(`<p><b>${Zotero.Utilities.text2html(field, false)}</b></p>${Zotero.Utilities.text2html(value, false)}`);
+                        }
+                        else {
+                            this.hackyFields.push(`tex.${field.toLowerCase()}: ${value}`);
+                        }
                         break;
                 }
             }
@@ -11057,21 +11057,22 @@ class ZoteroItem {
         }
         if (this.hackyFields.length > 0) {
             this.hackyFields.sort();
-            this.item.extra = this.hackyFields.concat(this.item.extra || '').join('\n').trim();
+            this.item.extra = this.hackyFields.map(line => line.replace(/\n+/g, ' ')).concat(this.item.extra || '').join('\n').trim();
         }
         if (!this.item.publisher && this.item.backupPublisher) {
             this.item.publisher = this.item.backupPublisher;
             delete this.item.backupPublisher;
         }
     }
-    addToExtra(str) {
-        if (this.item.extra && this.item.extra !== '') {
-            this.item.extra += `\n${str}`;
-        }
-        else {
-            this.item.extra = str;
-        }
+    /*
+    private addToExtra(str) {
+      if (this.item.extra && this.item.extra !== '') {
+        this.item.extra += `\n${str}`
+      } else {
+        this.item.extra = str
+      }
     }
+    */
     set(field, value) {
         if (!this.validFields.get(field))
             return false;

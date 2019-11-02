@@ -1,15 +1,15 @@
 {
 	"translatorID": "caa8f42c-9dbf-446e-963b-6ee18e3133d2",
-	"translatorType": 4,
 	"label": "Sveriges radio",
 	"creator": "Sebastian Berlin",
 	"target": "^https?://sverigesradio\\.se/(sida/artikel\\.aspx|sok\\?)",
 	"minVersion": "3.0",
-	"maxVersion": null,
+	"maxVersion": "",
 	"priority": 100,
 	"inRepository": true,
+	"translatorType": 4,
 	"browserSupport": "gcsibv",
-	"lastUpdated": "2019-01-31 13:25:00"
+	"lastUpdated": "2019-01-15 13:24:45"
 }
 
 /*

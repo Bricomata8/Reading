@@ -1,15 +1,15 @@
 {
 	"translatorID": "f4130157-93f7-4493-8f24-a7c85549013d",
-	"translatorType": 4,
 	"label": "BBC",
 	"creator": "Philipp Zumstein",
 	"target": "^https?://(www|news?)\\.bbc\\.(co\\.uk|com)",
 	"minVersion": "3.0",
-	"maxVersion": null,
+	"maxVersion": "",
 	"priority": 100,
 	"inRepository": true,
+	"translatorType": 4,
 	"browserSupport": "gcsibv",
-	"lastUpdated": "2019-07-17 18:30:00"
+	"lastUpdated": "2019-06-10 21:51:43"
 }
 
 /*

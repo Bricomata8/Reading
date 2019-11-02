@@ -1,17 +1,17 @@
 {
 	"translatorID": "efd737c9-a227-4113-866e-d57fbc0684ca",
-	"translatorType": 1,
 	"label": "Primo Normalized XML",
 	"creator": "Philipp Zumstein",
 	"target": "xml",
 	"minVersion": "3.0",
-	"maxVersion": null,
+	"maxVersion": "",
 	"priority": 100,
-	"inRepository": true,
 	"configOptions": {
 		"dataMode": "xml/dom"
 	},
-	"lastUpdated": "2019-06-10 13:35:00"
+	"inRepository": true,
+	"translatorType": 1,
+	"lastUpdated": "2019-06-10 08:28:21"
 }
 
 /*

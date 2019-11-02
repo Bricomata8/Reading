@@ -1,18 +1,18 @@
 {
 	"translatorID": "e7243cef-a709-4a46-ba46-1b1318051bec",
-	"translatorType": 1,
 	"label": "Citavi 5 XML",
 	"creator": "Philipp Zumstein",
 	"target": "xml",
 	"minVersion": "3.0",
-	"maxVersion": null,
+	"maxVersion": "",
 	"priority": 100,
-	"inRepository": true,
-	"browserSupport": "gcsi",
 	"configOptions": {
 		"dataMode": "xml/dom"
 	},
-	"lastUpdated": "2018-08-26 11:50:00"
+	"inRepository": true,
+	"translatorType": 1,
+	"browserSupport": "gcsi",
+	"lastUpdated": "2018-08-26 10:46:17"
 }
 
 /*

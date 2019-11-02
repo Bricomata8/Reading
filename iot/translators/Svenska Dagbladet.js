@@ -1,15 +1,15 @@
 {
 	"translatorID": "7adba17c-7e98-4a13-8325-e19383b09eab",
-	"translatorType": 4,
 	"label": "Svenska Dagbladet",
 	"creator": "Sebastian Berlin",
 	"target": "^https://www\\.svd\\.se/",
 	"minVersion": "3.0",
-	"maxVersion": null,
+	"maxVersion": "",
 	"priority": 100,
 	"inRepository": true,
+	"translatorType": 4,
 	"browserSupport": "gcsibv",
-	"lastUpdated": "2018-09-06 01:00:00"
+	"lastUpdated": "2018-08-31 11:59:13"
 }
 
 /*

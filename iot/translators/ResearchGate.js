@@ -1,15 +1,15 @@
 {
 	"translatorID": "89ae6297-c0c4-45f7-943d-5174cf06339c",
-	"translatorType": 4,
 	"label": "ResearchGate",
 	"creator": "Philipp Zumstein",
 	"target": "^https?://www\\.researchgate\\.net/",
 	"minVersion": "3.0",
-	"maxVersion": null,
+	"maxVersion": "",
 	"priority": 100,
 	"inRepository": true,
+	"translatorType": 4,
 	"browserSupport": "gcsibv",
-	"lastUpdated": "2019-04-05 00:20:00"
+	"lastUpdated": "2019-03-30 15:18:21"
 }
 
 /*

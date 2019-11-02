@@ -1,15 +1,15 @@
 {
 	"translatorID": "c59896bc-4beb-43ed-8109-a73a13251828",
-	"translatorType": 4,
 	"label": "Eastview",
 	"creator": "Sebastian Karcher",
 	"target": "^https?://dlib\\.eastview\\.com/(search/(advanced|simple)/|browse/(doc|favorites|issue))",
 	"minVersion": "3.0",
-	"maxVersion": null,
+	"maxVersion": "",
 	"priority": 100,
 	"inRepository": true,
+	"translatorType": 4,
 	"browserSupport": "gcsibv",
-	"lastUpdated": "2018-09-04 00:55:00"
+	"lastUpdated": "2018-09-02 23:10:00"
 }
 
 /*

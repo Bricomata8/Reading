@@ -1,15 +1,15 @@
 {
 	"translatorID": "96b9f483-c44d-5784-cdad-ce21b984fe01",
-	"translatorType": 4,
 	"label": "Amazon",
 	"creator": "Sean Takats, Michael Berkowitz, and Simon Kornblith",
 	"target": "^https?://((www\\.)|(smile\\.))?amazon",
 	"minVersion": "3.0",
-	"maxVersion": null,
+	"maxVersion": "",
 	"priority": 100,
 	"inRepository": true,
+	"translatorType": 4,
 	"browserSupport": "gcsbv",
-	"lastUpdated": "2019-09-01 10:45:00"
+	"lastUpdated": "2019-08-11 10:33:35"
 }
 
 // attr()/text() v2

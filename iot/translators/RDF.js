@@ -1,18 +1,18 @@
 {
 	"translatorID": "5e3ad958-ac79-463d-812b-a86a9235c28f",
-	"translatorType": 1,
 	"label": "RDF",
 	"creator": "Simon Kornblith",
 	"target": "rdf",
 	"minVersion": "2.1.9",
-	"maxVersion": null,
+	"maxVersion": "",
 	"priority": 100,
-	"inRepository": true,
 	"configOptions": {
 		"async": true,
 		"dataMode": "rdf/xml"
 	},
-	"lastUpdated": "2019-09-08 13:45:00"
+	"inRepository": true,
+	"translatorType": 1,
+	"lastUpdated": "2019-09-08 11:33:52"
 }
 
 /*

@@ -1,15 +1,15 @@
 {
 	"translatorID": "5f1c4a3b-b7cf-4170-a896-e4d82c0621c9",
-	"translatorType": 4,
 	"label": "Google AI",
 	"creator": "Guy Aglionby",
 	"target": "^https://ai\\.google/research/(pubs|people)",
 	"minVersion": "3.0",
-	"maxVersion": null,
+	"maxVersion": "",
 	"priority": 100,
 	"inRepository": true,
+	"translatorType": 4,
 	"browserSupport": "gcsibv",
-	"lastUpdated": "2018-09-28 15:55:00"
+	"lastUpdated": "2018-09-28 12:10:45"
 }
 
 /*

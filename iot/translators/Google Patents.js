@@ -1,15 +1,15 @@
 {
 	"translatorID": "d71e9b6d-2baa-44ed-acb4-13fe2fe592c0",
-	"translatorType": 4,
 	"label": "Google Patents",
 	"creator": "Philipp Zumstein",
 	"target": "^https?://(www\\.)?patents\\.google\\.com/",
 	"minVersion": "4.0",
-	"maxVersion": null,
+	"maxVersion": "",
 	"priority": 100,
 	"inRepository": true,
+	"translatorType": 4,
 	"browserSupport": "gcsibv",
-	"lastUpdated": "2018-05-13 08:40:00"
+	"lastUpdated": "2018-05-13 08:27:02"
 }
 
 /*
@@ -137,7 +137,7 @@ function microdataValue(propertyNode, firstCall) {
 		}
 		return innerJson;
 	}
-	switch(propertyNode.tagName.toLowerCase()) {
+	switch (propertyNode.tagName.toLowerCase()) {
 		case "meta":
 			return propertyNode.getAttribute("content");
 			break;
@@ -234,7 +234,7 @@ function scrapeJson(json, url, doc) {
 		//Relative links don't resolve correctly in all cases. Let's make sure we're getting this all from 
 		//the right place on the google API
 		if (!pdfurl.includes("https://")) {
-			pdfurl = "https://patentimages.storage.googleapis.com" + pdfurl;
+			pdfurl = "https://patentimages.storage.googleapis.com/" + pdfurl;
 		}
 		//Z.debug(pdfurl);
 		item.attachments.push({

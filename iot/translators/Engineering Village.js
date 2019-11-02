@@ -1,15 +1,15 @@
 {
 	"translatorID": "1f40baef-eece-43e4-a1cc-27d20c0ce086",
-	"translatorType": 4,
 	"label": "Engineering Village",
 	"creator": "Ben Parr, Sebastian Karcher",
 	"target": "^https?://(www\\.)?engineeringvillage(2)?\\.(com|org)",
 	"minVersion": "3.0",
-	"maxVersion": null,
+	"maxVersion": "",
 	"priority": 100,
 	"inRepository": true,
+	"translatorType": 4,
 	"browserSupport": "gcsibv",
-	"lastUpdated": "2018-10-08 01:25:00"
+	"lastUpdated": "2018-10-07 10:02:04"
 }
 
 /*

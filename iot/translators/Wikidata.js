@@ -1,15 +1,15 @@
 {
 	"translatorID": "eaef8d43-2f17-45b3-a5cb-affb49bc5e81",
-	"translatorType": 4,
 	"label": "Wikidata",
 	"creator": "Philipp Zumstein",
 	"target": "^https?://(www\\.)?wikidata\\.org/wiki/Q",
 	"minVersion": "3.0",
-	"maxVersion": null,
+	"maxVersion": "",
 	"priority": 100,
 	"inRepository": true,
+	"translatorType": 4,
 	"browserSupport": "gcsibv",
-	"lastUpdated": "2018-12-14 18:05:00"
+	"lastUpdated": "2018-12-13 10:42:07"
 }
 
 /*
@@ -119,7 +119,7 @@ var creatorMapping = {
 	'wdt:P57': 'director',
 	'wdt:P58': 'scriptwriter',
 	'wdt:P162': 'producer'
-}
+};
 
 
 var namespaces = {
@@ -232,7 +232,7 @@ function scrape(doc, url) {
 			item.creators.push(ZU.cleanAuthor(aut[0], aut[1]));
 		}
 		//in Zotero we cannot allow multiple DOIs
-		if (item.DOI && item.DOI.indexOf(', ')>-1) {
+		if (item.DOI && item.DOI.includes(', ')) {
 			item.DOI = ZU.xpathText(xml, '(//rdf:Description[wikibase:rank[contains(@rdf:resource, "#PreferredRank")]]/ps:P356)[1]', namespaces)
 				|| ZU.xpathText(xml, '(//rdf:Description[wikibase:rank[contains(@rdf:resource, "#NormalRank")]]/ps:P356)[1]', namespaces)
 				|| ZU.xpathText(xml, '(//rdf:Description[wikibase:rank[contains(@rdf:resource, "#DeprecatedRank")]]/ps:P356)[1]', namespaces);
@@ -649,5 +649,5 @@ var testCases = [
 			}
 		]
 	}
-]
+];
 /** END TEST CASES **/

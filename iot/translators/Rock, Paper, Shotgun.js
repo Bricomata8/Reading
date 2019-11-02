@@ -1,15 +1,15 @@
 {
 	"translatorID": "5a5b1fcd-8491-4c56-84a7-5dba19fe2c02",
-	"translatorType": 4,
 	"label": "Rock, Paper, Shotgun",
 	"creator": "czar",
 	"target": "^https?://(www\\.)?rockpapershotgun\\.(com|de)",
 	"minVersion": "3.0",
-	"maxVersion": null,
+	"maxVersion": "",
 	"priority": 100,
 	"inRepository": true,
+	"translatorType": 4,
 	"browserSupport": "gcsibv",
-	"lastUpdated": "2018-08-20 00:20:00"
+	"lastUpdated": "2018-07-21 01:56:54"
 }
 
 /*

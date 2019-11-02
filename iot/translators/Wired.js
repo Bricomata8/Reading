@@ -1,15 +1,15 @@
 {
 	"translatorID": "f054a3d9-d705-4d2e-a96a-258508bebba3",
-	"translatorType": 4,
 	"label": "Wired",
 	"creator": "czar",
 	"target": "^https?://(www\\.)?wired\\.(com|co\\.uk)",
 	"minVersion": "3.0",
-	"maxVersion": null,
+	"maxVersion": "",
 	"priority": 100,
 	"inRepository": true,
+	"translatorType": 4,
 	"browserSupport": "gcsibv",
-	"lastUpdated": "2018-08-11 21:25:00"
+	"lastUpdated": "2018-08-11 14:19:06"
 }
 
 /*
@@ -110,21 +110,21 @@ function getSearchResults(doc, checkOnly) {
 
 function doWeb(doc, url) {
 	switch (detectWeb(doc, url)) {
-		case "multiple":
-			Zotero.selectItems(getSearchResults(doc, false), function (items) {
-				if (!items) {
-					return true;
-				}
-				var articles = [];
-				for (var i in items) {
-					articles.push(i);
-				}
-				ZU.processDocuments(articles, scrape);
-			});
-			break;
-		case "magazineArticle":
-			scrape(doc, url);
-			break;
+	case "multiple":
+		Zotero.selectItems(getSearchResults(doc, false), function (items) {
+			if (!items) {
+				return true;
+			}
+			var articles = [];
+			for (var i in items) {
+				articles.push(i);
+			}
+			ZU.processDocuments(articles, scrape);
+		});
+		break;
+	case "magazineArticle":
+		scrape(doc, url);
+		break;
 	}
 }
 /** BEGIN TEST CASES **/
@@ -296,5 +296,5 @@ var testCases = [
 		"url": "https://www.wired.co.uk/search?q=kickstarter",
 		"items": "multiple"
 	}
-]
+];
 /** END TEST CASES **/

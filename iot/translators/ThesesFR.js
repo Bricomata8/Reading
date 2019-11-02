@@ -1,15 +1,15 @@
 {
 	"translatorID": "3f73f0aa-f91c-4192-b0d5-907312876cb9",
-	"translatorType": 4,
 	"label": "ThesesFR",
 	"creator": "TFU",
 	"target": "^https?://(www\\.)?theses\\.fr/.",
 	"minVersion": "3.0",
-	"maxVersion": null,
+	"maxVersion": "",
 	"priority": 100,
 	"inRepository": true,
+	"translatorType": 4,
 	"browserSupport": "gcsibv",
-	"lastUpdated": "2019-06-16 07:00:00"
+	"lastUpdated": "2019-06-10 22:54:53"
 }
 
 /*

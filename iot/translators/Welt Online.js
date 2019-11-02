@@ -1,15 +1,15 @@
 {
 	"translatorID": "f61beec2-1431-4218-a9d3-68063ede6ecd",
-	"translatorType": 4,
 	"label": "Welt Online",
 	"creator": "Martin Meyerhoff, Philipp Zumstein",
 	"target": "^https?://www\\.welt\\.de",
 	"minVersion": "3.0",
-	"maxVersion": null,
+	"maxVersion": "",
 	"priority": 100,
 	"inRepository": true,
+	"translatorType": 4,
 	"browserSupport": "gcsibv",
-	"lastUpdated": "2019-07-07 09:40:00"
+	"lastUpdated": "2019-06-11 13:27:17"
 }
 
 /*

@@ -1,15 +1,15 @@
 {
 	"translatorID": "b7c665ba-173c-4dea-b28e-e866580002a2",
-	"translatorType": 4,
 	"label": "ZoteroBib",
 	"creator": "Dan Stillman",
 	"target": "^https://zbib\\.org/",
 	"minVersion": "4.0",
-	"maxVersion": null,
+	"maxVersion": "",
 	"priority": 100,
 	"inRepository": true,
+	"translatorType": 4,
 	"browserSupport": "gcsibv",
-	"lastUpdated": "2018-05-14 19:00:00"
+	"lastUpdated": "2018-05-14 08:38:18"
 }
 
 /*

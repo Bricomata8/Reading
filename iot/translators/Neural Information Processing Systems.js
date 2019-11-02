@@ -1,15 +1,15 @@
 {
 	"translatorID": "c816f8ad-4c73-4f6d-914e-a6e7212746cf",
-	"translatorType": 4,
 	"label": "Neural Information Processing Systems",
 	"creator": "Fei Qi, Sebastian Karcher, Guy Aglionby",
 	"target": "^https?://papers\\.nips\\.cc/",
 	"minVersion": "3.0",
-	"maxVersion": null,
+	"maxVersion": "",
 	"priority": 100,
 	"inRepository": true,
+	"translatorType": 4,
 	"browserSupport": "gcsibv",
-	"lastUpdated": "2018-09-28 16:25:00"
+	"lastUpdated": "2018-09-17 14:30:14"
 }
 
 function detectWeb(doc, url) {

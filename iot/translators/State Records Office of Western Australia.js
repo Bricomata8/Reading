@@ -1,15 +1,15 @@
 {
 	"translatorID": "2b62db1e-1d49-4e2b-a409-a3f9f1870a41",
-	"translatorType": 4,
 	"label": "State Records Office of Western Australia",
 	"creator": "Mike O'Connor",
 	"target": "^https://archive\\.sro\\.wa\\.gov\\.au/",
 	"minVersion": "3.0",
-	"maxVersion": null,
+	"maxVersion": "",
 	"priority": 100,
 	"inRepository": true,
+	"translatorType": 4,
 	"browserSupport": "gcsibv",
-	"lastUpdated": "2018-10-11 18:20:00"
+	"lastUpdated": "2018-10-09 15:42:45"
 }
 
 /*

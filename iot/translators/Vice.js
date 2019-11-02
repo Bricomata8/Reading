@@ -1,15 +1,15 @@
 {
 	"translatorID": "131310dc-854c-4629-acad-521319ab9f19",
-	"translatorType": 4,
 	"label": "Vice",
 	"creator": "czar",
 	"target": "^https?://(.+?\\.)?vice\\.com",
 	"minVersion": "3.0",
-	"maxVersion": null,
+	"maxVersion": "",
 	"priority": 100,
 	"inRepository": true,
+	"translatorType": 4,
 	"browserSupport": "gcsibv",
-	"lastUpdated": "2019-06-14 10:05:00"
+	"lastUpdated": "2019-06-13 19:09:19"
 }
 
 /*

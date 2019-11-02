@@ -1,15 +1,15 @@
 {
 	"translatorID": "31659710-d04e-45d0-84ba-8e3f5afc4a54",
-	"translatorType": 4,
 	"label": "Twitter",
 	"creator": "Avram Lyon, Philipp Zumstein",
 	"target": "^https?://([^/]+\\.)?twitter\\.com/",
 	"minVersion": "4.0",
-	"maxVersion": null,
+	"maxVersion": "",
 	"priority": 100,
 	"inRepository": true,
+	"translatorType": 4,
 	"browserSupport": "gcsibv",
-	"lastUpdated": "2018-05-12 06:45:00"
+	"lastUpdated": "2018-05-11 23:28:19"
 }
 
 /*
@@ -32,7 +32,7 @@
 
 
 function detectWeb(doc, url) {
-	if(doc.getElementById('page-container')) {
+	if (doc.getElementById('page-container')) {
 		Z.monitorDOMChanges(doc.getElementById('page-container'), {childList: true});
 	}
 	if (ZU.xpathText(doc, '//div[contains(@class,"permalink-tweet-container")]')) {

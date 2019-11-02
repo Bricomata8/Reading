@@ -1,15 +1,15 @@
 {
 	"translatorID": "cdf8269c-86b9-4039-9bc4-9d998c67740e",
-	"translatorType": 4,
 	"label": "Verniana-Jules Verne Studies",
 	"creator": "Aurimas Vinckevicius, Emiliano Heyns",
 	"target": "^https?://[^/]*verniana\\.org(:\\d+)?/volumes/\\d+/",
 	"minVersion": "2.1.9",
-	"maxVersion": null,
+	"maxVersion": "",
 	"priority": 100,
 	"inRepository": true,
+	"translatorType": 4,
 	"browserSupport": "gcsibv",
-	"lastUpdated": "2019-07-20 16:25:00"
+	"lastUpdated": "2019-06-17 13:39:01"
 }
 
 /**

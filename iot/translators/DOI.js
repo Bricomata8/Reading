@@ -1,16 +1,17 @@
 {
 	"translatorID": "c159dcfe-8a53-4301-a499-30f6549c340d",
-	"translatorType": 4,
 	"label": "DOI",
 	"creator": "Simon Kornblith",
-	"target": null,
+	"target": "",
 	"minVersion": "3.0",
-	"maxVersion": null,
+	"maxVersion": "",
 	"priority": 400,
 	"inRepository": true,
+	"translatorType": 4,
 	"browserSupport": "gcsibv",
-	"lastUpdated": "2019-04-07 02:15:00"
+	"lastUpdated": "2019-01-27 14:06:07"
 }
+
 
 /*
 	***** BEGIN LICENSE BLOCK *****

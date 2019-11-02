@@ -1,15 +1,15 @@
 {
 	"translatorID": "e40a27bc-0eef-4c50-b78b-37274808d7d2",
-	"translatorType": 4,
 	"label": "J-Stage",
 	"creator": "Sebastian Karcher",
 	"target": "^https?://www\\.jstage\\.jst\\.go\\.jp/",
 	"minVersion": "3.0",
-	"maxVersion": null,
+	"maxVersion": "",
 	"priority": 100,
 	"inRepository": true,
+	"translatorType": 4,
 	"browserSupport": "gcsibv",
-	"lastUpdated": "2019-06-17 00:20:00"
+	"lastUpdated": "2019-06-15 19:04:11"
 }
 
 /*

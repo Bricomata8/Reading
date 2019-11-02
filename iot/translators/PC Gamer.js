@@ -1,15 +1,15 @@
 {
 	"translatorID": "274284a8-fc91-4f54-be77-bfcb7f9c3d6f",
-	"translatorType": 4,
 	"label": "PC Gamer",
 	"creator": "czar",
 	"target": "^https?://(www\\.)?pcgamer\\.com",
 	"minVersion": "3.0",
-	"maxVersion": null,
+	"maxVersion": "",
 	"priority": 100,
 	"inRepository": true,
+	"translatorType": 4,
 	"browserSupport": "gcsibv",
-	"lastUpdated": "2018-07-19 02:50:00"
+	"lastUpdated": "2018-07-07 03:30:20"
 }
 
 /*

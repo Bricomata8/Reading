@@ -1,15 +1,15 @@
 {
 	"translatorID": "c7830593-807e-48cb-99f2-c3bed2b148c2",
-	"translatorType": 4,
 	"label": "New Zealand Herald",
 	"creator": "Philipp Zumstein",
 	"target": "^https?://www\\.nzherald\\.co\\.nz",
 	"minVersion": "3.0",
-	"maxVersion": null,
+	"maxVersion": "",
 	"priority": 100,
 	"inRepository": true,
+	"translatorType": 4,
 	"browserSupport": "gcsibv",
-	"lastUpdated": "2019-06-18 02:20:00"
+	"lastUpdated": "2019-06-13 22:55:12"
 }
 
 /*

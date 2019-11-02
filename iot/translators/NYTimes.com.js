@@ -1,15 +1,15 @@
 {
 	"translatorID": "ce7a3727-d184-407f-ac12-52837f3361ff",
-	"translatorType": 4,
 	"label": "NYTimes.com",
 	"creator": "Philipp Zumstein",
 	"target": "^https?://(query\\.nytimes\\.com/(search|gst)/|(select\\.|www\\.|mobile\\.|[^\\/.]*\\.blogs\\.)?nytimes\\.com/)",
 	"minVersion": "3.0",
-	"maxVersion": null,
+	"maxVersion": "",
 	"priority": 100,
 	"inRepository": true,
+	"translatorType": 4,
 	"browserSupport": "gcsibv",
-	"lastUpdated": "2019-06-15 17:40:00"
+	"lastUpdated": "2019-06-15 16:21:59"
 }
 
 /*

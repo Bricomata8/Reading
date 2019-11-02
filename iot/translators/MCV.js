@@ -1,15 +1,15 @@
 {
 	"translatorID": "b51ac026-ed35-4c68-89bb-b42b1e1ce8f2",
-	"translatorType": 4,
 	"label": "MCV",
 	"creator": "czar",
 	"target": "^https?://(www\\.)?mcvuk\\.com",
 	"minVersion": "3.0",
-	"maxVersion": null,
+	"maxVersion": "",
 	"priority": 100,
 	"inRepository": true,
+	"translatorType": 4,
 	"browserSupport": "gcsibv",
-	"lastUpdated": "2018-07-08 18:20:00"
+	"lastUpdated": "2018-07-08 13:11:39"
 }
 
 /*

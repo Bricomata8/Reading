@@ -1,18 +1,18 @@
 {
 	"translatorID": "25f4c5e2-d790-4daa-a667-797619c7e2f2",
-	"translatorType": 2,
 	"label": "CSV",
 	"creator": "Philipp Zumstein and Aurimas Vinckevicius",
 	"target": "csv",
 	"minVersion": "3.0",
-	"maxVersion": null,
+	"maxVersion": "",
 	"priority": 100,
-	"inRepository": true,
 	"displayOptions": {
 		"exportCharset": "UTF-8xBOM",
 		"exportNotes": false
 	},
-	"lastUpdated": "2018-08-10 06:45:00"
+	"inRepository": true,
+	"translatorType": 2,
+	"lastUpdated": "2018-08-10 06:37:30"
 }
 
 /*
@@ -101,7 +101,7 @@ function doExport() {
 	writeColumnHeaders();
 	var item, line;
 	while (item = Zotero.nextItem()) {
-		if(item.itemType == "note" || item.itemType == "attachment") continue;
+		if (item.itemType == "note" || item.itemType == "attachment") continue;
 		line = '';
 		for (var i=0; i<exportedFields.length; i++) {
 			line += (i ? fieldDelimiter : recordDelimiter)

@@ -1,15 +1,15 @@
 {
 	"translatorID": "f3f092bf-ae09-4be6-8855-a22ddd817925",
-	"translatorType": 4,
 	"label": "ACM Digital Library",
 	"creator": "Simon Kornblith, Michael Berkowitz, John McCaffery, and Sebastian Karcher",
 	"target": "^https?://([^/]+\\.)?dl\\.acm\\.org/(results|citation|author_page|ccs/ccs)\\.cfm",
 	"minVersion": "3.0",
-	"maxVersion": null,
+	"maxVersion": "",
 	"priority": 100,
 	"inRepository": true,
+	"translatorType": 4,
 	"browserSupport": "gcsibv",
-	"lastUpdated": "2019-10-03 09:55:00"
+	"lastUpdated": "2019-10-03 09:45:46"
 }
 
 /*

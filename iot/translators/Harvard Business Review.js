@@ -1,15 +1,15 @@
 {
 	"translatorID": "afcd2650-9bdb-4489-b279-ec2274a24962",
-	"translatorType": 4,
 	"label": "Harvard Business Review",
 	"creator": "Philipp Zumstein",
 	"target": "^https?://(www\\.)?hbr\\.org/",
 	"minVersion": "3.0",
-	"maxVersion": null,
+	"maxVersion": "",
 	"priority": 100,
 	"inRepository": true,
+	"translatorType": 4,
 	"browserSupport": "gcsibv",
-	"lastUpdated": "2018-10-11 18:10:00"
+	"lastUpdated": "2018-10-11 17:02:23"
 }
 
 /*

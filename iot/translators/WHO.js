@@ -1,15 +1,15 @@
 {
 	"translatorID": "cd587058-6125-4b33-a876-8c6aae48b5e8",
-	"translatorType": 4,
 	"label": "WHO",
 	"creator": "Mario Trojan, Philipp Zumstein",
 	"target": "^http://apps\\.who\\.int/iris/",
 	"minVersion": "3.0",
-	"maxVersion": null,
+	"maxVersion": "",
 	"priority": 100,
 	"inRepository": true,
+	"translatorType": 4,
 	"browserSupport": "gcsibv",
-	"lastUpdated": "2018-09-02 17:15:00"
+	"lastUpdated": "2018-09-02 14:34:27"
 }
 
 /*
@@ -367,5 +367,5 @@ var testCases = [
 		"url": "http://apps.who.int/iris/discover?query=acupuncture",
 		"items": "multiple"
 	}
-]
+];
 /** END TEST CASES **/

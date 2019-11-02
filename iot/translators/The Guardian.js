@@ -1,15 +1,15 @@
 {
 	"translatorID": "8e11559d-60f0-4a7f-bb91-99ac0c5a2d63",
-	"translatorType": 4,
 	"label": "The Guardian",
 	"creator": "Philipp Zumstein",
 	"target": "^https?://(www\\.)?(guardian\\.co\\.uk|theguardian\\.com)",
 	"minVersion": "3.0",
-	"maxVersion": null,
+	"maxVersion": "",
 	"priority": 100,
 	"inRepository": true,
+	"translatorType": 4,
 	"browserSupport": "gcsibv",
-	"lastUpdated": "2018-08-11 21:25:00"
+	"lastUpdated": "2018-08-11 14:15:22"
 }
 
 /*
